@@ -747,6 +747,1243 @@ graph TB
 
 Diagram này thể hiện rõ ràng **hierachy của quyền truy cập** (Guest < Employee < Manager < Director) và **separation of concerns** giữa business users và system administration.
 
+
+# CHI TIẾT USE CASES CHO SYSTEM ADMIN
+
+## UC17: 👤 **QUẢN LÝ TÀI KHOẢN VÀ PHÂN QUYỀN NGƯỜI DÙNG**
+
+### 📋 **Mô tả tổng quan**
+System Admin quản lý toàn bộ lifecycle của người dùng và thiết lập phân quyền truy cập tài liệu theo cấp độ bảo mật.
+
+### 🎯 **Mục tiêu**
+- Quản lý tài khoản người dùng (CRUD operations)
+- Phân quyền truy cập theo role-based access control (RBAC)
+- Theo dõi hoạt động của người dùng
+- Đảm bảo compliance và audit trail
+
+### 📝 **Đặc tả chi tiết**
+
+#### **UC17.1 - Quản lý Tài khoản Người dùng**
+
+**Pre-conditions:**
+- Admin đã đăng nhập với quyền system_admin
+- Database connection available
+
+**Main Flow:**
+1. Admin truy cập User Management Dashboard
+2. Hệ thống hiển thị danh sách người dùng với filters:
+   - Theo department (15 phòng ban)
+   - Theo role (Guest, Employee, Manager, Director)
+   - Theo trạng thái (Active, Inactive, Suspended)
+   - Theo ngày tạo/cập nhật cuối
+
+3. **Tạo người dùng mới:**
+   ```json
+   {
+     "username": "nguyen.van.a",
+     "email": "nguyen.van.a@company.com",
+     "full_name": "Nguyễn Văn A",
+     "department": "rd_department",
+     "role": "employee",
+     "access_level": "employee_only",
+     "phone": "+84123456789",
+     "employee_id": "EMP001",
+     "manager_id": "MGR001",
+     "start_date": "2025-09-01",
+     "status": "active"
+   }
+   ```
+
+4. **Cập nhật thông tin người dùng:**
+   - Thay đổi department (khi chuyển bộ phận)
+   - Nâng cấp/hạ cấp role
+   - Cập nhật access_level
+   - Thay đổi trạng thái tài khoản
+
+5. **Deactivate/Suspend tài khoản:**
+   - Soft delete (giữ lại data cho audit)
+   - Revoke tất cả active sessions
+   - Archive user history
+
+**Alternative Flows:**
+- **A1**: Import bulk users từ CSV/Excel file
+- **A2**: Sync từ AD/LDAP system (future integration)
+
+**Post-conditions:**
+- User record được tạo/cập nhật trong database
+- Audit log ghi lại tất cả thay đổi
+- Email notification gửi cho user (nếu applicable)
+
+---
+
+#### **UC17.2 - Phân Quyền Truy Cập (RBAC)**
+
+**Access Control Matrix:**
+
+| Resource Type | Guest | Employee | Manager | Director | System Admin |
+|---------------|--------|----------|---------|-----------|--------------|
+| **Public Documents** | Read | Read | Read | Read | Full Control |
+| **Employee Documents** | ❌ | Read | Read | Read | Full Control |
+| **Manager Documents** | ❌ | ❌ | Read | Read | Full Control |
+| **Director Documents** | ❌ | ❌ | ❌ | Read | Full Control |
+| **System Settings** | ❌ | ❌ | ❌ | ❌ | Full Control |
+
+**Detailed Permission Management:**
+
+```json
+{
+  "role_permissions": {
+    "guest": {
+      "documents": ["public"],
+      "actions": ["read", "search"],
+      "api_endpoints": ["/api/search", "/api/documents/public"],
+      "rate_limit": "100/hour"
+    },
+    "employee": {
+      "documents": ["public", "employee_only"],
+      "actions": ["read", "search", "export"],
+      "api_endpoints": ["/api/search", "/api/documents/employee", "/api/export"],
+      "rate_limit": "500/hour",
+      "department_filter": true
+    },
+    "manager": {
+      "documents": ["public", "employee_only", "manager_only"],
+      "actions": ["read", "search", "export", "approve_requests"],
+      "api_endpoints": ["/api/search", "/api/documents/manager", "/api/approvals"],
+      "rate_limit": "1000/hour",
+      "team_access": true
+    },
+    "director": {
+      "documents": ["all_except_system"],
+      "actions": ["read", "search", "export", "configure_policies"],
+      "api_endpoints": ["/api/search", "/api/documents/all", "/api/policies"],
+      "rate_limit": "unlimited"
+    }
+  }
+}
+```
+
+---
+
+## UC18: 📄 **QUẢN LÝ TÀI LIỆU**
+
+### 📋 **Mô tả tổng quan**
+Quản lý toàn bộ lifecycle của tài liệu từ upload, phân loại, versioning đến archive/delete.
+
+### 🎯 **Mục tiêu**
+- Centralized document management
+- Ensure data quality và consistency
+- Version control và audit trail
+- Efficient search và categorization
+
+### 📝 **Đặc tả chi tiết**
+
+#### **UC18.1 - Document Upload & Processing**
+
+**Bulk Upload Interface:**
+```mermaid
+graph LR
+    A[📁 Select Files] --> B[🏷️ Metadata Form]
+    B --> C[✅ Validation]
+    C --> D[🔄 Processing Queue]
+    D --> E[📊 Progress Monitor]
+    E --> F[✅ Completion Report]
+```
+
+**Metadata Schema:**
+```json
+{
+  "document_metadata": {
+    "basic_info": {
+      "title": "Quy trình Mua hàng v2.1",
+      "description": "Quy trình mua hàng được cập nhật",
+      "document_type": "procedure",
+      "language": "vi-VN",
+      "file_format": "pdf",
+      "file_size": 2048000
+    },
+    "classification": {
+      "access_level": "employee_only",
+      "department_owner": "procurement",
+      "security_classification": "internal",
+      "retention_period": "5_years",
+      "compliance_tags": ["ISO_9001", "company_policy"]
+    },
+    "authorship": {
+      "author": "Nguyễn Văn B",
+      "author_id": "EMP002",
+      "created_date": "2025-08-30",
+      "last_modified": "2025-08-30",
+      "version": "2.1",
+      "approved_by": "manager_001"
+    },
+    "technical": {
+      "chunk_strategy": "semantic_sections",
+      "embedding_model": "multilingual-e5-large",
+      "index_status": "pending",
+      "quality_score": null
+    }
+  }
+}
+```
+
+#### **UC18.2 - Document Categories & Tagging**
+
+**Document Type Taxonomy:**
+```
+📋 Company Documents
+├── 📜 Policies & Procedures
+│   ├── HR Policies
+│   ├── Financial Procedures  
+│   ├── IT Policies
+│   └── Safety Procedures
+├── 🔧 Technical Documentation
+│   ├── Product Specifications
+│   ├── Installation Guides
+│   ├── Maintenance Manuals
+│   └── Troubleshooting Guides
+├── 📊 Reports & Analytics
+│   ├── Monthly Reports
+│   ├── Project Reports
+│   └── Performance Analytics
+└── 📚 Training Materials
+    ├── Onboarding Materials
+    ├── Skill Development
+    └── Compliance Training
+```
+
+**Auto-tagging System:**
+- **Content Analysis**: AI-powered categorization
+- **Keyword Extraction**: Automatic tag suggestions
+- **Department Detection**: Based on content và metadata
+- **Version Detection**: Automatic version identification
+
+#### **UC18.3 - Version Control**
+
+**Version Management:**
+```json
+{
+  "version_control": {
+    "document_id": "doc_001",
+    "versions": [
+      {
+        "version": "1.0",
+        "created": "2025-01-15",
+        "author": "admin",
+        "status": "archived",
+        "changes": "Initial version"
+      },
+      {
+        "version": "2.0",
+        "created": "2025-06-01",
+        "author": "emp_001",
+        "status": "archived", 
+        "changes": "Major update - added new procedures"
+      },
+      {
+        "version": "2.1",
+        "created": "2025-08-30",
+        "author": "emp_002",
+        "status": "current",
+        "changes": "Minor corrections in section 3.2"
+      }
+    ],
+    "approval_workflow": {
+      "required": true,
+      "approver_role": "manager",
+      "status": "approved"
+    }
+  }
+}
+```
+
+---
+
+## UC19: ⚙️ **CẤU HÌNH HỆ THỐNG**
+
+### 📋 **Mô tả tổng quan**
+Quản lý tất cả system parameters, AI models configuration, và business rules.
+
+### 🎯 **Configuration Categories**
+
+#### **UC19.1 - AI & ML Configuration**
+
+**Embedding Models Settings:**
+```json
+{
+  "embedding_config": {
+    "primary_model": {
+      "name": "multilingual-e5-large",
+      "provider": "huggingface",
+      "dimensions": 1024,
+      "max_tokens": 512,
+      "batch_size": 32,
+      "cache_ttl": "24h"
+    },
+    "fallback_models": [
+      {
+        "name": "all-mpnet-base-v2",
+        "provider": "sentence-transformers"
+      }
+    ],
+    "model_comparison": {
+      "test_dataset": "internal_qa_100.json",
+      "metrics": ["hit_rate", "mrr", "response_time"],
+      "benchmark_schedule": "weekly"
+    }
+  }
+}
+```
+
+**LLM Configuration:**
+```json
+{
+  "llm_config": {
+    "primary_llm": {
+      "provider": "openai",
+      "model": "gpt-4-turbo",
+      "max_tokens": 4096,
+      "temperature": 0.3,
+      "timeout": "45s"
+    },
+    "fallback_llm": {
+      "provider": "anthropic", 
+      "model": "claude-3-sonnet"
+    },
+    "cost_control": {
+      "daily_budget": "$100",
+      "per_user_limit": "50_requests/day",
+      "cache_strategy": "aggressive"
+    }
+  }
+}
+```
+
+#### **UC19.2 - Search & Retrieval Settings**
+
+```json
+{
+  "search_config": {
+    "retrieval": {
+      "top_k_documents": 5,
+      "similarity_threshold": 0.75,
+      "hybrid_search_weights": {
+        "semantic": 0.7,
+        "keyword": 0.3
+      },
+      "reranking": {
+        "enabled": true,
+        "model": "cross-encoder/ms-marco"
+      }
+    },
+    "chunking": {
+      "strategy": "recursive_character",
+      "chunk_size": 800,
+      "chunk_overlap": 200,
+      "separators": ["\n\n", "\n", ". ", " "]
+    },
+    "caching": {
+      "query_cache_ttl": "1h",
+      "embedding_cache_ttl": "24h",
+      "max_cache_size": "10GB"
+    }
+  }
+}
+```
+
+#### **UC19.3 - Security & Compliance Settings**
+
+```json
+{
+  "security_config": {
+    "authentication": {
+      "session_timeout": "8h",
+      "max_concurrent_sessions": 3,
+      "password_policy": {
+        "min_length": 8,
+        "require_special_chars": true,
+        "expiry_days": 90
+      }
+    },
+    "data_protection": {
+      "encryption_at_rest": "AES-256",
+      "encryption_in_transit": "TLS-1.3",
+      "key_rotation_days": 30,
+      "pii_detection": true
+    },
+    "audit": {
+      "log_retention_days": 365,
+      "log_level": "INFO",
+      "audit_failed_attempts": true,
+      "notify_security_events": true
+    }
+  }
+}
+```
+
+---
+
+## UC20: 📊 **GIÁM SÁT HIỆU SUẤT VÀ USAGE METRICS**
+
+### 📋 **Monitoring Dashboard**
+
+#### **UC20.1 - System Performance Metrics**
+
+**Real-time Metrics:**
+```json
+{
+  "performance_metrics": {
+    "response_times": {
+      "avg_query_time": "2.3s",
+      "p95_query_time": "5.1s", 
+      "p99_query_time": "8.7s",
+      "target_sla": "<60s"
+    },
+    "throughput": {
+      "queries_per_second": 15,
+      "concurrent_users": 45,
+      "peak_concurrent": 89
+    },
+    "system_resources": {
+      "cpu_usage": "65%",
+      "memory_usage": "78%",
+      "disk_usage": "45%",
+      "gpu_usage": "23%"
+    },
+    "error_rates": {
+      "4xx_errors": "2.1%",
+      "5xx_errors": "0.3%",
+      "timeout_errors": "0.1%"
+    }
+  }
+}
+```
+
+#### **UC20.2 - Usage Analytics**
+
+**User Behavior Analytics:**
+```mermaid
+graph TB
+    A[📊 Usage Analytics] --> B[👥 User Analytics]
+    A --> C[📝 Query Analytics] 
+    A --> D[📄 Document Analytics]
+    A --> E[⏱️ Performance Analytics]
+    
+    B --> B1[Daily Active Users]
+    B --> B2[Department Usage]
+    B --> B3[User Journey]
+    
+    C --> C1[Popular Queries]
+    C --> C2[Query Success Rate]
+    C --> C3[Query Categories]
+    
+    D --> D1[Most Accessed Docs]
+    D --> D2[Document Coverage]
+    D --> D3[Content Gaps]
+    
+    E --> E1[Response Time Trends]
+    E --> E2[System Load]
+    E --> E3[Error Patterns]
+```
+
+**Detailed Usage Reports:**
+```json
+{
+  "usage_report": {
+    "time_period": "last_30_days",
+    "user_metrics": {
+      "total_users": 89,
+      "active_users": 67,
+      "new_users": 8,
+      "user_retention": "75%",
+      "avg_sessions_per_user": 4.2
+    },
+    "query_metrics": {
+      "total_queries": 2847,
+      "unique_queries": 1923,
+      "avg_queries_per_user": 42,
+      "success_rate": "94.2%",
+      "most_common_topics": [
+        "procurement_procedures",
+        "hr_policies", 
+        "technical_specifications"
+      ]
+    },
+    "document_metrics": {
+      "total_documents": 3421,
+      "documents_accessed": 1876,
+      "coverage_rate": "54.8%",
+      "top_documents": [
+        "employee_handbook.pdf",
+        "procurement_process_v2.1.pdf"
+      ]
+    }
+  }
+}
+```
+
+#### **UC20.3 - Alerting & Notifications**
+
+**Alert Configuration:**
+```json
+{
+  "alerts": {
+    "performance_alerts": [
+      {
+        "metric": "avg_response_time",
+        "threshold": "30s",
+        "severity": "warning",
+        "notification": "email_slack"
+      },
+      {
+        "metric": "error_rate",
+        "threshold": "5%",
+        "severity": "critical",
+        "notification": "sms_email_slack"
+      }
+    ],
+    "usage_alerts": [
+      {
+        "metric": "concurrent_users", 
+        "threshold": "90",
+        "severity": "info",
+        "notification": "slack"
+      }
+    ],
+    "system_alerts": [
+      {
+        "metric": "disk_usage",
+        "threshold": "85%",
+        "severity": "warning",
+        "notification": "email"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## UC21: 🤖 **QUẢN LÝ EMBEDDING MODELS VÀ AI COMPONENTS**
+
+### 📋 **Mô tả tổng quan**
+Quản lý và tối ưu hóa AI models, thực hiện A/B testing, và monitor model performance.
+
+#### **UC21.1 - Model Lifecycle Management**
+
+**Model Registry:**
+```json
+{
+  "model_registry": {
+    "embedding_models": [
+      {
+        "id": "emb_001",
+        "name": "multilingual-e5-large",
+        "version": "1.0",
+        "status": "production",
+        "deployment_date": "2025-08-15",
+        "performance_score": 0.87,
+        "resource_usage": "2GB RAM",
+        "test_results": {
+          "hit_rate": 0.92,
+          "mrr": 0.78,
+          "avg_response_time": "150ms"
+        }
+      },
+      {
+        "id": "emb_002", 
+        "name": "all-mpnet-base-v2",
+        "version": "1.0",
+        "status": "testing",
+        "test_results": {
+          "hit_rate": 0.89,
+          "mrr": 0.74,
+          "avg_response_time": "120ms"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### **UC21.2 - Model A/B Testing Framework**
+
+**Testing Configuration:**
+```mermaid
+graph TB
+    A[🧪 A/B Test Setup] --> B[📊 Traffic Split]
+    B --> C[Model A<br/>70% Traffic]
+    B --> D[Model B<br/>30% Traffic]
+    
+    C --> E[📈 Metrics Collection]
+    D --> E
+    
+    E --> F[📊 Statistical Analysis]
+    F --> G[🎯 Decision Engine]
+    
+    G --> H[✅ Winner Selection]
+    G --> I[🔄 Continue Testing]
+```
+
+**Testing Metrics:**
+```json
+{
+  "ab_test": {
+    "test_id": "emb_test_001",
+    "models": {
+      "control": "multilingual-e5-large",
+      "variant": "all-mpnet-base-v2"
+    },
+    "traffic_split": "70/30",
+    "duration": "14_days",
+    "metrics": {
+      "control": {
+        "hit_rate": 0.92,
+        "mrr": 0.78,
+        "user_satisfaction": 4.2,
+        "avg_response_time": "150ms"
+      },
+      "variant": {
+        "hit_rate": 0.89,
+        "mrr": 0.74,
+        "user_satisfaction": 4.1,
+        "avg_response_time": "120ms"
+      }
+    },
+    "statistical_significance": 0.95,
+    "recommendation": "continue_with_control"
+  }
+}
+```
+
+#### **UC21.3 - Model Performance Optimization**
+
+**Performance Tuning:**
+- **Hyperparameter Optimization**: Grid search cho optimal parameters
+- **Model Quantization**: Giảm model size mà không ảnh hưởng accuracy
+- **Caching Strategies**: Intelligent caching cho frequently used embeddings
+- **Batch Processing**: Optimize batch sizes cho throughput
+
+---
+
+## UC22: ✅ **KIỂM SOÁT CHẤT LƯỢNG DỮ LIỆU**
+
+### 📋 **Data Quality Framework**
+
+#### **UC22.1 - Automated Quality Checks**
+
+**Quality Dimensions:**
+```mermaid
+graph TB
+    A[📊 Data Quality] --> B[✅ Completeness]
+    A --> C[🎯 Accuracy]
+    A --> D[🔄 Consistency]
+    A --> E[⏱️ Timeliness]
+    A --> F[🔗 Relevance]
+    A --> G[🛡️ Security]
+    
+    B --> B1[Required Fields]
+    B --> B2[Metadata Coverage]
+    
+    C --> C1[Content Validation]
+    C --> C2[Format Compliance]
+    
+    D --> D1[Duplicate Detection]
+    D --> D2[Contradiction Check]
+    
+    E --> E1[Update Frequency]
+    E --> E2[Version Currency]
+    
+    F --> F1[Content Relevance]
+    F --> F2[User Feedback]
+    
+    G --> G1[Access Control]
+    G --> G2[PII Detection]
+```
+
+**Quality Scoring Algorithm:**
+```json
+{
+  "quality_scoring": {
+    "document_id": "doc_001",
+    "overall_score": 8.7,
+    "detailed_scores": {
+      "completeness": {
+        "score": 9.2,
+        "checks": {
+          "metadata_complete": true,
+          "content_not_empty": true,
+          "required_fields": true
+        }
+      },
+      "accuracy": {
+        "score": 8.5,
+        "checks": {
+          "format_valid": true,
+          "encoding_correct": true,
+          "content_readable": true
+        }
+      },
+      "consistency": {
+        "score": 8.1,
+        "checks": {
+          "no_duplicates": true,
+          "version_consistent": true,
+          "metadata_aligned": false
+        }
+      },
+      "timeliness": {
+        "score": 9.0,
+        "checks": {
+          "recently_updated": true,
+          "version_current": true
+        }
+      }
+    },
+    "issues_found": [
+      {
+        "type": "metadata_mismatch",
+        "severity": "medium",
+        "description": "Document type in content differs from metadata"
+      }
+    ],
+    "recommendations": [
+      "Update metadata to match document content",
+      "Review and validate technical specifications section"
+    ]
+  }
+}
+```
+
+#### **UC22.2 - Duplicate Detection Engine**
+
+**Multi-level Duplicate Detection:**
+```mermaid
+graph LR
+    A[📄 New Document] --> B[🔤 Hash Check<br/>Exact Duplicates]
+    B --> C[🔍 Semantic Check<br/>Similar Content]
+    C --> D[📊 Metadata Check<br/>Same Source/Author]
+    D --> E[🎯 Fuzzy Match<br/>Near Duplicates]
+    E --> F[📋 Duplicate Report]
+```
+
+**Detection Results:**
+```json
+{
+  "duplicate_detection": {
+    "document_id": "doc_new_001",
+    "scan_timestamp": "2025-08-30T10:30:00Z",
+    "duplicates_found": [
+      {
+        "existing_doc_id": "doc_existing_045",
+        "similarity_score": 0.94,
+        "duplicate_type": "semantic",
+        "confidence": "high",
+        "differences": [
+          "Version number in header",
+          "Minor text corrections in section 3"
+        ]
+      }
+    ],
+    "recommendation": "merge_as_new_version",
+    "action_required": true
+  }
+}
+```
+
+#### **UC22.3 - Content Validation Rules**
+
+**Business Rules Engine:**
+```json
+{
+  "validation_rules": {
+    "document_structure": [
+      {
+        "rule": "must_have_title",
+        "severity": "critical",
+        "description": "Every document must have a clear title"
+      },
+      {
+        "rule": "section_headers_required",
+        "severity": "warning", 
+        "description": "Documents >1000 words should have section headers"
+      }
+    ],
+    "content_quality": [
+      {
+        "rule": "no_placeholder_text",
+        "severity": "critical",
+        "pattern": "\\[TODO\\]|\\[PLACEHOLDER\\]|\\[TBD\\]"
+      },
+      {
+        "rule": "minimum_word_count",
+        "severity": "warning",
+        "threshold": 50
+      }
+    ],
+    "compliance": [
+      {
+        "rule": "no_personal_info",
+        "severity": "critical",
+        "description": "Check for PII in public documents"
+      },
+      {
+        "rule": "proper_classification",
+        "severity": "medium",
+        "description": "Access level must match content sensitivity"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## UC23: 🛡️ **THỰC HIỆN AUDIT BẢO MẬT**
+
+### 📋 **Security Audit Framework**
+
+#### **UC23.1 - Access Audit**
+
+**Audit Dashboard:**
+```mermaid
+graph TB
+    A[🛡️ Security Audit] --> B[👤 User Access Audit]
+    A --> C[📄 Document Access Audit]
+    A --> D[🔐 Authentication Audit]
+    A --> E[🌐 API Access Audit]
+    
+    B --> B1[Login Attempts]
+    B --> B2[Permission Changes]
+    B --> B3[Role Modifications]
+    
+    C --> C1[Document Views]
+    C --> C2[Download Activity]
+    C --> C3[Unauthorized Attempts]
+    
+    D --> D1[Failed Logins]
+    D --> D2[Session Anomalies]
+    D --> D3[Brute Force Attempts]
+    
+    E --> E1[API Key Usage]
+    E --> E2[Rate Limit Violations]
+    E --> E3[Suspicious Patterns]
+```
+
+**Audit Log Entry:**
+```json
+{
+  "audit_log": {
+    "timestamp": "2025-08-30T14:22:15Z",
+    "event_id": "audit_001",
+    "event_type": "document_access",
+    "severity": "info",
+    "user": {
+      "user_id": "emp_001",
+      "username": "nguyen.van.a",
+      "role": "employee",
+      "department": "rd_department",
+      "ip_address": "192.168.1.100"
+    },
+    "resource": {
+      "document_id": "doc_456",
+      "document_title": "Technical Specification v2.0",
+      "access_level": "manager_only"
+    },
+    "action": "view_attempt",
+    "result": "denied",
+    "reason": "insufficient_permissions",
+    "risk_score": 3
+  }
+}
+```
+
+#### **UC23.2 - Security Vulnerability Scan**
+
+**Vulnerability Categories:**
+```json
+{
+  "security_scan": {
+    "scan_id": "sec_scan_001",
+    "scan_date": "2025-08-30",
+    "scan_type": "comprehensive",
+    "findings": {
+      "critical": [
+        {
+          "vulnerability": "exposed_api_endpoint",
+          "location": "/api/internal/debug",
+          "description": "Debug endpoint accessible without authentication",
+          "cvss_score": 9.1,
+          "recommendation": "Remove or secure debug endpoint"
+        }
+      ],
+      "high": [
+        {
+          "vulnerability": "weak_password_policy",
+          "location": "user_management_module",
+          "description": "Password complexity requirements too lenient",
+          "cvss_score": 7.2,
+          "recommendation": "Implement stronger password policy"
+        }
+      ],
+      "medium": [
+        {
+          "vulnerability": "missing_rate_limiting",
+          "location": "/api/search",
+          "description": "No rate limiting on search endpoint",
+          "cvss_score": 5.5,
+          "recommendation": "Implement API rate limiting"
+        }
+      ]
+    },
+    "remediation_plan": {
+      "critical_fixes": "within_24_hours",
+      "high_fixes": "within_7_days",
+      "medium_fixes": "within_30_days"
+    }
+  }
+}
+```
+
+#### **UC23.3 - Compliance Reporting**
+
+**Compliance Standards:**
+- **ISO 27001**: Information Security Management
+- **GDPR**: Data Protection và Privacy
+- **SOC 2**: Security, Availability, Processing Integrity
+- **Company Policy**: Internal compliance requirements
+
+---
+
+## UC24: 💾 **SAO LƯU VÀ KHÔI PHỤC DỮ LIỆU**
+
+### 📋 **Backup & Recovery Strategy**
+
+#### **UC24.1 - Automated Backup System**
+
+**Backup Architecture:**
+```mermaid
+graph TB
+    A[📊 Data Sources] --> B[🔄 Backup Orchestrator]
+    
+    A1[🐘 PostgreSQL] --> B
+    A2[🔢 Vector DB] --> B
+    A3[📁 File Storage] --> B
+    A4[⚙️ System Config] --> B
+    
+    B --> C[📦 Backup Storage]
+    
+    C --> C1[💽 Local Storage<br/>Daily Backups]
+    C --> C2[☁️ Cloud Storage<br/>Weekly Backups] 
+    C --> C3[🏢 Offsite Storage<br/>Monthly Backups]
+    
+    B --> D[📋 Backup Verification]
+    D --> E[📊 Backup Reports]
+```
+
+**Backup Schedule:**
+```json
+{
+  "backup_schedule": {
+    "database_backups": {
+      "frequency": "every_6_hours",
+      "retention": {
+        "hourly": "7_days",
+        "daily": "30_days", 
+        "weekly": "12_weeks",
+        "monthly": "12_months"
+      },
+      "backup_method": "pg_dump_with_compression"
+    },
+    "vector_db_backups": {
+      "frequency": "daily",
+      "retention": "30_days",
+      "backup_method": "full_snapshot"
+    },
+    "file_storage_backups": {
+      "frequency": "daily",
+      "retention": "90_days",
+      "backup_method": "incremental_rsync"
+    },
+    "system_configuration": {
+      "frequency": "before_each_deployment",
+      "retention": "indefinite",
+      "backup_method": "git_repository"
+    }
+  }
+}
+```
+
+#### **UC24.2 - Disaster Recovery Plan**
+
+**Recovery Time Objectives (RTO) & Recovery Point Objectives (RPO):**
+```json
+{
+  "recovery_objectives": {
+    "critical_systems": {
+      "rto": "4_hours",
+      "rpo": "1_hour",
+      "components": ["user_authentication", "core_search", "database"]
+    },
+    "important_systems": {
+      "rto": "24_hours", 
+      "rpo": "6_hours",
+      "components": ["document_upload", "analytics", "reporting"]
+    },
+    "non_critical_systems": {
+      "rto": "72_hours",
+      "rpo": "24_hours", 
+      "components": ["audit_logs", "usage_statistics", "admin_tools"]
+    }
+  }
+}
+```
+
+**Recovery Procedures:**
+```mermaid
+graph TB
+    A[🚨 Disaster Detected] --> B[📋 Assess Impact]
+    B --> C{Severity Level}
+    
+    C -->|Critical| D[🔴 Emergency Response<br/>RTO: 4h]
+    C -->|Major| E[🟡 Standard Response<br/>RTO: 24h]
+    C -->|Minor| F[🟢 Routine Response<br/>RTO: 72h]
+    
+    D --> G[🔄 Restore Critical Systems]
+    E --> H[🔄 Restore Important Systems]  
+    F --> I[🔄 Restore Non-Critical]
+    
+    G --> J[✅ Verify System Integrity]
+    H --> J
+    I --> J
+    
+    J --> K[📊 Post-Recovery Report]
+    K --> L[🔍 Root Cause Analysis]
+```
+
+#### **UC24.3 - Backup Monitoring & Verification**
+
+**Backup Health Dashboard:**
+```json
+{
+  "backup_status": {
+    "last_24_hours": {
+      "postgresql": {
+        "status": "success",
+        "timestamp": "2025-08-30T02:00:00Z",
+        "size": "2.3GB",
+        "duration": "12_minutes",
+        "verification": "passed"
+      },
+      "vector_db": {
+        "status": "success", 
+        "timestamp": "2025-08-30T02:30:00Z",
+        "size": "8.7GB",
+        "duration": "45_minutes",
+        "verification": "passed"
+      },
+      "file_storage": {
+        "status": "partial_failure",
+        "timestamp": "2025-08-30T03:00:00Z", 
+        "size": "156GB",
+        "duration": "2_hours_15_minutes",
+        "verification": "failed",
+        "error": "3 files could not be accessed due to permission issues"
+      }
+    },
+    "alerts": [
+      {
+        "severity": "warning",
+        "message": "File storage backup partially failed",
+        "timestamp": "2025-08-30T03:15:00Z",
+        "action_required": "Check file permissions on storage server"
+      }
+    ]
+  }
+}
+```
+
+**Automated Backup Testing:**
+```json
+{
+  "backup_testing": {
+    "test_schedule": "weekly",
+    "test_types": [
+      {
+        "type": "restore_test",
+        "description": "Restore random subset of data to test environment",
+        "frequency": "weekly",
+        "success_rate": "98.5%"
+      },
+      {
+        "type": "integrity_check",
+        "description": "Verify backup file integrity and checksums",
+        "frequency": "daily",
+        "success_rate": "99.9%"
+      },
+      {
+        "type": "recovery_drill",
+        "description": "Full disaster recovery simulation", 
+        "frequency": "monthly",
+        "last_test": "2025-08-15",
+        "result": "success",
+        "recovery_time": "3_hours_42_minutes"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 🔄 **SYSTEM ADMIN WORKFLOW INTEGRATION**
+
+### **Daily Admin Tasks Dashboard:**
+```mermaid
+graph TB
+    A[📊 Admin Dashboard] --> B[🌅 Morning Tasks]
+    A --> C[🌞 Ongoing Monitoring]
+    A --> D[🌙 Evening Tasks]
+    
+    B --> B1[✅ System Health Check]
+    B --> B2[📊 Overnight Alerts Review]
+    B --> B3[💾 Backup Status Check]
+    
+    C --> C1[👥 User Management]
+    C --> C2[📄 Document Approvals]
+    C --> C3[🔧 System Configuration]
+    C --> C4[📈 Performance Monitoring]
+    
+    D --> D1[📋 Daily Reports]
+    D --> D2[🔄 Backup Verification]
+    D --> D3[🛡️ Security Review]
+```
+
+### **Admin Notification System:**
+```json
+{
+  "notification_config": {
+    "critical_alerts": {
+      "channels": ["sms", "email", "slack"],
+      "response_time": "immediate",
+      "escalation": "after_15_minutes"
+    },
+    "warning_alerts": {
+      "channels": ["email", "slack"],
+      "response_time": "within_1_hour",
+      "escalation": "after_4_hours"
+    },
+    "info_alerts": {
+      "channels": ["slack"],
+      "response_time": "next_business_day",
+      "escalation": "none"
+    },
+    "scheduled_reports": {
+      "daily_summary": "8:00_AM",
+      "weekly_analytics": "monday_9:00_AM", 
+      "monthly_compliance": "first_tuesday_10:00_AM"
+    }
+  }
+}
+```
+
+### **Admin Access Control:**
+```json
+{
+  "admin_permissions": {
+    "super_admin": {
+      "can_delete_users": true,
+      "can_modify_system_config": true,
+      "can_access_audit_logs": true,
+      "can_perform_backup_restore": true,
+      "can_modify_security_settings": true
+    },
+    "system_admin": {
+      "can_delete_users": false,
+      "can_modify_system_config": true,
+      "can_access_audit_logs": true, 
+      "can_perform_backup_restore": true,
+      "can_modify_security_settings": false
+    },
+    "data_admin": {
+      "can_delete_users": false,
+      "can_modify_system_config": false,
+      "can_access_audit_logs": false,
+      "can_perform_backup_restore": true,
+      "can_modify_security_settings": false
+    }
+  }
+}
+```
+
+---
+
+## 📋 **ACCEPTANCE CRITERIA CHO SYSTEM ADMIN USE CASES**
+
+### **UC17 - User Management:**
+- ✅ Tạo/sửa/xóa user accounts trong <5 giây
+- ✅ Bulk import 100+ users từ CSV file
+- ✅ Role assignment với immediate effect
+- ✅ Complete audit trail cho mọi user changes
+
+### **UC18 - Document Management:**
+- ✅ Upload và process 1000+ documents trong 1 batch
+- ✅ Auto-categorization accuracy ≥85%
+- ✅ Version control với complete history
+- ✅ Search và filter documents by metadata
+
+### **UC19 - System Configuration:**
+- ✅ Real-time config updates không cần restart
+- ✅ Config validation before applying
+- ✅ Rollback capability cho critical settings
+- ✅ A/B testing framework cho AI models
+
+### **UC20 - Performance Monitoring:**
+- ✅ Real-time metrics với <30s latency
+- ✅ Alerting với configurable thresholds
+- ✅ Historical data retention ≥12 months
+- ✅ Custom dashboard creation
+
+### **UC21 - AI Model Management:**
+- ✅ Model comparison với statistical significance
+- ✅ Zero-downtime model switching
+- ✅ Performance regression detection
+- ✅ Cost tracking và budget alerts
+
+### **UC22 - Data Quality Control:**
+- ✅ Automated quality scoring ≥90% accuracy
+- ✅ Duplicate detection ≥95% precision
+- ✅ Content validation rules engine
+- ✅ Quality improvement recommendations
+
+### **UC23 - Security Audit:**
+- ✅ Complete access logging với tamper protection
+- ✅ Automated vulnerability scanning
+- ✅ Compliance reporting cho multiple standards
+- ✅ Real-time security alerts
+
+### **UC24 - Backup & Recovery:**
+- ✅ RTO ≤4 hours cho critical systems
+- ✅ RPO ≤1 hour cho critical data
+- ✅ 99.9% backup success rate
+- ✅ Automated recovery testing
+
+---
+
+## 🎯 **KẾT LUẬN**
+
+System Admin Use Cases được thiết kế để:
+
+1. **Comprehensive Management**: Bao phủ tất cả aspects của system lifecycle
+2. **Automation-First**: Giảm manual work, tăng reliability
+3. **Security-Focused**: Multi-layer security với comprehensive auditing
+4. **Performance-Oriented**: Real-time monitoring và proactive optimization
+5. **Disaster-Ready**: Robust backup và recovery procedures
+
+Các Use Cases này đảm bảo hệ thống hoạt động ổn định, bảo mật, và có khả năng mở rộng theo yêu cầu của tổ chức 400 nhân viên trong 15 phòng ban.
+
+
+
 cho tôi một diagram về Kiến trúc giải pháp đề xuất (Proposed Solution Architecture)
 
 # KIẾN TRÚC GIẢI PHÁP ĐỀ XUẤT
