@@ -747,7 +747,281 @@ graph TB
 
 Diagram này thể hiện rõ ràng **hierachy của quyền truy cập** (Guest < Employee < Manager < Director) và **separation of concerns** giữa business users và system administration.
 
+---
+Câu hỏi rất hay! Use Cases không chỉ là "wishlist" mà là **công cụ quản lý dự án thực tế**. Tôi sẽ giải thích chi tiết vai trò và cách áp dụng của chúng:
 
+# USE CASES - TỪ LÝ THUYẾT ĐẾN THỰC TẾ
+
+## 🎯 **USE CASES DÙNG ĐỂ LÀM GÌ?**
+
+### 1. **📋 Làm căn cứ để viết User Stories và Sprint Planning**
+### 2. **🔧 Thiết kế API endpoints và database schema** 
+### 3. **🧪 Tạo test cases và acceptance criteria**
+### 4. **📊 Ước lượng effort và timeline**
+### 5. **🎭 Phân vai trò team development**
+
+---
+
+## 👥 **AI QUẢN LÝ - AI THEO DÕI - AI THỰC HIỆN?**
+
+### **RACI Matrix cho Use Cases**
+
+| UC ID | Use Case | **R**esponsible | **A**ccountable | **C**onsulted | **I**nformed |
+|-------|----------|-----------------|-----------------|----------------|---------------|
+| UC17 | User Management | **Backend Dev** | **Tech Lead** | Security Expert | PM, PO |
+| UC18 | Document Management | **Full-stack Dev** | **Tech Lead** | Content Manager | All Users |
+| UC19 | System Configuration | **DevOps Engineer** | **System Architect** | Tech Lead | Operations |
+| UC20 | Performance Monitoring | **DevOps + Backend** | **Tech Lead** | SRE | Management |
+| UC21 | AI Model Management | **ML Engineer** | **AI Architect** | Data Scientist | Tech Lead |
+| UC22 | Data Quality Control | **Data Engineer** | **Data Lead** | Business Analyst | Content Teams |
+| UC23 | Security Audit | **Security Engineer** | **CISO** | Compliance Officer | Legal |
+| UC24 | Backup & Recovery | **DevOps Engineer** | **Infrastructure Lead** | DBA | Operations |
+
+---
+
+## 📝 **VÍ DỤ CHI TIẾT: UC18 - DOCUMENT MANAGEMENT**
+
+### **🔍 Phân tích Use Case thành các thành phần thực tế:**
+
+```mermaid
+graph TB
+    subgraph "📋 UC18: Document Management"
+        subgraph "👤 Stakeholders"
+            PO[🎯 Product Owner<br/>Define requirements]
+            TL[👨‍💼 Tech Lead<br/>Architecture decisions]
+            FSD[👩‍💻 Full-stack Developer<br/>Implementation]
+            QA[🧪 QA Engineer<br/>Testing scenarios]
+        end
+        
+        subgraph "📊 Deliverables từ UC18"
+            US[📝 User Stories<br/>5-8 stories]
+            API[🔧 API Specs<br/>REST endpoints]
+            DB[🗄️ DB Schema<br/>Tables design]
+            UI[🖥️ UI Mockups<br/>Admin panels]
+            Test[🧪 Test Cases<br/>20-30 scenarios]
+        end
+        
+        subgraph "🏃‍♂️ Sprint Implementation"
+            Sprint1[Sprint 1<br/>Basic CRUD APIs]
+            Sprint2[Sprint 2<br/>File upload & validation]
+            Sprint3[Sprint 3<br/>Metadata management]
+            Sprint4[Sprint 4<br/>Bulk operations]
+        end
+        
+        subgraph "✅ Acceptance Criteria"
+            AC1[✓ Upload documents<br/>PDF, DOCX, TXT]
+            AC2[✓ Metadata extraction<br/>Auto + Manual]
+            AC3[✓ Version control<br/>Track changes]
+            AC4[✓ Bulk operations<br/>Import/Export]
+            AC5[✓ Search & filter<br/>Advanced queries]
+        end
+    end
+    
+    %% Flow
+    PO --> US
+    TL --> API
+    TL --> DB
+    FSD --> UI
+    QA --> Test
+    
+    US --> Sprint1
+    API --> Sprint1
+    Sprint1 --> Sprint2
+    Sprint2 --> Sprint3
+    Sprint3 --> Sprint4
+    
+    Sprint4 --> AC1
+    Sprint4 --> AC2
+    Sprint4 --> AC3
+    Sprint4 --> AC4
+    Sprint4 --> AC5
+    
+    %% Styling
+    classDef stakeholder fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef deliverable fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef sprint fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef criteria fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class PO,TL,FSD,QA stakeholder
+    class US,API,DB,UI,Test deliverable
+    class Sprint1,Sprint2,Sprint3,Sprint4 sprint
+    class AC1,AC2,AC3,AC4,AC5 criteria
+```
+
+---
+
+## 🛠️ **THỰC HIỆN THỰC TẾ - VÍ DỤ UC18**
+
+### **📝 Từ UC18 → User Stories:**
+
+```
+Epic: Document Management System
+
+User Story 1: Upload Documents
+As a System Admin
+I want to upload documents (PDF, Word, TXT)
+So that they can be processed by the AI system
+
+Acceptance Criteria:
+- Support file types: PDF, DOCX, TXT (max 50MB)
+- Validate file format and content
+- Show upload progress bar
+- Return success/error messages
+
+Estimate: 5 story points
+Sprint: 1
+Developer: Full-stack Dev
+```
+
+### **🔧 API Design từ User Story:**
+
+```javascript
+// API endpoints được thiết kế từ UC18
+POST /api/v1/documents/upload
+GET /api/v1/documents
+PUT /api/v1/documents/{id}
+DELETE /api/v1/documents/{id}
+POST /api/v1/documents/bulk-import
+GET /api/v1/documents/{id}/versions
+POST /api/v1/documents/{id}/metadata
+```
+
+### **🗄️ Database Schema từ UC18:**
+
+```sql
+-- Tables được thiết kế từ UC18
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    file_size BIGINT,
+    file_type VARCHAR(50),
+    upload_date TIMESTAMP DEFAULT NOW(),
+    uploaded_by INTEGER REFERENCES users(id),
+    status VARCHAR(20) DEFAULT 'processing',
+    version INTEGER DEFAULT 1
+);
+
+CREATE TABLE document_metadata (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER REFERENCES documents(id),
+    key VARCHAR(100),
+    value TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### **🧪 Test Cases từ UC18:**
+
+```gherkin
+Feature: Document Upload
+  As a System Admin
+  I want to upload documents
+  So that users can query them
+
+Scenario: Upload valid PDF file
+  Given I am logged in as System Admin
+  When I upload a PDF file "manual.pdf" (5MB)
+  Then the system should accept the file
+  And return status "processing"
+  And create database record
+  And start background processing
+
+Scenario: Upload invalid file type
+  Given I am logged in as System Admin  
+  When I upload an EXE file "virus.exe"
+  Then the system should reject the file
+  And return error "File type not supported"
+  And not create database record
+```
+
+---
+
+## 📊 **TRACKING & MONITORING TRONG THỰC TẾ**
+
+### **🎯 Product Owner theo dõi:**
+- Business value delivery
+- User adoption metrics  
+- Feature completion %
+
+### **👨‍💼 Tech Lead theo dõi:**
+- Technical debt
+- Code quality metrics
+- Architecture compliance
+
+### **🏃‍♂️ Scrum Master theo dõi:**
+- Sprint velocity
+- Impediments
+- Team productivity
+
+### **🧪 QA Engineer theo dõi:**
+- Test coverage %
+- Bug density
+- Performance benchmarks
+
+---
+
+## 📈 **KPIs CHO TỪNG USE CASE**
+
+### **UC18 - Document Management:**
+| Metric | Target | Tracking Tool |
+|--------|--------|---------------|
+| Upload Success Rate | >95% | Application logs |
+| Processing Time | <30s average | Prometheus metrics |
+| Storage Efficiency | >80% compression | Database monitoring |
+| User Satisfaction | >4.0/5.0 | User feedback surveys |
+
+### **UC20 - Performance Monitoring:**
+| Metric | Target | Tracking Tool |
+|--------|--------|---------------|
+| System Uptime | >99.5% | Grafana dashboards |
+| Response Time | <60s (95th percentile) | APM tools |
+| Error Rate | <1% | ELK stack |
+| Resource Utilization | <80% CPU/Memory | Kubernetes metrics |
+
+---
+
+## 🏗️ **IMPLEMENTATION ROADMAP**
+
+### **Phase 1: Core Admin Features (Tuần 1-4)**
+```
+✅ UC17: User Management (CRUD users, roles)
+✅ UC18: Document Management (Upload, basic metadata)
+✅ UC19: System Configuration (Basic settings)
+```
+
+### **Phase 2: Advanced Features (Tuần 5-8)**
+```
+🔄 UC20: Performance Monitoring (Metrics dashboard)
+🔄 UC21: AI Model Management (Model selection UI)
+🔄 UC22: Data Quality Control (Validation pipelines)
+```
+
+### **Phase 3: Operations & Security (Tuần 9-12)**
+```
+⏳ UC23: Security Audit (Compliance reports)
+⏳ UC24: Backup & Recovery (Automated backups)
+```
+
+---
+
+## 💡 **TẠI SAO CẦN USE CASES?**
+
+### **✅ Lợi ích thực tế:**
+1. **Clarity**: Mọi người hiểu rõ phải làm gì
+2. **Traceability**: Trace từ requirement → code → test
+3. **Estimation**: Ước lượng effort chính xác hơn
+4. **Testing**: Đảm bảo không miss requirement nào
+5. **Communication**: Common language giữa business và tech
+
+### **❌ Không có Use Cases sẽ:**
+- Team không biết ưu tiên gì trước
+- Code không match với business needs
+- Test cases thiếu hoặc sai focus
+- Khó estimate timeline và cost
+- Khách hàng không hài lòng với deliverable
+
+**Use Cases là cầu nối giữa "What we want" và "What we build"!**
+---
 # CHI TIẾT USE CASES CHO SYSTEM ADMIN
 
 ## UC17: 👤 **QUẢN LÝ TÀI KHOẢN VÀ PHÂN QUYỀN NGƯỜI DÙNG**
