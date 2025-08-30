@@ -1022,6 +1022,1289 @@ Scenario: Upload invalid file type
 
 **Use Cases là cầu nối giữa "What we want" và "What we build"!**
 ---
+# MÔ TẢ CHI TIẾT CÁC USE CASE
+
+## 🌐 USE CASES CHO GUEST (KHÁCH)
+
+---
+
+## UC1: ĐẶT CÂU HỎI ĐƠN GIẢN, CHỈ NHẬN THÔNG TIN CÔNG KHAI
+
+### **📋 Thông tin cơ bản**
+
+- **ID**: UC-001
+- **Tên**: Ask Simple Question (Public Content Only)
+- **Actor chính**: Guest User
+- **Mức độ**: Primary
+- **Phạm vi**: Core System
+
+### **🎯 Mục tiêu**
+
+Cho phép khách truy cập đặt câu hỏi và nhận câu trả lời dựa trên tài liệu công khai mà không cần đăng nhập.
+
+### **📝 Mô tả**
+
+Guest có thể tương tác với chatbot để hỏi về thông tin công ty, sản phẩm, dịch vụ, và các thông tin khác được phân loại là "public". Hệ thống sẽ chỉ truy xuất và trả lời dựa trên dữ liệu có mức độ truy cập công khai.
+
+### **🔗 Điều kiện tiên quyết (Preconditions)**
+
+- Hệ thống chatbot đang hoạt động
+- Có ít nhất một tài liệu public trong database
+- Guest interface có thể truy cập được
+- Session tracking được khởi tạo
+
+### **✅ Điều kiện hậu (Postconditions)**
+
+- **Thành công**: Câu trả lời được hiển thị với citations từ tài liệu public
+- **Thất bại**: Thông báo lỗi hoặc "không tìm thấy thông tin phù hợp"
+- Session được cập nhật với câu hỏi và câu trả lời
+- Metrics được ghi nhận (response time, query type)
+
+### **🏃‍♂️ Luồng chính (Main Flow)**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Guest | Truy cập giao diện chatbot |
+| 2   | System | Hiển thị giao diện chat với placeholder "Hãy đặt câu hỏi..." |
+| 3   | Guest | Nhập câu hỏi vào text box và nhấn Send hoặc Enter |
+| 4   | System | Validate input (không rỗng, độ dài hợp lệ ≤ 1000 ký tự) |
+| 5   | System | Hiển thị loading indicator "Đang xử lý..." |
+| 6   | System | Gọi RAG Core Engine với query + access_level="public" |
+| 7   | System | RAG Engine thực hiện semantic search trong public documents |
+| 8   | System | LLM sinh câu trả lời dựa trên retrieved context |
+| 9   | System | Validate câu trả lời (không chứa nội dung sensitive) |
+| 10  | System | Hiển thị câu trả lời kèm theo references |
+| 11  | System | Lưu câu hỏi/trả lời vào session history |
+| 12  | Guest | Đọc câu trả lời và có thể đặt câu hỏi tiếp theo |
+
+### **🔄 Luồng thay thế (Alternative Flows)**
+
+**AF1 - Không tìm thấy thông tin phù hợp:**
+
+- Bước 7-8: RAG Engine không tìm thấy documents relevent
+- System hiển thị: "Xin lỗi, tôi không tìm thấy thông tin phù hợp về câu hỏi của bạn. Bạn có thể thử đặt câu hỏi khác hoặc liên hệ với nhân viên để được hỗ trợ."
+- System suggest một số câu hỏi phổ biến
+
+**AF2 - Lỗi kết nối LLM:**
+
+- Bước 8: LLM API trả về error hoặc timeout
+- System hiển thị: "Hệ thống đang bận, vui lòng thử lại sau ít phút."
+- System ghi log error để admin xử lý
+
+**AF3 - Query quá dài:**
+
+- Bước 4: Input validation fail (>1000 ký tự)
+- System hiển thị: "Câu hỏi quá dài. Vui lòng rút gọn câu hỏi (tối đa 1000 ký tự)."
+
+### **❌ Luồng ngoại lệ (Exception Flows)**
+
+**EF1 - Hệ thống overload:**
+
+- System trả về HTTP 503 Service Unavailable
+- Hiển thị: "Hệ thống đang quá tải. Vui lòng thử lại sau 5 phút."
+
+**EF2 - Database không khả dụng:**
+
+- Vector DB hoặc PostgreSQL down
+- Hiển thị: "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau."
+
+### **🎯 Yêu cầu đặc biệt**
+
+- **Hiệu suất**: Response time ≤ 60 giây
+- **Bảo mật**: Chỉ truy cập documents có access_level="public"
+- **Usability**: Giao diện intuitive, không cần hướng dẫn
+- **Scalability**: Hỗ trợ 50+ concurrent guest users
+
+### **📊 Tiêu chí chấp nhận**
+
+- [ ] Guest có thể đặt câu hỏi mà không cần đăng nhập
+- [ ] Chỉ nhận được thông tin từ tài liệu public
+- [ ] Response time trung bình < 45 giây
+- [ ] UI responsive trên desktop và mobile
+- [ ] Error messages rõ ràng và hữu ích
+- [ ] Session được maintain trong suốt interaction
+
+---
+
+## UC2: XEM CÁC TÀI LIỆU ĐƯỢC ĐÁNH DẤU "PUBLIC"
+
+### **📋 Thông tin cơ bản**
+
+- **ID**: UC-002
+- **Tên**: View Public Documents
+- **Actor chính**: Guest User
+- **Mức độ**: Primary
+- **Phạm vi**: Document Management System
+
+### **🎯 Mục tiêu**
+
+Cho phép guest browse và xem trực tiếp các tài liệu được phân loại là public mà không cần thông qua chatbot.
+
+### **📝 Mô tả**
+
+Guest có thể duyệt danh sách tài liệu công khai, xem chi tiết metadata, và đọc nội dung tài liệu. Tính năng này bổ sung cho UC1, giúp guest tự khám phá thông tin.
+
+### **🔗 Điều kiện tiên quyết**
+
+- Hệ thống document viewer hoạt động
+- Có ít nhất 1 tài liệu public trong hệ thống
+- Guest có thể truy cập document browser interface
+
+### **✅ Điều kiện hậu**
+
+- **Thành công**: Tài liệu được hiển thị hoàn chỉnh với metadata
+- **Thất bại**: Thông báo lỗi truy cập hoặc tài liệu không tồn tại
+- View count được cập nhật cho analytics
+
+### **🏃‍♂️ Luồng chính**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Guest | Click vào tab "Tài liệu công khai" hoặc "Browse Documents" |
+| 2   | System | Query database với filter access_level="public" |
+| 3   | System | Hiển thị danh sách tài liệu với thông tin cơ bản:<br/>- Tiêu đề<br/>- Loại tài liệu<br/>- Ngày cập nhật<br/>- Mô tả ngắn |
+| 4   | Guest | Browse danh sách và click vào tài liệu muốn xem |
+| 5   | System | Validate quyền truy cập (public access) |
+| 6   | System | Load document content từ file storage |
+| 7   | System | Render document trong viewer (PDF, HTML, etc.) |
+| 8   | System | Hiển thị document metadata sidebar:<br/>- Tác giả<br/>- Phiên bản<br/>- Tags<br/>- Ngày tạo/cập nhật |
+| 9   | Guest | Đọc tài liệu, có thể scroll, zoom, search trong tài liệu |
+| 10  | System | Track reading analytics (không lưu personal info) |
+
+### **🔄 Luồng thay thế**
+
+**AF1 - Không có tài liệu public:**
+
+- Bước 2-3: Query trả về empty result
+- System hiển thị: "Hiện tại chưa có tài liệu công khai nào. Vui lòng quay lại sau."
+
+**AF2 - Tài liệu bị corrupted:**
+
+- Bước 6: File storage trả về corrupted file
+- System hiển thị: "Tài liệu không thể mở. Vui lòng liên hệ admin."
+
+**AF3 - Large document loading:**
+
+- Bước 7: Document > 10MB
+- System hiển thị progress bar "Đang tải tài liệu... X%"
+- Có option "Cancel" để hủy tải
+
+### **🎯 Yêu cầu đặc biệt**
+
+- **Performance**: Document list load < 3 giây
+- **UX**: Preview thumbnail cho documents khi có thể
+- **Security**: Không cache documents trên client browser
+- **Accessibility**: Support screen readers và keyboard navigation
+
+---
+
+## UC3: TÌM KIẾM TRONG PHẠM VI TÀI LIỆU CÔNG KHAI
+
+### **📋 Thông tin cơ bản**
+
+- **ID**: UC-003
+- **Tên**: Search Public Documents
+- **Actor chính**: Guest User
+- **Mức độ**: Primary
+- **Phạm vi**: Search Engine
+
+### **🎯 Mục tiêu**
+
+Cung cấp tính năng tìm kiếm nâng cao cho guest để tìm tài liệu public theo keywords, tags, hoặc content.
+
+### **📝 Mô tả**
+
+Guest sử dụng search function để tìm tài liệu public theo nhiều criteria khác nhau. Hỗ trợ cả full-text search và metadata search.
+
+### **🏃‍♂️ Luồng chính**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Guest | Click vào search box hoặc icon tìm kiếm |
+| 2   | System | Hiển thị search interface với options:<br/>- Keywords<br/>- Document type filter<br/>- Date range<br/>- Sort options |
+| 3   | Guest | Nhập search terms và chọn filters (optional) |
+| 4   | System | Validate search input (không rỗng, không chứa special chars) |
+| 5   | System | Execute hybrid search (semantic + keyword) trong public documents |
+| 6   | System | Rank results theo relevance score |
+| 7   | System | Hiển thị search results với:<br/>- Document title<br/>- Relevance snippet<br/>- Match highlights<br/>- Metadata preview |
+| 8   | Guest | Browse kết quả và click vào document để xem chi tiết |
+| 9   | System | Navigate đến UC2 (View Document) cho selected document |
+
+### **🔄 Luồng thay thế**
+
+**AF1 - No results found:**
+
+- Bước 5-6: Search engine trả về 0 results
+- System hiển thị: "Không tìm thấy tài liệu nào phù hợp. Thử với từ khóa khác:"
+- Suggest search terms dựa trên popular queries
+
+**AF2 - Advanced search:**
+
+- Guest click "Advanced Search"
+- System hiển thị form với more filters:
+  - Exact phrase
+  - Exclude terms
+  - File type
+  - Author
+  - Tags
+
+### **🎯 Yêu cầu đặc biệt**
+
+- **Performance**: Search results < 5 giây
+- **Relevance**: Accurate ranking với semantic understanding
+- **UX**: Auto-complete suggestions, typo tolerance
+- **Analytics**: Track popular search terms (anonymously)
+
+---
+
+## UC4: XEM LẠI LỊCH SỬ CÂU HỎI TRONG SESSION
+
+### **📋 Thông tin cơ bản**
+
+- **ID**: UC-004
+- **Tên**: View Session Chat History
+- **Actor chính**: Guest User
+- **Mức độ**: Secondary
+- **Phạm vi**: Session Management
+
+### **🎯 Mục tiêu**
+
+Guest có thể xem lại các câu hỏi và câu trả lời trong session hiện tại để tiếp tục conversation context.
+
+### **📝 Mô tả**
+
+Lưu trữ tạm thời lịch sử chat trong session (không persistent), cho phép guest scroll up để xem lại previous questions và answers.
+
+### **🏃‍♂️ Luồng chính**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Guest | Scroll lên trong chat interface hoặc click "Lịch sử" |
+| 2   | System | Load chat history từ session storage |
+| 3   | System | Hiển thị chronological list của:<br/>- Timestamp<br/>- Question text<br/>- Answer text<br/>- References (nếu có) |
+| 4   | Guest | Browse through previous conversations |
+| 5   | Guest | (Optional) Click vào previous question để ask follow-up |
+| 6   | System | Pre-populate search box với selected question context |
+
+### **🔄 Luồng thay thế**
+
+**AF1 - Empty session:**
+
+- Bước 2: Session storage empty
+- System hiển thị: "Chưa có lịch sử câu hỏi trong session này."
+
+**AF2 - Session expired:**
+
+- Session timeout (sau 2 giờ không activity)
+- System hiển thị: "Session đã hết hạn. Lịch sử câu hỏi đã được xóa."
+
+### **🎯 Yêu cầu đặc biệt**
+
+- **Privacy**: Session data không được lưu permanent
+- **Performance**: Instant loading cho recent history
+- **Storage**: Limit 50 recent Q&A pairs per session
+- **UX**: Clear visual separation giữa các conversation turns
+
+---
+
+## UC7: ĐÁNH GIÁ CHẤT LƯỢNG CÂU TRẢ LỜI
+
+### **📋 Thông tin cơ bản**
+
+- **ID**: UC-007
+- **Tên**: Rate Answer Quality
+- **Actor chính**: Guest User
+- **Mức độ**: Secondary
+- **Phạm vi**: Feedback System
+
+### **🎯 Mục tiêu**
+
+Thu thập feedback từ guest về chất lượng câu trả lời để cải thiện hệ thống AI và training data.
+
+### **📝 Mô tả**
+
+Sau mỗi câu trả lời, guest có thể rate quality và provide optional feedback để giúp hệ thống học hỏi và cải thiện.
+
+### **🏃‍♂️ Luồng chính**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | System | Hiển thị câu trả lời với feedback options:<br/>👍 Hữu ích<br/>👎 Không hữu ích<br/>💬 Góp ý |
+| 2   | Guest | Click vào một trong các feedback options |
+| 3   | System | Nếu click 👍: Record positive feedback và thank message |
+| 4   | System | Nếu click 👎: Hiển thị follow-up form:<br/>- "Tại sao câu trả lời không hữu ích?"<br/>- Checkbox options: Không chính xác, Không liên quan, Thiếu thông tin, Khác |
+| 5   | Guest | (Optional) Select reasons và nhập additional comments |
+| 6   | System | Save feedback với metadata:<br/>- Question ID<br/>- Rating<br/>- Reason categories<br/>- Free text feedback<br/>- Timestamp<br/>- Session ID (anonymous) |
+| 7   | System | Hiển thị: "Cảm ơn phản hồi của bạn! Chúng tôi sẽ cải thiện hệ thống." |
+| 8   | System | Update analytics dashboard cho admin |
+
+### **🔄 Luồng thay thế**
+
+**AF1 - Detailed feedback:**
+
+- Guest click 💬 Góp ý
+- System hiển thị text area: "Hãy cho chúng tôi biết cách cải thiện câu trả lời:"
+- Guest nhập detailed feedback
+- System save và thank guest
+
+**AF2 - Quick rating:**
+
+- Guest chỉ click 👍 hoặc 👎 mà không elaborate
+- System record basic rating và move on
+- Không force guest phải explain
+
+### **🎯 Yêu cầu đặc biệt**
+
+- **Privacy**: Không collect personal information from guest feedback
+- **Analytics**: Aggregate feedback data cho system improvement
+- **UX**: Non-intrusive, optional feedback mechanism
+- **Performance**: Feedback submission < 1 giây
+
+### **📊 Business Rules**
+
+- Guest không bắt buộc phải rate answers
+- Feedback chỉ được count một lần per question-answer pair
+- Negative feedback trigger review process cho content quality
+- Anonymous feedback data có thể dùng để retrain AI models
+
+---
+
+## 📈 **METRICS VÀ KPIs CHO GUEST USE CASES**
+
+### **📊 Success Metrics:**
+
+- **UC1**: Average response time ≤ 45s, User satisfaction ≥ 70%
+- **UC2**: Document view completion rate ≥ 60%
+- **UC3**: Search success rate ≥ 80% (user clicks on results)
+- **UC4**: Session length ≥ 3 minutes (indicates engagement)
+- **UC7**: Feedback participation rate ≥ 30%
+
+### **🎯 Business Value:**
+
+- Tăng accessibility của company information
+- Giảm load cho customer service team
+- Cải thiện company transparency và trust
+- Thu thập insights về common public inquiries
+- Build foundation cho advanced features
+
+Các use case này tạo nền tảng cho guest experience tốt và khuyến khích họ trở thành employees hoặc partners trong tương lai!
+
+# MÔ TẢ CHI TIẾT CÁC USE CASE - EMPLOYEE (NHÂN VIÊN)
+
+---
+
+## 📋 **UC5: Xuất cuộc trò chuyện ra file (Export Conversation)**
+
+### **Thông tin cơ bản**
+
+- **ID**: UC5
+- **Tên**: Export Conversation to File
+- **Actor chính**: Employee (Nhân viên)
+- **Mục tiêu**: Lưu trữ cuộc trò chuyện dưới dạng file để tham khảo sau này hoặc chia sẻ với đồng nghiệp
+- **Độ ưu tiên**: Medium
+- **Độ phức tạp**: Low
+
+### **Preconditions (Điều kiện tiên quyết)**
+
+- Nhân viên đã đăng nhập thành công
+- Có ít nhất 1 cuộc trò chuyện trong session hiện tại
+- Trình duyệt hỗ trợ download files
+
+### **Main Success Scenario (Luồng chính thành công)**
+
+1. **Nhân viên** truy cập vào giao diện chat hiện tại
+2. **Nhân viên** nhấn nút "Export Conversation" (📥) trên thanh công cụ
+3. **Hệ thống** hiển thị dialog lựa chọn format xuất file:
+  - PDF (định dạng đẹp, có timestamp)
+  - Word (.docx) - có thể chỉnh sửa
+  - Plain Text (.txt) - đơn giản
+  - JSON (.json) - cho technical users
+4. **Nhân viên** chọn format mong muốn
+5. **Nhân viên** nhập tên file (optional, mặc định: "Chat_YYYY-MM-DD_HH-mm")
+6. **Nhân viên** nhấn "Download"
+7. **Hệ thống** tạo file với nội dung:
+  - Timestamp của cuộc trò chuyện
+  - Thông tin người dùng (tên, phòng ban)
+  - Toàn bộ Q&A pairs
+  - References/Citations nếu có
+  - Metadata (session ID, export time)
+8. **Hệ thống** trigger download file về máy tính
+9. **Hệ thống** ghi log hoạt động export (audit trail)
+
+### **Alternative Flows (Luồng thay thế)**
+
+**A1: Session rỗng**
+
+- 3a. Nếu không có cuộc trò chuyện nào
+- 3b. **Hệ thống** hiển thị thông báo "Không có nội dung để xuất"
+- 3c. **Hệ thống** disable nút Export
+
+**A2: Lỗi tạo file**
+
+- 7a. Nếu có lỗi trong quá trình tạo file
+- 7b. **Hệ thống** hiển thị thông báo lỗi "Không thể tạo file. Vui lòng thử lại"
+- 7c. **Hệ thống** ghi log error
+
+### **Exception Flows (Luồng ngoại lệ)**
+
+**E1: Network error**
+
+- **Hệ thống** hiển thị thông báo "Lỗi kết nối. Vui lòng kiểm tra internet"
+
+**E2: File size quá lớn**
+
+- **Hệ thống** hiển thị "Cuộc trò chuyện quá dài. Vui lòng xuất từng phần"
+
+### **Business Rules**
+
+- Chỉ export được conversation của session hiện tại
+- File tối đa 50MB (khoảng 10,000 tin nhắn)
+- Không export được nội dung nhạy cảm đã bị filter
+- Thời gian lưu trữ log export: 90 ngày
+
+### **Non-functional Requirements**
+
+- Thời gian tạo file: < 30 giây cho conversation bình thường
+- Support multiple browsers (Chrome, Firefox, Edge, Safari)
+- File format phải readable trên các thiết bị phổ biến
+
+---
+
+## 📤 **UC6: Upload tài liệu để hỏi về nội dung cụ thể (Upload Document for Query)**
+
+### **Thông tin cơ bản**
+
+- **ID**: UC6
+- **Tên**: Upload Document for Specific Content Query
+- **Actor chính**: Employee (Nhân viên)
+- **Mục tiêu**: Upload tài liệu cá nhân/tạm thời để hỏi chatbot về nội dung cụ thể trong tài liệu đó
+- **Độ ưu tiên**: High
+- **Độ phức tạp**: Medium
+
+### **Preconditions (Điều kiện tiên quyết)**
+
+- Nhân viên đã đăng nhập thành công
+- Có file tài liệu hợp lệ để upload
+- File size không vượt quá giới hạn cho phép
+
+### **Main Success Scenario (Luồng chính thành công)**
+
+1. **Nhân viên** nhấn nút "Upload Document" (📎) trong giao diện chat
+2. **Hệ thống** hiển thị dialog upload file với thông tin:
+  - Supported formats: PDF, Word, TXT, PowerPoint
+  - Max file size: 10MB
+  - Lưu ý về tính bảo mật
+3. **Nhân viên** chọn file từ máy tính (drag & drop hoặc browse)
+4. **Hệ thống** validate file:
+  - Kiểm tra format
+  - Kiểm tra size
+  - Scan virus/malware cơ bản
+5. **Hệ thống** hiển thị preview thông tin file:
+  - Tên file, size, số trang (nếu có)
+  - Checkbox "Tôi xác nhận không có thông tin nhạy cảm"
+6. **Nhân viên** xác nhận checkbox và nhấn "Upload & Process"
+7. **Hệ thống** xử lý file:
+  - Extract text content
+  - Tạo embeddings cho nội dung
+  - Lưu tạm thời (session-based storage)
+8. **Hệ thống** hiển thị thông báo "File đã sẵn sàng! Bạn có thể hỏi về nội dung tài liệu này"
+9. **Hệ thống** enable "Document Context Mode":
+  - Icon file hiển thị trong chat
+  - Queries sẽ prioritize nội dung từ file này
+10. **Nhân viên** có thể đặt câu hỏi về tài liệu đã upload
+11. **Hệ thống** trả lời dựa trên nội dung file + knowledge base
+
+### **Alternative Flows (Luồng thay thế)**
+
+**A1: File không hợp lệ**
+
+- 4a. Nếu file format không được hỗ trợ
+- 4b. **Hệ thống** hiển thị "File format không được hỗ trợ. Vui lòng chọn PDF, Word, TXT hoặc PowerPoint"
+- 4c. Return to step 3
+
+**A2: File quá lớn**
+
+- 4a. Nếu file > 10MB
+- 4b. **Hệ thống** hiển thị "File quá lớn. Vui lòng chọn file < 10MB"
+- 4c. Return to step 3
+
+**A3: Nội dung không extract được**
+
+- 7a. Nếu không thể đọc text từ file
+- 7b. **Hệ thống** hiển thị "Không thể đọc nội dung file. Vui lòng kiểm tra file và thử lại"
+- 7c. **Nhân viên** có option thử file khác
+
+### **Exception Flows (Luồng ngoại lệ)**
+
+**E1: Virus detected**
+
+- **Hệ thống** reject file và hiển thị "File không an toàn. Upload bị từ chối"
+
+**E2: Server storage full**
+
+- **Hệ thống** hiển thị "Hệ thống tạm thời quá tải. Vui lòng thử lại sau"
+
+### **Business Rules**
+
+- File chỉ lưu trữ trong thời gian session (tự động xóa sau 4 giờ không hoạt động)
+- Một session chỉ được upload tối đa 3 files đồng thời
+- Không lưu trữ permanent - chỉ là temporary processing
+- Content scanning để đảm bảo không có thông tin nhạy cảm
+- Audit log mọi hoạt động upload (không log nội dung file)
+
+### **Non-functional Requirements**
+
+- Upload speed: Hỗ trợ file 10MB trong < 2 phút
+- Processing time: < 1 phút cho file PDF 50 trang
+- Concurrent uploads: Hỗ trợ 20 users upload đồng thời
+- Auto-cleanup: Xóa files sau session timeout
+
+---
+
+## 🗂️ **UC8: Truy cập tài liệu cấp nhân viên (Access Employee-Level Documents)**
+
+### **Thông tin cơ bản**
+
+- **ID**: UC8
+- **Tên**: Access Employee-Level Documents
+- **Actor chính**: Employee (Nhân viên)
+- **Mục tiêu**: Truy cập và tìm kiếm thông tin trong tài liệu được phân quyền cho cấp nhân viên
+- **Độ ưu tiên**: High
+- **Độ phức tạp**: Medium
+
+### **Preconditions (Điều kiện tiên quyết)**
+
+- Nhân viên đã đăng nhập với tài khoản được xác thực
+- Tài khoản có role "Employee" hoặc cao hơn
+- Hệ thống permission service hoạt động bình thường
+
+### **Main Success Scenario (Luồng chính thành công)**
+
+1. **Nhân viên** đặt câu hỏi trong chatbot interface
+2. **Hệ thống** nhận query và xác định user permission level
+3. **Hệ thống** thực hiện search với filter:
+  - Document access_level: "public" + "employee_only"
+  - Exclude: "manager_only", "director_only"
+4. **Hệ thống** retrieve relevant documents từ vector database
+5. **Hệ thống** apply additional permission check:
+  - Cross-check user department với document department_owner (nếu có restriction)
+  - Verify document status (active/archived)
+6. **Hệ thống** rank và select top relevant documents
+7. **Hệ thống** generate response dựa trên permitted documents
+8. **Hệ thống** trả về answer kèm citations:
+  - Document title và source
+  - Access level indicator
+  - Last updated date
+  - Department owner (nếu relevant)
+
+### **Alternative Flows (Luồng thay thế)**
+
+**A1: Không tìm thấy tài liệu phù hợp**
+
+- 6a. Nếu không có document nào match query trong phạm vi quyền hạn
+- 6b. **Hệ thống** trả về: "Tôi không tìm thấy thông tin phù hợp trong phạm vi tài liệu bạn có quyền truy cập. Bạn có thể:"
+  - Thử câu hỏi khác
+  - Yêu cầu quyền truy cập cao hơn
+  - Liên hệ IT support
+
+**A2: Tìm thấy document có restricted access**
+
+- 5a. Nếu relevant document có access_level cao hơn
+- 5b. **Hệ thống** exclude document đó khỏi context
+- 5c. **Hệ thống** có thể hint: "Có tài liệu liên quan nhưng cần quyền truy cập cao hơn"
+
+### **Exception Flows (Luồng ngoại lệ)**
+
+**E1: Permission service down**
+
+- **Hệ thống** fallback về "public" documents only
+- Hiển thị warning: "Một số tính năng tạm thời bị hạn chế"
+
+**E2: Database connection error**
+
+- **Hệ thống** trả về generic error message
+- Log technical error cho admin
+
+### **Business Rules**
+
+- Employee có quyền truy cập:
+  - Tất cả tài liệu "public"
+  - Tài liệu "employee_only" của công ty
+  - Tài liệu "employee_only" của department riêng (nếu có cấu hình)
+- Không được truy cập:
+  - Tài liệu "manager_only"
+  - Tài liệu "director_only"
+  - Tài liệu của department khác (nếu có restriction)
+- Permission check phải real-time (không cache quá 5 phút)
+- Audit log mọi truy cập document
+
+### **Non-functional Requirements**
+
+- Permission check time: < 200ms
+- Document retrieval: < 3 giây cho query phức tạp
+- Concurrent user support: 100 employees đồng thời
+- Accuracy: 99.9% permission enforcement
+
+---
+
+## 🏢 **UC9: Xem thông tin quy trình phòng ban (View Department Process Information)**
+
+### **Thông tin cơ bản**
+
+- **ID**: UC9
+- **Tên**: View Department Process Information
+- **Actor chính**: Employee (Nhân viên)
+- **Mục tiêu**: Tra cứu thông tin về quy trình, chính sách, hướng dẫn làm việc của phòng ban mình và phòng ban liên quan
+- **Độ ưu tiên**: High
+- **Độ phức tạp**: Low-Medium
+
+### **Preconditions (Điều kiện tiên quyết)**
+
+- Nhân viên đã đăng nhập và được xác định department
+- Có tài liệu quy trình được categorize theo department trong hệ thống
+- User profile có thông tin department mapping
+
+### **Main Success Scenario (Luồng chính thành công)**
+
+1. **Nhân viên** hỏi về quy trình phòng ban (VD: "Quy trình nghỉ phép ở phòng HR như thế nào?")
+2. **Hệ thống** analyze query để xác định:
+  - Department được mention (HR trong VD)
+  - Process type (nghỉ phép trong VD)
+  - User's own department từ profile
+3. **Hệ thống** search với priority order:
+  - Tài liệu của department được hỏi (nếu user có quyền)
+  - Tài liệu general/cross-department
+  - Tài liệu của department user thuộc về
+4. **Hệ thống** apply access control:
+  - Public department info: accessible by all
+  - Internal department process: chỉ member của department đó
+  - Cross-department process: accessible by all employees
+5. **Hệ thống** retrieve và rank documents:
+  - Document type = "procedure" hoặc "process"
+  - Department_owner matches query
+  - Relevance score cao
+6. **Hệ thống** generate comprehensive response:
+  - Step-by-step process nếu có
+  - Contact person/department
+  - Required documents/forms
+  - Timeline expectations
+  - Related processes
+7. **Hệ thống** provide citations với department context
+
+### **Alternative Flows (Luồng thay thế)**
+
+**A1: Hỏi về department không có quyền truy cập**
+
+- 4a. Nếu query về internal process của department khác
+- 4b. **Hệ thống** trả về general information only
+- 4c. **Hệ thống** suggest: "Để biết chi tiết hơn, vui lòng liên hệ trực tiếp phòng [Department Name]"
+
+**A2: Department không được nhận diện**
+
+- 2a. Nếu query không specify rõ department
+- 2b. **Hệ thống** hỏi clarification: "Bạn muốn hỏi về quy trình của phòng ban nào?"
+- 2c. **Hệ thống** list available departments
+- 2d. **Nhân viên** chọn department
+- 2e. Continue with step 3
+
+**A3: Multiple processes match**
+
+- 5a. Nếu có nhiều processes liên quan
+- 5b. **Hệ thống** trả về summary của tất cả
+- 5c. **Hệ thống** offer: "Bạn muốn biết chi tiết về quy trình nào?"
+
+### **Exception Flows (Luồng ngoại lệ)**
+
+**E1: User department không được set**
+
+- **Hệ thống** chỉ trả về public information
+- Suggest user liên hệ IT để cập nhật profile
+
+**E2: No process documents found**
+
+- **Hệ thống** trả về: "Hiện tại chưa có thông tin quy trình cho [department]. Vui lòng liên hệ trực tiếp hoặc IT support"
+
+### **Business Rules**
+
+- Employee có thể xem:
+  - Quy trình public của tất cả departments
+  - Quy trình internal của department mình
+  - Cross-department processes
+- Department mapping dựa trên user profile
+- Process information phải được tag với department_owner
+- Prioritize most recent version của processes
+- Contact information phải được included trong response
+
+### **Non-functional Requirements**
+
+- Response time: < 5 giây cho complex departmental queries
+- Department mapping accuracy: 100%
+- Process information freshness: Cập nhật trong vòng 24h khi có thay đổi
+
+---
+
+## 🔐 **UC10: Yêu cầu quyền truy cập tài liệu cấp cao hơn (Request Higher-Level Document Access)**
+
+### **Thông tin cơ bản**
+
+- **ID**: UC10
+- **Tên**: Request Higher-Level Document Access
+- **Actor chính**: Employee (Nhân viên)
+- **Mục tiêu**: Yêu cầu quyền truy cập vào tài liệu có access level cao hơn quyền hạn hiện tại
+- **Độ ưu tiên**: Medium
+- **Độ phức tạp**: Medium-High
+
+### **Preconditions (Điều kiện tiên quyết)**
+
+- Nhân viên đã đăng nhập với tài khoản hợp lệ
+- Có tài liệu với access level cao hơn trong hệ thống
+- Hệ thống approval workflow đã được cấu hình
+- Manager/Approver có tài khoản active
+
+### **Main Success Scenario (Luồng chính thành công)**
+
+1. **Nhân viên** đặt câu hỏi và nhận response từ hệ thống
+2. **Hệ thống** detect có relevant documents với higher access level
+3. **Hệ thống** hiển thị message: "Có tài liệu liên quan nhưng cần quyền truy cập cao hơn. Bạn có muốn yêu cầu quyền truy cập không?"
+4. **Nhân viên** nhấn "Request Access"
+5. **Hệ thống** hiển thị form yêu cầu:
+  - Document/Category cần truy cập
+  - Business justification (text area)
+  - Urgent level (Normal/High/Critical)
+  - Temporary/Permanent access
+  - Expected usage period
+6. **Nhân viên** điền form và submit
+7. **Hệ thống** identify approver:
+  - Direct manager nếu request "manager_only" docs
+  - Department director nếu request "director_only" docs
+  - IT Admin nếu request cross-department access
+8. **Hệ thống** tạo access request record:
+  - Unique request ID
+  - Timestamp
+  - User info
+  - Document info
+  - Justification
+  - Approver assignment
+9. **Hệ thống** gửi notification đến approver:
+  - Email notification
+  - In-app notification (nếu có)
+  - Include request details và approval link
+10. **Hệ thống** confirm với nhân viên: "Yêu cầu đã được gửi đến [Approver Name]. Request ID: #12345"
+11. **Hệ thống** track request status và notify user về updates
+
+### **Alternative Flows (Luồng thay thế)**
+
+**A1: No approver available**
+
+- 7a. Nếu không xác định được approver
+- 7b. **Hệ thống** escalate to IT Admin
+- 7c. **Hệ thống** notify user về escalation
+
+**A2: Duplicate request exists**
+
+- 8a. Nếu user đã có pending request cho same document
+- 8b. **Hệ thống** hiển thị: "Bạn đã có yêu cầu pending cho tài liệu này (Request #XXXX)"
+- 8c. **Hệ thống** offer option để view status hoặc withdraw previous request
+
+**A3: Automatic approval**
+
+- 8a. Nếu document thuộc category được pre-approved cho user's role
+- 8b. **Hệ thống** tự động approve
+- 8c. **Hệ thống** notify user: "Quyền truy cập đã được cấp tự động"
+
+### **Approval Workflow (Sub-flow)**
+
+1. **Approver** nhận notification
+2. **Approver** access approval interface
+3. **Approver** review request details:
+  - User profile và history
+  - Business justification
+  - Document sensitivity
+  - Company policies
+4. **Approver** make decision:
+  - Approve (với optional conditions/time limit)
+  - Reject (với reason)
+  - Request more information
+5. **Hệ thống** implement decision:
+  - Update user permissions nếu approved
+  - Send notification to requester
+  - Log decision với audit trail
+
+### **Exception Flows (Luồng ngoại lệ)**
+
+**E1: Approver không response sau 72h**
+
+- **Hệ thống** auto-escalate to higher level
+- **Hệ thống** notify requester về escalation
+
+**E2: System maintenance during approval**
+
+- **Hệ thống** queue pending approvals
+- **Hệ thống** resume workflow after maintenance
+
+### **Business Rules**
+
+- Request timeout: 7 ngày (auto-reject nếu no action)
+- Maximum pending requests per user: 5
+- Automatic approval categories:
+  - Public training materials
+  - General company policies
+  - Safety procedures
+- Approval authority matrix:
+  - Direct manager: employee_only → manager_only
+  - Department head: manager_only → director_only
+  - IT Admin: cross-department access
+- Audit log retention: 2 năm
+- Approved temporary access: Auto-revoke sau expiry date
+
+### **Non-functional Requirements**
+
+- Request submission time: < 10 giây
+- Notification delivery: < 5 phút
+- Approval interface load time: < 3 giây
+- Concurrent requests support: 50 requests/hour
+- Email delivery success rate: 99%
+- Audit trail completeness: 100%
+
+### **Post-conditions**
+
+- Request record được lưu trong database
+- Notification được gửi đến approver
+- User có thể track request status
+- Audit log được tạo cho compliance
+- System ready cho next request từ user
+
+---
+
+## 📊 **TỔNG QUAN BUSINESS VALUE**
+
+### **🎯 Lợi ích chính cho Employee:**
+
+1. **Tăng hiệu quả**: Nhanh chóng tìm thông tin mà không cần hỏi đồng nghiệp
+2. **Tự chủ cao hơn**: Có thể tự tra cứu và giải quyết vấn đề
+3. **Giảm thiểu gián đoạn**: Không làm phiền manager/đồng nghiệp với câu hỏi đơn giản
+4. **Lưu trữ kiến thức**: Export conversations để tham khảo sau này
+5. **Linh hoạt**: Upload document cá nhân để hỏi specific questions
+
+### **🔄 Integration với Existing Workflows:**
+
+- Seamless với daily work routine
+- Không require training phức tạp
+- Compatible với existing document management systems
+- Support cho compliance và audit requirements
+
+### **📈 Success Metrics:**
+
+- **User Adoption**: >80% employees sử dụng ít nhất 1 lần/tuần
+- **Query Success Rate**: >85% queries được resolve mà không cần escalate
+- **Time Savings**: Giảm 60% thời gian tìm kiếm thông tin
+- **User Satisfaction**: >4.2/5.0 rating từ employee feedback
+
+Các use cases này được thiết kế để maximize business value cho employees trong khi maintain security và compliance requirements của tổ chức.
+
+# MÔ TẢ CHI TIẾT CÁC USE CASE - MANAGER (TRƯỞNG PHÒNG)
+
+## 🏷️ **THÔNG TIN CHUNG**
+
+- **Actor chính**: Manager (Trưởng phòng)
+- **Quyền kế thừa**: Tất cả Use Cases của Employee
+- **Cấp độ ưu tiên**: High (Người quản lý trực tiếp)
+- **Tần suất sử dụng**: Daily (Hàng ngày)
+
+---
+
+## 📊 **UC11: TRUY CẬP TÀI LIỆU CẤP QUẢN LÝ**
+
+### **📋 Thông tin cơ bản**
+
+- **Use Case ID**: UC11
+- **Tên**: Access Manager Documents (Truy cập tài liệu cấp quản lý)
+- **Actor chính**: Manager
+- **Actors phụ**: System, Document Database
+- **Loại**: Primary Use Case
+- **Mức độ phức tạp**: Medium
+
+### **🎯 Mô tả**
+
+Trưởng phòng có thể truy cập và tra cứu các tài liệu được phân loại ở cấp độ quản lý, bao gồm báo cáo nội bộ, chiến lược phòng ban, quy trình quản lý nhân sự, và các thông tin không được chia sẻ với nhân viên thường.
+
+### **🚀 Điều kiện tiên quyết (Preconditions)**
+
+- Manager đã đăng nhập vào hệ thống với vai trò "Manager"
+- Manager có quyền truy cập hợp lệ (access_level = manager_only hoặc thấp hơn)
+- Hệ thống cơ sở dữ liệu và RAG engine đang hoạt động bình thường
+- Manager thuộc phòng ban có quyền truy cập tài liệu (department-specific access)
+
+### **📈 Kịch bản chính (Main Success Scenario)**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Manager | Đăng nhập và truy cập giao diện chatbot |
+| 2   | Manager | Nhập câu hỏi liên quan đến tài liệu cấp quản lý<br/>*VD: "Chiến lược phát triển sản phẩm Q4 như thế nào?"* |
+| 3   | System | Xác thực quyền truy cập của Manager |
+| 4   | System | Thực hiện tìm kiếm trong tài liệu với filter access_level ≤ "manager_only" |
+| 5   | System | Áp dụng bộ lọc phòng ban (nếu có quy định) |
+| 6   | System | Truy xuất các tài liệu phù hợp từ Vector Database và Metadata Store |
+| 7   | System | Xây dựng context từ các tài liệu đã lọc |
+| 8   | System | Gọi LLM để sinh câu trả lời với context đã chuẩn bị |
+| 9   | System | Trả về câu trả lời kèm theo citation từ các tài liệu cấp quản lý |
+| 10  | Manager | Nhận câu trả lời và có thể đặt câu hỏi follow-up |
+
+### **🔄 Kịch bản thay thế (Alternative Scenarios)**
+
+**A1: Không tìm thấy tài liệu phù hợp**
+
+- 4a. System không tìm thấy tài liệu nào matching với query
+- 4b. System thông báo: "Xin lỗi, tôi không tìm thấy thông tin liên quan đến câu hỏi của bạn trong các tài liệu cấp quản lý."
+- 4c. System đề xuất: "Bạn có muốn mở rộng tìm kiếm hoặc liên hệ IT để bổ sung tài liệu không?"
+
+**A2: Tài liệu có access level cao hơn quyền của Manager**
+
+- 6a. System phát hiện một số tài liệu liên quan nhưng có access_level = "director_only"
+- 6b. System loại bỏ những tài liệu này khỏi context
+- 6c. System trả về kết quả với ghi chú: "Một số thông tin liên quan có thể yêu cầu quyền cấp cao hơn."
+
+**A3: Manager truy cập cross-department document**
+
+- 5a. Manager hỏi về tài liệu của phòng ban khác
+- 5b. System check cross-department access policy
+- 5c1. Nếu được phép: Tiếp tục bình thường
+- 5c2. Nếu bị cấm: Thông báo "Thông tin này thuộc về [Department Name]. Bạn cần yêu cầu quyền truy cập từ trưởng phòng tương ứng."
+
+### **⚠️ Kịch bản ngoại lệ (Exception Scenarios)**
+
+**E1: Lỗi xác thực quyền truy cập**
+
+- 3a. System không thể xác thực quyền của Manager (token expired, role changed)
+- 3b. System yêu cầu đăng nhập lại
+- 3c. Use case kết thúc
+
+**E2: Vector Database không khả dụng**
+
+- 6a. Vector Database gặp lỗi hoặc không phản hồi
+- 6b. System fallback sang keyword search trong Metadata Store
+- 6c. System thông báo: "Chức năng tìm kiếm ngữ nghĩa tạm thời gián đoạn. Kết quả có thể ít chính xác hơn."
+
+**E3: LLM Service không khả dụng**
+
+- 8a. External LLM API gặp lỗi hoặc vượt quota
+- 8b. System trả về danh sách các document chunks liên quan
+- 8c. System thông báo: "Dịch vụ tạo câu trả lời tạm thời gián đoạn. Dưới đây là các tài liệu liên quan:"
+
+### **✅ Điều kiện thành công (Postconditions)**
+
+- Manager nhận được thông tin chính xác từ tài liệu cấp quản lý
+- Tất cả truy cập được ghi log để audit
+- Context của cuộc hội thoại được lưu trữ cho các câu hỏi tiếp theo
+- Usage metrics được cập nhật
+
+### **📊 Yêu cầu phi chức năng**
+
+- **Performance**: Thời gian phản hồi < 60 giây
+- **Security**: Strict access control, không data leakage
+- **Availability**: 99.5% uptime trong giờ làm việc
+- **Auditability**: Full logging của document access
+
+---
+
+## 📈 **UC12: XEM BÁO CÁO CỦA ĐỘI NHÓM**
+
+### **📋 Thông tin cơ bản**
+
+- **Use Case ID**: UC12
+- **Tên**: View Team Reports (Xem báo cáo đội nhóm)
+- **Actor chính**: Manager
+- **Actors phụ**: Analytics Service, Report Generator
+- **Loại**: Primary Use Case
+- **Mức độ phức tạp**: Medium
+
+### **🎯 Mô tả**
+
+Trưởng phòng có thể truy cập các báo cáo về hiệu suất làm việc, usage statistics, và insights về đội nhóm dưới quyền thông qua chatbot. Bao gồm các báo cáo về tần suất sử dụng hệ thống, loại câu hỏi phổ biến, và productivity metrics.
+
+### **🚀 Điều kiện tiên quyết (Preconditions)**
+
+- Manager đã đăng nhập và được xác thực
+- Manager có team members trong database
+- Analytics Service đã thu thập đủ dữ liệu (tối thiểu 1 tuần)
+- Manager có quyền xem báo cáo team (manager role)
+
+### **📈 Kịch bản chính (Main Success Scenario)**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Manager | Yêu cầu xem báo cáo đội nhóm<br/>*VD: "Cho tôi xem báo cáo sử dụng hệ thống của team trong tuần qua"* |
+| 2   | System | Parse request và xác định loại báo cáo cần thiết |
+| 3   | System | Xác thực quyền của Manager đối với team members |
+| 4   | System | Truy vấn Analytics Service để lấy team metrics |
+| 5   | Analytics Service | Thu thập data từ usage logs, document access, query patterns |
+| 6   | Analytics Service | Tính toán các metrics: frequency, popular topics, performance |
+| 7   | System | Tạo visualized report với charts và insights |
+| 8   | System | Cung cấp natural language summary của báo cáo |
+| 9   | Manager | Nhận báo cáo và có thể yêu cầu drill-down vào chi tiết |
+
+### **📊 Các loại báo cáo khả dụng**
+
+**Usage Statistics:**
+
+- Số lượng queries per user per day/week/month
+- Peak usage hours
+- Device/platform distribution
+- Response time trends
+
+**Content Analytics:**
+
+- Most queried document categories
+- Popular topics by team
+- Knowledge gaps (queries without satisfactory answers)
+- Document utilization rates
+
+**Performance Metrics:**
+
+- Query success rate
+- User satisfaction scores (thumbs up/down)
+- Average session duration
+- Feature adoption rates
+
+**Team Insights:**
+
+- Top active users
+- Learning patterns
+- Department-specific trends
+- Training needs identification
+
+### **🔄 Kịch bản thay thế (Alternative Scenarios)**
+
+**A1: Yêu cầu báo cáo custom**
+
+- 2a. Manager yêu cầu báo cáo với tham số cụ thể (time range, specific users, metrics)
+- 2b. System parse parameters và validate constraints
+- 2c. System generate custom report theo yêu cầu
+
+**A2: So sánh với period trước**
+
+- 4a. Manager muốn so sánh performance với kỳ trước
+- 4b. System fetch data cho both periods
+- 4c. System generate comparative analysis với trend indicators
+
+**A3: Export báo cáo**
+
+- 9a. Manager yêu cầu export báo cáo ra file
+- 9b. System generate PDF/Excel với charts và data
+- 9c. System provide download link hoặc email attachment
+
+### **⚠️ Kịch bản ngoại lệ (Exception Scenarios)**
+
+**E1: Insufficient data**
+
+- 5a. Analytics Service không có đủ data cho báo cáo
+- 5b. System thông báo: "Chưa có đủ dữ liệu để tạo báo cáo ý nghĩa. Vui lòng thử lại sau [timeframe]."
+- 5c. System suggest alternative timeframe hoặc metrics
+
+**E2: Team member privacy constraints**
+
+- 3a. Một số team members có privacy settings không cho phép reporting
+- 3b. System exclude those users và thông báo về anonymized reporting
+- 3c. Continue với available data
+
+### **✅ Điều kiện thành công (Postconditions)**
+
+- Manager nhận được báo cáo comprehensive về team performance
+- Report được cached để truy cập nhanh sau này
+- Manager insights được ghi nhận để improve system
+- Usage của reporting feature được track
+
+---
+
+## 👥 **UC13: PHÊ DUYỆT YÊU CẦU TRUY CẬP CỦA NHÂN VIÊN**
+
+### **📋 Thông tin cơ bản**
+
+- **Use Case ID**: UC13
+- **Tên**: Approve Employee Access Requests (Phê duyệt yêu cầu truy cập)
+- **Actor chính**: Manager
+- **Actors phụ**: Employee (requester), Permission Service, Notification Service
+- **Loại**: Primary Use Case
+- **Mức độ phức tạp**: High
+
+### **🎯 Mô tả**
+
+Trưởng phòng có thể xem danh sách các yêu cầu truy cập tài liệu từ nhân viên dưới quyền và thực hiện phê duyệt hoặc từ chối thông qua giao diện chatbot. Hệ thống sẽ tự động cập nhật quyền truy cập và thông báo cho nhân viên.
+
+### **🚀 Điều kiện tiên quyết (Preconditions)**
+
+- Manager đã đăng nhập với role hợp lệ
+- Có ít nhất một access request pending từ team members
+- Permission Service đang hoạt động bình thường
+- Manager có authority để approve requests trong department
+
+### **📈 Kịch bản chính (Main Success Scenario)**
+
+| Bước | Actor | Hành động |
+| --- | --- | --- |
+| 1   | Manager | Yêu cầu xem pending access requests<br/>*VD: "Có yêu cầu truy cập tài liệu nào cần phê duyệt không?"* |
+| 2   | System | Query Permission Service cho pending requests thuộc team |
+| 3   | System | Format và hiển thị danh sách requests với chi tiết |
+| 4   | Manager | Review request details và quyết định approve/deny |
+| 5   | Manager | Phản hồi quyết định<br/>*VD: "Phê duyệt request #123, từ chối request #124"* |
+| 6   | System | Parse decision và validate authority của Manager |
+| 7   | System | Cập nhật permissions trong database |
+| 8   | System | Send notifications cho affected employees |
+| 9   | System | Log approval actions cho audit trail |
+| 10  | System | Confirm completion và show updated status |
+
+### **📋 Request Information Display Format**
+
+```
+🔍 PENDING ACCESS REQUESTS:
+
+📄 Request #123
+👤 Employee: Nguyễn Văn A (R&D Department)  
+📁 Document: "Quy trình Phát triển Sản phẩm v2.1"
+📊 Current Level: employee_only → Requested: manager_only
+📅 Request Date: 28/08/2025 - 14:30
+💬 Reason: "Cần tham khảo để thực hiện dự án XYZ được giao"
+⚖️ Status: Pending Manager Approval
+
+📄 Request #124  
+👤 Employee: Trần Thị B (Marketing Department)
+📁 Document: "Chiến lược Giá cả 2025"
+📊 Current Level: employee_only → Requested: manager_only  
+📅 Request Date: 27/08/2025 - 09:15
+💬 Reason: "Chuẩn bị presentation cho khách hàng lớn"
+⚖️ Status: Cross-department request (Needs additional approval)
+```
+
+### **🔄 Kịch bản thay thế (Alternative Scenarios)**
+
+**A1: Batch approval**
+
+- 5a. Manager muốn approve multiple requests cùng lúc
+- 5b. Manager: "Phê duyệt tất cả requests từ team R&D"
+- 5c. System batch process all matching requests
+- 5d. System provide summary of batch actions
+
+**A2: Conditional approval**
+
+- 5a. Manager approve với điều kiện hoặc time limit
+- 5b. Manager: "Phê duyệt request #123 trong 30 ngày"
+- 5c. System set temporary permission với auto-expiry
+- 5d. System schedule reminder trước khi expire
+
+**A3: Request more information**
+
+- 4a. Manager cần thêm thông tin từ employee
+- 4b. Manager: "Yêu cầu Nguyễn Văn A giải thích rõ hơn về mục đích sử dụng"
+- 4c. System send message đến employee yêu cầu clarification
+- 4d. Request status chuyển sang "Pending Additional Info"
+
+**A4: Escalate to Director**
+
+- 6a. Request cần approval từ cấp cao hơn (cross-department, sensitive doc)
+- 6b. Manager: "Tôi không có quyền phê duyệt request này, escalate lên Giám đốc"
+- 6c. System forward request với Manager's recommendation
+- 6d. System notify both employee và Director
+
+### **⚠️ Kịch bản ngoại lệ (Exception Scenarios)**
+
+**E1: Invalid authority**
+
+- 6a. System phát hiện Manager không có quyền approve specific request
+- 6b. System thông báo: "Bạn không có quyền phê duyệt tài liệu này. Yêu cầu cần được escalate."
+- 6c. System suggest escalation options
+
+**E2: Employee no longer exists**
+
+- 7a. Employee đã rời công ty hoặc chuyển phòng ban
+- 7b. System auto-reject request với reason "Employee status changed"
+- 7c. System notify Manager về status change
+
+**E3: Document no longer available**
+
+- 7a. Tài liệu đã bị xóa hoặc thay đổi access level
+- 7b. System auto-close request với appropriate notification
+- 7c. System suggest alternative documents nếu có
+
+### **🔔 Notification Templates**
+
+**Approval Notification:**
+
+```
+✅ YÊU CẦU TRUY CẬP ĐƯỢC PHÊ DUYỆT
+
+Chào [Employee Name],
+
+Yêu cầu truy cập của bạn đã được phê duyệt:
+📁 Tài liệu: [Document Name]
+👤 Được phê duyệt bởi: [Manager Name]
+⏰ Có hiệu lực từ: [Date Time]
+📅 Thời hạn: [Expiry if applicable]
+
+Bạn có thể truy cập tài liệu này ngay bây giờ.
+```
+
+**Denial Notification:**
+
+```
+❌ YÊU CẦU TRUY CẬP BỊ TỪ CHỐI
+
+Chào [Employee Name],
+
+Yêu cầu truy cập của bạn không được phê duyệt:
+📁 Tài liệu: [Document Name]  
+👤 Quyết định bởi: [Manager Name]
+💬 Lý do: [Denial Reason]
+
+Vui lòng liên hệ trực tiếp với quản lý để biết thêm chi tiết.
+```
+
+### **✅ Điều kiện thành công (Postconditions)**
+
+- Access requests được process thành công
+- Employee permissions được cập nhật correctly
+- Notifications được gửi đến all affected parties
+- Audit trail hoàn chỉnh cho compliance
+- Manager có dashboard để track approval history
+
+### **📊 Yêu cầu phi chức năng**
+
+- **Response Time**: Decision processing < 5 giây
+- **Notification Delivery**: < 30 giây sau approval
+- **Audit Compliance**: 100% actions được log
+- **Security**: Strong authorization checks
+- **Usability**: Intuitive approval workflow
+
+---
+
+## 🎯 **TỔNG KẾT VÀ INSIGHTS**
+
+### **🔗 Mối quan hệ giữa các Use Cases**
+
+- **UC11 ↔ UC12**: Manager truy cập tài liệu quản lý để tạo insights cho team reports
+- **UC12 → UC13**: Team reports giúp identify ai cần access gì để improve productivity
+- **UC13 → UC11**: Approval decisions ảnh hưởng đến available documents cho manager
+
+### **💼 Business Value**
+
+1. **Improved Decision Making**: Managers có access đến thông tin cần thiết
+2. **Team Productivity**: Streamlined approval process giảm waiting time
+3. **Governance**: Proper access control với audit trail
+4. **Insights-Driven**: Data-driven decisions dựa trên team analytics
+
+### **🛡️ Security Considerations**
+
+- **Principle of Least Privilege**: Chỉ grant minimum necessary access
+- **Temporal Access**: Support cho time-limited permissions
+- **Audit Trail**: Complete logging cho compliance requirements
+- **Cross-Department Controls**: Prevent unauthorized cross-team access
+
+### **📈 Success Metrics**
+
+- **UC11**: Document retrieval accuracy > 90%, response time < 60s
+- **UC12**: Report generation < 30s, data freshness < 24h
+- **UC13**: Average approval time < 4 hours, 95% notification delivery rate
+
+Những Use Cases này tạo thành một ecosystem quản lý tri thức hiệu quả, empowering managers để lead teams effectively while maintaining security và compliance! 🚀
 # CHI TIẾT USE CASES CHO SYSTEM ADMIN
 
 ## UC17: 👤 **QUẢN LÝ TÀI KHOẢN VÀ PHÂN QUYỀN NGƯỜI DÙNG**
