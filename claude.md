@@ -2305,6 +2305,521 @@ Vui lòng liên hệ trực tiếp với quản lý để biết thêm chi tiế
 - **UC13**: Average approval time < 4 hours, 95% notification delivery rate
 
 Những Use Cases này tạo thành một ecosystem quản lý tri thức hiệu quả, empowering managers để lead teams effectively while maintaining security và compliance! 🚀
+
+# MÔ TẢ CHI TIẾT CÁC USE CASE - DIRECTOR LEVEL
+
+## 🏢 **UC14: TRUY CẬP MỌI TÀI LIỆU (EXECUTIVE ACCESS)**
+
+### 📋 **Thông tin cơ bản**
+- **ID**: UC14
+- **Tên**: Executive Document Access
+- **Actor chính**: Director (Giám đốc)
+- **Mục tiêu**: Cho phép giám đốc truy cập toàn bộ tài liệu tổ chức (trừ system configuration)
+- **Độ ưu tiên**: HIGH
+- **Độ phức tạp**: MEDIUM
+
+### 🎯 **Preconditions (Điều kiện tiên quyết)**
+- User đã được authenticate và có role = "Director"
+- Hệ thống đã load được access control matrix
+- Database connection ổn định
+
+### 📝 **Main Flow (Luồng chính)**
+```
+1. Director đặt câu hỏi hoặc yêu cầu tài liệu
+2. System xác thực role của user = "Director"
+3. System bypass tất cả document-level access restrictions
+4. System search trong toàn bộ document corpus (except system_admin docs)
+5. System apply semantic search + keyword matching
+6. System rank results by relevance (không filter by department/access_level)
+7. System generate response với full context available
+8. System log access cho audit purpose
+9. System return comprehensive answer với citations từ mọi nguồn
+```
+
+### 🔄 **Alternative Flows (Luồng thay thế)**
+
+**A1: Truy cập tài liệu nhạy cảm**
+```
+3a. Document được mark là "confidential" hoặc "top_secret"
+3b. System hiển thị warning về độ nhạy cảm
+3c. Director xác nhận muốn tiếp tục
+3d. System proceed với full access
+3e. System log detailed audit trail
+```
+
+**A2: Cross-department information request**
+```
+4a. Query span multiple departments
+4b. System aggregate information từ tất cả departments
+4c. System provide department-wise breakdown in response
+4d. System highlight potential conflicts/inconsistencies
+```
+
+### ❌ **Exception Flows (Luồng ngoại lệ)**
+
+**E1: System Admin documents**
+```
+4a. Query touch system configuration documents
+4b. System detect "system_admin" access level required
+4c. System return "Access Denied - System Administrator privileges required"
+4d. System suggest contacting IT Admin
+4e. System log attempted access
+```
+
+**E2: Document không tồn tại**
+```
+5a. Search không tìm thấy relevant documents
+5b. System return "No documents found matching your query"
+5c. System suggest alternative search terms
+5d. System offer to search in archived documents
+```
+
+### ✅ **Postconditions (Điều kiện hậu)**
+- User nhận được comprehensive response
+- Audit log được ghi lại với timestamp, query, và accessed documents
+- System performance metrics được update
+
+### 📊 **Acceptance Criteria**
+- [ ] Director có thể access 100% non-system documents
+- [ ] Response time < 60 seconds for complex queries
+- [ ] Audit log capture 100% của director-level access
+- [ ] System không leak system admin documents
+- [ ] Cross-department search hoạt động seamlessly
+
+---
+
+## 📈 **UC15: XEM BÁO CÁO TỔNG QUAN TOÀN TỔ CHỨC**
+
+### 📋 **Thông tin cơ bản**
+- **ID**: UC15
+- **Tên**: Organization-wide Analytics & Reporting
+- **Actor chính**: Director (Giám đốc)
+- **Mục tiêu**: Cung cấp insights và analytics về toàn bộ hoạt động tri thức tổ chức
+- **Độ ưu tiên**: HIGH
+- **Độ phức tạp**: HIGH
+
+### 🎯 **Preconditions (Điều kiện tiên quyết)**
+- User có role = "Director"
+- Analytics service đã collect đủ data (tối thiểu 7 ngày)
+- Reporting module đã được initialize
+
+### 📝 **Main Flow (Luồng chính)**
+```
+1. Director truy cập Analytics Dashboard hoặc yêu cầu báo cáo
+2. System verify director-level permissions
+3. System aggregate data từ tất cả departments và users
+4. System generate comprehensive organizational report bao gồm:
+   - Usage statistics by department
+   - Most queried topics/documents
+   - Knowledge gaps analysis
+   - User engagement metrics
+   - Document utilization rates
+   - Response accuracy trends
+5. System present data qua interactive dashboard
+6. Director có thể drill-down vào specific metrics
+7. System allow export reports (PDF, Excel, CSV)
+8. System log report access cho audit
+```
+
+### 📊 **Report Categories Available**
+
+**📈 Usage Analytics**
+```mermaid
+graph LR
+    A[Usage Analytics] --> B[Daily Active Users]
+    A --> C[Queries per Department]
+    A --> D[Peak Usage Times]
+    A --> E[Response Time Trends]
+    A --> F[User Satisfaction Scores]
+```
+
+**📚 Knowledge Management**
+```mermaid  
+graph LR
+    A[Knowledge Metrics] --> B[Document Coverage by Dept]
+    A --> C[Most/Least Accessed Docs]
+    A --> D[Knowledge Gap Analysis]
+    A --> E[Document Freshness Score]
+    A --> F[Expert vs Novice Usage]
+```
+
+**🎯 Performance Metrics**
+```mermaid
+graph LR
+    A[Performance KPIs] --> B[Answer Accuracy Rate]
+    A --> C[First Response Success]
+    A --> D[Query Resolution Time]
+    A --> E[System Uptime/Availability]
+    A --> F[Error Rate by Category]
+```
+
+### 🔄 **Alternative Flows (Luồng thay thế)**
+
+**A1: Custom Report Generation**
+```
+4a. Director yêu cầu custom report với specific parameters
+4b. System show report builder interface
+4c. Director select metrics, time range, departments, filters
+4d. System validate parameters và estimate processing time
+4e. System generate custom report và notify when ready
+```
+
+**A2: Real-time Dashboard View**
+```
+5a. Director chọn real-time dashboard mode
+5b. System enable live data streaming
+5c. System refresh metrics every 30 seconds
+5d. System highlight significant changes/alerts
+5e. Director có thể pause/resume real-time updates
+```
+
+**A3: Comparative Analysis**
+```
+6a. Director request comparison between time periods
+6b. System present side-by-side metrics
+6c. System highlight trends, improvements, declines
+6d. System provide statistical significance indicators
+```
+
+### ❌ **Exception Flows (Luồng ngoại lệ)**
+
+**E1: Insufficient Data**
+```
+3a. System detect không đủ data để generate meaningful report
+3b. System inform Director về data limitations
+3c. System suggest minimum time period needed
+3d. System offer partial report với available data
+```
+
+**E2: Report Generation Failure**
+```
+4a. Report generation process fails due to system error
+4b. System log error details
+4c. System notify Director về temporary unavailability
+4d. System estimate recovery time
+4e. System offer cached version of last successful report
+```
+
+### 📊 **Sample Report Sections**
+
+**🏢 Executive Summary Dashboard**
+```
+┌─────────────────────────────────────────┐
+│ ORGANIZATIONAL KNOWLEDGE HEALTH         │
+├─────────────────────────────────────────┤
+│ Total Active Users: 89/100              │
+│ Knowledge Utilization: 76%              │
+│ Average Response Accuracy: 84%          │
+│ Critical Knowledge Gaps: 3              │
+│                                         │
+│ TOP PERFORMING DEPARTMENTS:             │
+│ 1. R&D Department - 94% satisfaction    │
+│ 2. Sales - 91% utilization             │
+│ 3. Production - 88% accuracy           │
+│                                         │
+│ AREAS NEEDING ATTENTION:                │
+│ • Finance dept low engagement (34%)     │
+│ • Procurement procedures outdated       │
+│ • Technical documentation gaps          │
+└─────────────────────────────────────────┘
+```
+
+### ✅ **Postconditions (Điều kiện hậu)**
+- Director có comprehensive view về organizational knowledge health
+- Strategic insights được identified for decision making
+- Report data được cached để improve performance
+- Access được logged for governance
+
+### 📊 **Acceptance Criteria**
+- [ ] Report generation hoàn thành trong < 2 minutes
+- [ ] Dashboard responsive trên mọi screen sizes
+- [ ] Export functionality hoạt động cho all report formats
+- [ ] Data accuracy 99%+ (cross-verified với source systems)
+- [ ] Real-time updates không impact system performance
+- [ ] Custom reports có thể save và schedule
+
+---
+
+## 🛡️ **UC16: CẤU HÌNH CHÍNH SÁCH PHÂN QUYỀN**
+
+### 📋 **Thông tin cơ bản**
+- **ID**: UC16
+- **Tên**: Access Policy Configuration Management
+- **Actor chính**: Director (Giám đốc)
+- **Mục tiêu**: Cho phép giám đốc cấu hình và quản lý policies phân quyền toàn tổ chức
+- **Độ ưu tiên**: CRITICAL
+- **Độ phức tạp**: HIGH
+
+### 🎯 **Preconditions (Điều kiện tiên quyết)**
+- User có role = "Director"
+- Access Policy Management module đã được activated
+- Current policy configuration đã được backup
+- No other director đang modify policies simultaneously
+
+### 📝 **Main Flow (Luồng chính)**
+```
+1. Director access Policy Management Dashboard
+2. System load current access control matrix
+3. System present current policies theo department/role structure
+4. Director select policy category to modify:
+   - Document Access Levels
+   - Department-wise Permissions
+   - Role-based Access Control (RBAC)
+   - Time-based Access Restrictions
+   - IP/Location-based Access Control
+5. System show current configuration với visual policy editor
+6. Director make changes sử dụng intuitive interface
+7. System validate policy changes for conflicts/security issues
+8. System preview impact của changes trên existing users
+9. Director review và approve changes
+10. System implement changes với zero-downtime deployment
+11. System notify affected users về policy changes
+12. System log all changes với detailed audit trail
+```
+
+### 🔧 **Policy Configuration Categories**
+
+#### 📄 **Document Access Level Management**
+```mermaid
+graph TB
+    subgraph "Document Access Levels"
+        Public[🌐 Public<br/>Anyone can access]
+        Employee[👤 Employee Only<br/>All staff members]
+        Manager[👨‍💼 Manager Level<br/>Management roles]
+        Director[🏢 Director Level<br/>C-level executives]
+        Confidential[🔒 Confidential<br/>Specific authorization]
+        TopSecret[⛔ Top Secret<br/>Highest clearance]
+    end
+    
+    Public --> Employee
+    Employee --> Manager
+    Manager --> Director
+    Director --> Confidential
+    Confidential --> TopSecret
+```
+
+#### 🏢 **Department-wise Permission Matrix**
+```
+┌──────────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│ Department   │ Public  │ Own     │ Related │ Manager │ All     │
+├──────────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ R&D          │    ✓    │    ✓    │    ✓    │    ✓    │    ✗    │
+│ Sales        │    ✓    │    ✓    │    ✓    │    ✓    │    ✗    │
+│ Production   │    ✓    │    ✓    │    ✗    │    ✓    │    ✗    │
+│ Finance      │    ✓    │    ✓    │    ✗    │    ✓    │    ✗    │
+│ HR           │    ✓    │    ✓    │    ✗    │    ✓    │    ✗    │
+│ IT           │    ✓    │    ✓    │    ✓    │    ✓    │    ✓    │
+└──────────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+### 🔄 **Alternative Flows (Luồng thay thế)**
+
+**A1: Bulk Policy Import**
+```
+4a. Director chọn import policies từ template hoặc file
+4b. System validate import format và structure
+4c. System show preview của imported policies
+4d. System highlight conflicts với existing policies
+4e. Director resolve conflicts và approve import
+4f. System apply imported policies theo staging process
+```
+
+**A2: Emergency Access Grant**
+```
+6a. Director cần grant temporary access trong emergency
+6b. System present Emergency Access interface
+6c. Director specify user, resources, time limit, reason
+6d. System require additional authentication (2FA)
+6e. System grant temporary access với auto-expiry
+6f. System send immediate notifications tới relevant stakeholders
+```
+
+**A3: Policy Template Management**
+```
+5a. Director create reusable policy templates
+5b. System validate template structure
+5c. Director save template với descriptive name
+5d. System make template available for future use
+5e. Director có thể share templates với other directors
+```
+
+### 📊 **Policy Editor Interface Design**
+
+```mermaid
+graph TB
+    subgraph "Policy Editor Dashboard"
+        A[🏠 Main Dashboard] --> B[📄 Document Policies]
+        A --> C[👥 User Role Policies]  
+        A --> D[🏢 Department Policies]
+        A --> E[⏰ Time-based Policies]
+        A --> F[🌍 Location Policies]
+        
+        B --> B1[Access Levels]
+        B --> B2[Document Categories]
+        B --> B3[Approval Workflows]
+        
+        C --> C1[Role Hierarchy]
+        C --> C2[Permission Sets]
+        C --> C3[Inheritance Rules]
+        
+        D --> D1[Inter-dept Access]
+        D --> D2[Collaboration Rules]
+        D --> D3[Escalation Paths]
+    end
+```
+
+### ❌ **Exception Flows (Luồng ngoại lệ)**
+
+**E1: Policy Conflict Detection**
+```
+7a. System detect conflicting policies during validation
+7b. System highlight specific conflicts với detailed explanation
+7c. System suggest resolution options
+7d. Director must resolve all conflicts before proceeding
+7e. System re-validate after each conflict resolution
+```
+
+**E2: Impact Assessment Shows Risk**
+```
+8a. Impact preview shows potential security risks
+8b. System present detailed risk assessment
+8c. System require Director acknowledgment của risks
+8d. System may require additional approvals for high-risk changes
+8e. Director có thể modify policies để mitigate risks
+```
+
+**E3: Policy Deployment Failure**
+```
+10a. Policy deployment fails due to system error
+10b. System immediately rollback to previous configuration  
+10c. System notify Director về failure với error details
+10d. System log incident for investigation
+10e. System suggest alternative deployment strategies
+```
+
+### 🔒 **Security Safeguards**
+
+**Multi-level Approval Process:**
+```
+High Impact Changes → Require 2FA → Impact Assessment → 
+Peer Review (Optional) → Staged Rollout → Monitoring → Full Deployment
+```
+
+**Automatic Rollback Triggers:**
+```
+- System performance degradation > 20%
+- Authentication failure rate > 5%
+- Policy conflict detection post-deployment
+- User accessibility issues > 10% of workforce
+```
+
+### 📋 **Common Policy Templates**
+
+**🏢 New Department Onboarding**
+```yaml
+template_name: "new_department_setup"
+default_permissions:
+  public_docs: read
+  own_dept_docs: read_write
+  related_dept_docs: read_with_approval
+  confidential_docs: none
+escalation_path: "dept_manager → director → system_admin"
+collaboration_rules:
+  can_share_with: ["related_departments"]
+  requires_approval_for: ["external_sharing"]
+```
+
+**👤 Executive Access Package**
+```yaml
+template_name: "executive_access"
+access_levels:
+  - public: full_access
+  - employee_only: full_access
+  - manager_only: full_access
+  - director_level: full_access
+  - confidential: read_only
+restrictions:
+  - cannot_modify_system_config
+  - audit_trail_mandatory
+  - session_timeout: 60_minutes
+```
+
+### ✅ **Postconditions (Điều kiện hậu)**
+- Policy changes được applied successfully across hệ thống
+- All affected users được notified về changes
+- Complete audit trail được tạo
+- System security posture được maintained or improved
+- Backup của previous configuration available for rollback
+
+### 📊 **Acceptance Criteria**
+- [ ] Policy changes take effect trong < 5 minutes
+- [ ] Zero security vulnerabilities introduced by changes
+- [ ] 100% của affected users receive notifications
+- [ ] Policy editor có comprehensive validation
+- [ ] Rollback capability available for 30 days
+- [ ] Audit logs capture every policy modification
+- [ ] Performance impact < 2% during policy updates
+- [ ] User accessibility maintained during transitions
+
+---
+
+## 🔗 **TÍCH HỢP GIỮA CÁC USE CASE**
+
+### 🔄 **UC14 ↔ UC16 Integration**
+Khi Director modify access policies (UC16), changes immediately ảnh hưởng đến document access scope trong UC14:
+
+```mermaid
+sequenceDiagram
+    participant D as Director
+    participant P as Policy System  
+    participant A as Access Control
+    participant Q as Query Engine
+    
+    D->>P: Modify access policy
+    P->>A: Update access matrix
+    A->>Q: Refresh permission cache
+    Note over D,Q: Next query (UC14) uses updated permissions
+    D->>Q: Ask question
+    Q->>A: Check updated permissions
+    A-->>Q: Return expanded/restricted access
+    Q-->>D: Response with new access scope
+```
+
+### 📊 **UC15 ↔ UC16 Integration**
+Policy changes (UC16) immediately reflect trong organizational reports (UC15):
+
+```mermaid
+graph LR
+    A[Policy Change] --> B[Access Pattern Change]
+    B --> C[Usage Metrics Update]
+    C --> D[Report Data Refresh]
+    D --> E[Dashboard Update]
+```
+
+### 🎯 **Business Value của Director Use Cases**
+
+**🔍 Strategic Oversight (UC14)**
+- Complete organizational knowledge visibility
+- Cross-functional decision making capability
+- Strategic planning với full information access
+
+**📈 Performance Management (UC15)**  
+- Data-driven organizational improvements
+- Knowledge management ROI measurement
+- Strategic resource allocation decisions
+
+**🛡️ Governance & Compliance (UC16)**
+- Regulatory compliance management
+- Risk mitigation through proper access control
+- Organizational security policy enforcement
+
+**💼 Executive Decision Support**
+Tất cả 3 use cases work together để provide Directors với:
+- **Comprehensive information access** (UC14)
+- **Performance insights** (UC15)  
+- **Control mechanisms** (UC16)
+
+Tạo thành một **complete executive knowledge management platform**!
 # CHI TIẾT USE CASES CHO SYSTEM ADMIN
 
 ## UC17: 👤 **QUẢN LÝ TÀI KHOẢN VÀ PHÂN QUYỀN NGƯỜI DÙNG**
