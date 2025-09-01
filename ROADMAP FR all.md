@@ -788,3 +788,883 @@ knowledge-assistant-v1.0/
 **Total Timeline**: ~3 tuần từ khi hoàn thành tất cả modules đến khi hệ thống chạy production.
 
 **Bạn đã sẵn sàng bắt đầu Phase 8A - System Integration chưa?** 🚀
+# PHASE 8A - SYSTEM INTEGRATION (Tuần 1)
+## Module Integration & Complete System Assembly
+
+---
+
+**Timeline:** 7-10 ngày  
+**Mục tiêu:** Tích hợp tất cả modules thành một hệ thống hoàn chỉnh và functional  
+
+---
+
+## 📋 **TỔNG QUAN PHASE 8A**
+
+### **Workflow Integration:**
+
+```mermaid
+flowchart TD
+    Day1[📋 Day 1-2: Architecture Integration]
+    Day2[🔗 Day 3-4: Module Connections]
+    Day3[🧪 Day 5-6: Testing & Debugging]
+    Day4[⚡ Day 7: Optimization]
+    
+    subgraph "Day 1-2: Architecture Setup"
+        A1[🏗️ Main Application Structure]
+        A2[🔧 Dependency Injection]
+        A3[⚙️ Configuration Management]
+    end
+    
+    subgraph "Day 3-4: Module Integration"
+        B1[🔗 Auth ↔ RAG Integration]
+        B2[📊 Database ↔ All Modules]
+        B3[🤖 RAG ↔ Chatbot UI]
+        B4[📁 Data Pipeline ↔ Vector DB]
+    end
+    
+    subgraph "Day 5-6: Testing"
+        C1[🧪 Integration Tests]
+        C2[🔍 E2E Workflows]
+        C3[🐛 Bug Fixes]
+    end
+    
+    subgraph "Day 7: Final Polish"
+        D1[⚡ Performance Tuning]
+        D2[📊 Monitoring Integration]
+        D3[✅ Final Validation]
+    end
+    
+    Day1 --> A1 --> A2 --> A3
+    Day2 --> B1 --> B2 --> B3 --> B4
+    Day3 --> C1 --> C2 --> C3
+    Day4 --> D1 --> D2 --> D3
+```
+
+---
+
+## 🏗️ **DAY 1-2: ARCHITECTURE INTEGRATION**
+
+### **Step 1.1: Main Application Structure**
+
+```python
+# main.py - Complete System Integration
+from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from contextlib import asynccontextmanager
+import asyncio
+import structlog
+from datetime import datetime
+
+# Import all modules
+from modules.embedding_module.main import EmbeddingModule
+from modules.database_module.main import DatabaseModule
+from modules.data_processing.main import DataProcessingModule
+from modules.rag_engine.main import RAGEngineModule
+from modules.chatbot_ui.main import ChatbotUIModule
+from modules.auth_module.main import AuthModule
+
+# Core configuration
+from core.config import get_settings, Settings
+from core.logging import setup_logging
+from core.exceptions import setup_exception_handlers
+
+# Global system state
+class SystemState:
+    """Global system state management."""
+    
+    def __init__(self):
+        self.settings: Settings = None
+        self.logger = None
+        
+        # Module instances
+        self.auth_module: AuthModule = None
+        self.database_module: DatabaseModule = None
+        self.embedding_module: EmbeddingModule = None
+        self.data_processing: DataProcessingModule = None
+        self.rag_engine: RAGEngineModule = None
+        self.chatbot_ui: ChatbotUIModule = None
+        
+        # System status
+        self.is_initialized = False
+        self.startup_time = None
+        self.health_status = {}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Complete system lifecycle management."""
+    
+    system_state = SystemState()
+    app.state.system = system_state
+    
+    try:
+        system_state.logger = structlog.get_logger()
+        system_state.logger.info("🚀 Starting Knowledge Assistant System Integration...")
+        
+        # Load configuration
+        system_state.settings = get_settings()
+        system_state.logger.info("⚙️ Configuration loaded", 
+                                environment=system_state.settings.environment)
+        
+        # Phase 1: Initialize Core Systems
+        system_state.logger.info("📊 Phase 1: Initializing Core Systems...")
+        
+        # 1.1 Database Module (Must be first - other modules depend on it)
+        system_state.database_module = DatabaseModule(system_state.settings)
+        await system_state.database_module.initialize()
+        system_state.logger.info("✅ Database module initialized")
+        
+        # 1.2 Authentication Module (Security layer)
+        system_state.auth_module = AuthModule(
+            settings=system_state.settings,
+            db_pool=system_state.database_module.get_pool()
+        )
+        await system_state.auth_module.initialize()
+        system_state.logger.info("✅ Authentication module initialized")
+        
+        # Phase 2: Initialize AI/ML Systems  
+        system_state.logger.info("🤖 Phase 2: Initializing AI/ML Systems...")
+        
+        # 2.1 Embedding Module
+        system_state.embedding_module = EmbeddingModule(system_state.settings)
+        await system_state.embedding_module.initialize()
+        await system_state.embedding_module.load_best_models()
+        system_state.logger.info("✅ Embedding module initialized")
+        
+        # Phase 3: Initialize Data Processing
+        system_state.logger.info("📁 Phase 3: Initializing Data Processing...")
+        
+        # 3.1 Data Processing Pipeline
+        system_state.data_processing = DataProcessingModule(
+            settings=system_state.settings,
+            db_module=system_state.database_module,
+            embedding_module=system_state.embedding_module,
+            auth_module=system_state.auth_module
+        )
+        await system_state.data_processing.initialize()
+        system_state.logger.info("✅ Data processing module initialized")
+        
+        # Phase 4: Initialize RAG Engine (Core Intelligence)
+        system_state.logger.info("🧠 Phase 4: Initializing RAG Engine...")
+        
+        # 4.1 RAG Engine
+        system_state.rag_engine = RAGEngineModule(
+            settings=system_state.settings,
+            db_module=system_state.database_module,
+            embedding_module=system_state.embedding_module,
+            auth_module=system_state.auth_module
+        )
+        await system_state.rag_engine.initialize()
+        system_state.logger.info("✅ RAG engine initialized")
+        
+        # Phase 5: Initialize User Interface
+        system_state.logger.info("💬 Phase 5: Initializing Chatbot UI...")
+        
+        # 5.1 Chatbot UI
+        system_state.chatbot_ui = ChatbotUIModule(
+            settings=system_state.settings,
+            rag_engine=system_state.rag_engine,
+            auth_module=system_state.auth_module,
+            data_processing=system_state.data_processing
+        )
+        await system_state.chatbot_ui.initialize()
+        system_state.logger.info("✅ Chatbot UI initialized")
+        
+        # Final System Integration Check
+        system_state.logger.info("🔗 Phase 6: System Integration Validation...")
+        await validate_system_integration(system_state)
+        
+        # Mark system as ready
+        system_state.is_initialized = True
+        system_state.startup_time = datetime.utcnow()
+        
+        system_state.logger.info(
+            "🎉 Knowledge Assistant System fully initialized!",
+            startup_time=system_state.startup_time.isoformat(),
+            modules_count=6
+        )
+        
+        yield  # Application runs here
+        
+    except Exception as e:
+        system_state.logger.error("💥 System initialization failed", error=str(e))
+        raise
+        
+    finally:
+        # Graceful shutdown
+        system_state.logger.info("🔄 Shutting down Knowledge Assistant System...")
+        
+        shutdown_tasks = []
+        
+        if system_state.chatbot_ui:
+            shutdown_tasks.append(system_state.chatbot_ui.shutdown())
+        if system_state.rag_engine:
+            shutdown_tasks.append(system_state.rag_engine.shutdown())
+        if system_state.data_processing:
+            shutdown_tasks.append(system_state.data_processing.shutdown())
+        if system_state.embedding_module:
+            shutdown_tasks.append(system_state.embedding_module.shutdown())
+        if system_state.auth_module:
+            shutdown_tasks.append(system_state.auth_module.shutdown())
+        if system_state.database_module:
+            shutdown_tasks.append(system_state.database_module.shutdown())
+        
+        # Execute shutdowns in parallel
+        if shutdown_tasks:
+            await asyncio.gather(*shutdown_tasks, return_exceptions=True)
+        
+        system_state.logger.info("✅ System shutdown complete")
+
+# Create FastAPI application
+app = FastAPI(
+    title="Knowledge Assistant - Complete System",
+    description="Comprehensive Internal Knowledge Management System with AI Chatbot",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Setup logging
+setup_logging()
+
+# Setup exception handlers
+setup_exception_handlers(app)
+
+# Add middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["*"],
+)
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "*"]  # Configure for production
+)
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all requests with timing."""
+    start_time = datetime.utcnow()
+    
+    response = await call_next(request)
+    
+    process_time = (datetime.utcnow() - start_time).total_seconds()
+    
+    # Log request
+    logger = structlog.get_logger()
+    logger.info(
+        "http_request",
+        method=request.method,
+        url=str(request.url),
+        status_code=response.status_code,
+        process_time=process_time,
+        client_ip=request.client.host,
+        user_agent=request.headers.get("user-agent", "")
+    )
+    
+    # Add timing header
+    response.headers["X-Process-Time"] = str(process_time)
+    
+    return response
+
+async def validate_system_integration(system_state: SystemState):
+    """Validate that all modules are properly integrated."""
+    
+    logger = system_state.logger
+    
+    try:
+        # Test database connectivity
+        await system_state.database_module.health_check()
+        logger.info("✅ Database integration validated")
+        
+        # Test authentication
+        test_result = await system_state.auth_module.validate_integration()
+        assert test_result.get("status") == "ok"
+        logger.info("✅ Authentication integration validated")
+        
+        # Test embeddings
+        test_embedding = await system_state.embedding_module.create_embedding("test text")
+        assert len(test_embedding) > 0
+        logger.info("✅ Embedding integration validated")
+        
+        # Test RAG engine
+        rag_health = await system_state.rag_engine.health_check()
+        assert rag_health.get("status") == "healthy"
+        logger.info("✅ RAG engine integration validated")
+        
+        # Test data processing
+        processing_health = await system_state.data_processing.health_check()
+        assert processing_health.get("status") == "ready"
+        logger.info("✅ Data processing integration validated")
+        
+        # Test chatbot UI
+        ui_health = await system_state.chatbot_ui.health_check()
+        assert ui_health.get("status") == "ready"
+        logger.info("✅ Chatbot UI integration validated")
+        
+        logger.info("🎯 All system integrations validated successfully!")
+        
+    except Exception as e:
+        logger.error("❌ System integration validation failed", error=str(e))
+        raise
+
+# Include all module routers with proper prefixes
+def include_module_routers(app: FastAPI):
+    """Include all module routers."""
+    
+    # Health check (available immediately)
+    @app.get("/health")
+    async def basic_health():
+        return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    
+    # Detailed health check
+    @app.get("/health/detailed")
+    async def detailed_health(request: Request):
+        if not hasattr(request.app.state, 'system') or not request.app.state.system.is_initialized:
+            raise HTTPException(503, detail="System not initialized")
+        
+        system_state = request.app.state.system
+        
+        health_data = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "startup_time": system_state.startup_time.isoformat() if system_state.startup_time else None,
+            "modules": {}
+        }
+        
+        # Check each module
+        try:
+            if system_state.database_module:
+                health_data["modules"]["database"] = await system_state.database_module.health_check()
+            
+            if system_state.auth_module:
+                health_data["modules"]["auth"] = await system_state.auth_module.health_check()
+                
+            if system_state.embedding_module:
+                health_data["modules"]["embeddings"] = await system_state.embedding_module.health_check()
+                
+            if system_state.data_processing:
+                health_data["modules"]["data_processing"] = await system_state.data_processing.health_check()
+                
+            if system_state.rag_engine:
+                health_data["modules"]["rag_engine"] = await system_state.rag_engine.health_check()
+                
+            if system_state.chatbot_ui:
+                health_data["modules"]["chatbot_ui"] = await system_state.chatbot_ui.health_check()
+                
+        except Exception as e:
+            health_data["status"] = "unhealthy"
+            health_data["error"] = str(e)
+            
+        return health_data
+    
+    # Dynamic router inclusion (will be added after system initialization)
+    @app.on_event("startup")
+    async def include_routers():
+        # Wait a bit for system to initialize
+        await asyncio.sleep(2)
+        
+        if hasattr(app.state, 'system') and app.state.system.is_initialized:
+            system_state = app.state.system
+            
+            # Include module routers
+            if system_state.auth_module:
+                app.include_router(
+                    system_state.auth_module.get_router(),
+                    prefix="/api/v1/auth",
+                    tags=["Authentication & Authorization"]
+                )
+            
+            if system_state.database_module:
+                app.include_router(
+                    system_state.database_module.get_router(),
+                    prefix="/api/v1/database",
+                    tags=["Database Management"]
+                )
+                
+            if system_state.embedding_module:
+                app.include_router(
+                    system_state.embedding_module.get_router(),
+                    prefix="/api/v1/embeddings",
+                    tags=["Embedding Models"]
+                )
+                
+            if system_state.data_processing:
+                app.include_router(
+                    system_state.data_processing.get_router(),
+                    prefix="/api/v1/data",
+                    tags=["Data Processing"]
+                )
+                
+            if system_state.rag_engine:
+                app.include_router(
+                    system_state.rag_engine.get_router(),
+                    prefix="/api/v1/rag",
+                    tags=["RAG Engine"]
+                )
+                
+            if system_state.chatbot_ui:
+                app.include_router(
+                    system_state.chatbot_ui.get_router(),
+                    prefix="/api/v1/chat",
+                    tags=["Chatbot Interface"]
+                )
+            
+            logger = structlog.get_logger()
+            logger.info("📡 All module routers included successfully")
+
+# Call router inclusion
+include_module_routers(app)
+```
+
+### **Step 1.2: Configuration Management**
+
+```python
+# core/config.py - Unified Configuration
+from pydantic_settings import BaseSettings
+from typing import List, Dict, Any, Optional
+import secrets
+from pathlib import Path
+
+class DatabaseConfig(BaseSettings):
+    """Database configuration."""
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "knowledge_user"
+    password: str = "dev_password"
+    name: str = "knowledge_assistant"
+    
+    # Connection pool settings
+    min_connections: int = 5
+    max_connections: int = 20
+    pool_timeout: float = 30.0
+    
+    @property
+    def url(self) -> str:
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+
+class RedisConfig(BaseSettings):
+    """Redis configuration."""
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+    password: Optional[str] = None
+    
+    @property
+    def url(self) -> str:
+        auth = f":{self.password}@" if self.password else ""
+        return f"redis://{auth}{self.host}:{self.port}/{self.db}"
+
+class AuthConfig(BaseSettings):
+    """Authentication configuration."""
+    secret_key: str = secrets.token_urlsafe(32)
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    session_timeout: int = 1800  # 30 minutes
+    max_failed_attempts: int = 5
+    lockout_duration: int = 900  # 15 minutes
+
+class EmbeddingConfig(BaseSettings):
+    """Embedding models configuration."""
+    default_model: str = "sentence-transformers/all-mpnet-base-v2"
+    models_cache_dir: str = "./models_cache"
+    batch_size: int = 32
+    max_sequence_length: int = 512
+    
+    # External API configuration
+    openai_api_key: Optional[str] = None
+    huggingface_api_key: Optional[str] = None
+
+class RAGConfig(BaseSettings):
+    """RAG engine configuration."""
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+    top_k_documents: int = 5
+    confidence_threshold: float = 0.7
+    
+    # LLM configuration
+    llm_provider: str = "openai"  # openai, anthropic, local
+    llm_model: str = "gpt-3.5-turbo"
+    llm_api_key: Optional[str] = None
+    llm_temperature: float = 0.3
+    llm_max_tokens: int = 1000
+
+class DataProcessingConfig(BaseSettings):
+    """Data processing configuration."""
+    upload_dir: str = "./uploads"
+    processed_dir: str = "./processed"
+    max_file_size: int = 50 * 1024 * 1024  # 50MB
+    allowed_file_types: List[str] = [".pdf", ".docx", ".txt", ".md"]
+    batch_processing_size: int = 10
+    
+    # Quality control
+    min_content_length: int = 100
+    duplicate_threshold: float = 0.9
+
+class MonitoringConfig(BaseSettings):
+    """Monitoring and logging configuration."""
+    log_level: str = "INFO"
+    log_format: str = "json"  # json or text
+    metrics_enabled: bool = True
+    tracing_enabled: bool = True
+    
+    # External monitoring
+    prometheus_enabled: bool = True
+    jaeger_endpoint: Optional[str] = None
+
+class Settings(BaseSettings):
+    """Main application settings."""
+    
+    # Application
+    app_name: str = "Knowledge Assistant"
+    version: str = "1.0.0"
+    environment: str = "development"  # development, staging, production
+    debug: bool = True
+    
+    # API configuration
+    api_v1_prefix: str = "/api/v1"
+    docs_url: str = "/docs"
+    redoc_url: str = "/redoc"
+    
+    # CORS
+    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    allowed_hosts: List[str] = ["localhost", "127.0.0.1"]
+    
+    # Module configurations
+    database: DatabaseConfig = DatabaseConfig()
+    redis: RedisConfig = RedisConfig()
+    auth: AuthConfig = AuthConfig()
+    embeddings: EmbeddingConfig = EmbeddingConfig()
+    rag: RAGConfig = RAGConfig()
+    data_processing: DataProcessingConfig = DataProcessingConfig()
+    monitoring: MonitoringConfig = MonitoringConfig()
+    
+    # Feature flags
+    features: Dict[str, bool] = {
+        "auto_document_classification": True,
+        "real_time_processing": True,
+        "advanced_analytics": True,
+        "multi_language_support": False,
+        "voice_interface": False
+    }
+    
+    class Config:
+        env_file = ".env"
+        env_nested_delimiter = "__"  # Allows DATABASE__HOST=localhost
+        case_sensitive = False
+
+# Global settings instance
+_settings: Optional[Settings] = None
+
+def get_settings() -> Settings:
+    """Get global settings instance."""
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings
+
+def reload_settings() -> Settings:
+    """Reload settings (useful for testing)."""
+    global _settings
+    _settings = Settings()
+    return _settings
+
+# Environment-specific configuration loading
+def load_environment_config(environment: str) -> Settings:
+    """Load configuration for specific environment."""
+    
+    config_files = {
+        "development": ".env.development",
+        "staging": ".env.staging", 
+        "production": ".env.production"
+    }
+    
+    config_file = config_files.get(environment, ".env")
+    
+    if Path(config_file).exists():
+        return Settings(_env_file=config_file)
+    else:
+        # Fall back to default configuration
+        settings = Settings()
+        settings.environment = environment
+        return settings
+```
+
+### **Step 1.3: Dependency Injection System**
+
+```python
+# core/dependencies.py - Unified Dependency Injection
+from fastapi import Depends, HTTPException, status, Request
+from typing import Generator, Optional
+import structlog
+
+from .config import get_settings, Settings
+
+# Global logger
+def get_logger():
+    """Get structured logger."""
+    return structlog.get_logger()
+
+# Settings dependency
+def get_current_settings() -> Settings:
+    """Get current application settings."""
+    return get_settings()
+
+# System state dependencies
+def get_system_state(request: Request):
+    """Get system state from request."""
+    if not hasattr(request.app.state, 'system'):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="System not initialized"
+        )
+    return request.app.state.system
+
+def get_database_module(system_state=Depends(get_system_state)):
+    """Get database module."""
+    if not system_state.database_module:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database module not available"
+        )
+    return system_state.database_module
+
+def get_auth_module(system_state=Depends(get_system_state)):
+    """Get authentication module."""
+    if not system_state.auth_module:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication module not available"
+        )
+    return system_state.auth_module
+
+def get_embedding_module(system_state=Depends(get_system_state)):
+    """Get embedding module."""
+    if not system_state.embedding_module:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Embedding module not available"
+        )
+    return system_state.embedding_module
+
+def get_data_processing_module(system_state=Depends(get_system_state)):
+    """Get data processing module."""
+    if not system_state.data_processing:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Data processing module not available"
+        )
+    return system_state.data_processing
+
+def get_rag_engine_module(system_state=Depends(get_system_state)):
+    """Get RAG engine module."""
+    if not system_state.rag_engine:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="RAG engine module not available"
+        )
+    return system_state.rag_engine
+
+def get_chatbot_ui_module(system_state=Depends(get_system_state)):
+    """Get chatbot UI module."""
+    if not system_state.chatbot_ui:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Chatbot UI module not available"
+        )
+    return system_state.chatbot_ui
+
+# Authentication dependencies
+async def get_current_user(
+    request: Request,
+    auth_module=Depends(get_auth_module)
+):
+    """Get current authenticated user."""
+    return await auth_module.get_current_user(request)
+
+async def get_current_active_user(
+    current_user=Depends(get_current_user)
+):
+    """Get current active user."""
+    if not current_user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+    return current_user
+
+def require_role(required_role: str):
+    """Require specific user role."""
+    async def role_dependency(current_user=Depends(get_current_active_user)):
+        user_role = current_user.get("role")
+        
+        # Role hierarchy check
+        role_hierarchy = {
+            "guest": 0,
+            "employee": 1,
+            "manager": 2,
+            "director": 3,
+            "system_admin": 4
+        }
+        
+        user_level = role_hierarchy.get(user_role, 0)
+        required_level = role_hierarchy.get(required_role, 999)
+        
+        if user_level < required_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required: {required_role}"
+            )
+        
+        return current_user
+    
+    return role_dependency
+
+# Database connection dependency
+async def get_db_connection(db_module=Depends(get_database_module)):
+    """Get database connection."""
+    async with db_module.get_connection() as conn:
+        yield conn
+
+# Pagination dependency
+class PaginationParams:
+    def __init__(self, page: int = 1, size: int = 20, max_size: int = 100):
+        self.page = max(1, page)
+        self.size = min(max_size, max(1, size))
+        self.offset = (self.page - 1) * self.size
+        self.limit = self.size
+
+def get_pagination_params(
+    page: int = 1,
+    size: int = 20
+) -> PaginationParams:
+    """Get pagination parameters."""
+    return PaginationParams(page=page, size=size)
+
+# Request context dependency
+class RequestContext:
+    def __init__(self, request: Request):
+        self.request = request
+        self.client_ip = request.client.host
+        self.user_agent = request.headers.get("user-agent", "")
+        self.request_id = request.headers.get("x-request-id", "")
+        self.correlation_id = request.headers.get("x-correlation-id", "")
+
+def get_request_context(request: Request) -> RequestContext:
+    """Get request context."""
+    return RequestContext(request)
+```
+
+---
+
+## 🔗 **DAY 3-4: MODULE CONNECTIONS**
+
+### **Step 2.1: Auth ↔ RAG Integration**
+
+```python
+# integrations/auth_rag_integration.py
+from typing import List, Dict, Any, Optional
+import structlog
+
+from modules.auth_module.main import AuthModule
+from modules.rag_engine.main import RAGEngineModule
+
+class AuthRAGIntegration:
+    """Integration between Authentication and RAG Engine modules."""
+    
+    def __init__(self, auth_module: AuthModule, rag_engine: RAGEngineModule):
+        self.auth_module = auth_module
+        self.rag_engine = rag_engine
+        self.logger = structlog.get_logger()
+    
+    async def get_filtered_documents(
+        self,
+        user: Dict[str, Any],
+        query: str,
+        top_k: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Get documents filtered by user permissions.
+        
+        This is the core integration between Auth and RAG:
+        1. Get user's accessible resource types
+        2. Filter documents by access level
+        3. Return only documents user can access
+        """
+        
+        try:
+            # Step 1: Get user's accessible resource types
+            accessible_resources = await self.auth_module.acl_matrix.get_accessible_resources(
+                user_role=user["role"],
+                permission_type="read"
+            )
+            
+            self.logger.info(
+                "user_access_check",
+                user_id=user["id"],
+                user_role=user["role"], 
+                accessible_resources=accessible_resources
+            )
+            
+            # Step 2: Enhanced context for department-based filtering
+            user_context = {
+                "user_id": user["id"],
+                "user_role": user["role"],
+                "department": user.get("department"),
+                "accessible_resources": accessible_resources
+            }
+            
+            # Step 3: Get documents with permission filtering
+            documents = await self.rag_engine.retrieve_documents_with_permissions(
+                query=query,
+                user_context=user_context,
+                top_k=top_k
+            )
+            
+            # Step 4: Double-check permissions (defense in depth)
+            filtered_documents = []
+            for doc in documents:
+                doc_access_level = doc.get("access_level", "public")
+                
+                # Check if user can access this document
+                has_permission = await self.auth_module.authorization_engine.check_permission(
+                    user_role=user["role"],
+                    resource_type=doc_access_level,
+                    permission_level="read",
+                    context={
+                        "document_department": doc.get("department"),
+                        "user_department": user.get("department")
+                    }
+                )
+                
+                if has_permission["allowed"]:
+                    filtered_documents.append(doc)
+                else:
+                    self.logger.warning(
+                        "document_access_denied",
+                        user_id=user["id"],
+                        document_id=doc.get("id"),
+                        doc_access_level=doc_access_level,
+                        reason=has_permission["reason"]
+                    )
+            
+            self.logger.info(
+                "document_filtering_complete",
+                user_id=user["id"],
+                total_found=len(documents),
+                accessible_count=len(filtered_documents)
+            )
+            
+            return filtered_documents
+            
+        except Exception as e:
+            self.logger.error(
+                "auth_rag_integration_error",
+                user_id=user.get("id"),
+                error=str(e)
+---
