@@ -1971,7 +1971,7 @@ setup(
 
 ## 📖 README.md
 
-```markdown
+
 # Vietnamese Qwen3 Embedding Benchmark 🇻🇳
 
 Công cụ benchmark chuyên dụng cho model **Qwen/Qwen3-Embedding-0.6B** trên dữ liệu tiếng Việt với tối ưu GPU.
