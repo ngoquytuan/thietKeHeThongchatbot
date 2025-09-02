@@ -181,7 +181,7 @@ Ok, Tuấn 👍 mình sẽ vẽ sơ đồ **Mermaid pipeline** cho dòng triển
 ```mermaid
 flowchart LR
     A[👨‍💻 Developer\nViết code & test] --> B[🐳 Docker\nBuild Docker Image]
-    B --> C[📦 Docker Registry\n(Lưu trữ image)]
+    B --> C[📦 Docker Registry\n Lưu trữ image ]
     C --> D[☸️ Kubernetes Cluster\nTriển khai Container]
     D --> E[🌍 Người dùng cuối\nTruy cập dịch vụ]
 
