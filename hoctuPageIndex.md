@@ -1,5 +1,4 @@
-Hay đấy 🚀. Nếu bạn đã thử **PageIndex** và giờ muốn xây dựng chatbot tài liệu nội bộ, nhưng dữ liệu của bạn **đã chuẩn hoá 100% thành Markdown (MD)**, thì bạn sẽ học được những công nghệ và kỹ thuật sau từ hệ thống PageIndex (và kinh nghiệm thực chiến khi chỉnh sửa nó):
-
+PageIndex
 ---
 
 ## 🧩 1. Hiểu cách **LLM đọc – chia – lập chỉ mục tài liệu**
@@ -470,3 +469,4 @@ Nếu bạn muốn mình đi sâu hơn vào một kỹ thuật cụ thể (như 
 7. **Giao diện UI (FlashRAG-UI)**: Cấu hình pipeline trực quan. Áp dụng: Tích hợp vào web interface để quản lý tài liệu nội bộ mà không cần code.
 
 Áp dụng dần để giữ PostgreSQL/Redis cho metadata/analytics, tập trung tiếng Việt với pyvi và embedding phù hợp.
+
