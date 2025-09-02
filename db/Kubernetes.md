@@ -207,3 +207,120 @@ flowchart LR
 ---
 
 Tuấn có muốn mình mở rộng thêm **các bước CI/CD tự động** (ví dụ GitHub Actions/Jenkins build → push Docker image → deploy lên K8s) để thấy luồng tự động hoá đầy đủ hơn không?
+
+Chuẩn rồi Tuấn 👍 nếu Tuấn đã quen Docker thì học Kubernetes sẽ dễ hơn nhiều, coi như lên “level orchestration”. Mình sẽ giúp Tuấn làm quen từng bước.
+
+---
+
+## 1. Hiểu cách dùng Kubernetes (K8s)
+
+Kubernetes không thay thế Docker, nó **dùng Docker image để triển khai**, nhưng quản lý ở mức cao hơn:
+
+* **Pod**: đơn vị nhỏ nhất trong K8s, thường chạy 1 hoặc nhiều container.
+* **Deployment**: định nghĩa cách chạy Pod (bao nhiêu replica, rolling update).
+* **Service**: để các Pod giao tiếp với nhau và với bên ngoài (ClusterIP, NodePort, LoadBalancer).
+* **ConfigMap & Secret**: truyền config cho container.
+* **Ingress**: cho phép user truy cập qua domain/URL.
+
+👉 Nói gọn: Docker = chạy container; Kubernetes = quản lý cả đội container.
+
+---
+
+## 2. Cách cài nhanh để làm quen
+
+Nếu Tuấn muốn thử ngay trên máy đã có Docker thì dễ nhất:
+
+### Cách 1: Dùng **Minikube**
+
+```bash
+# cài minikube
+choco install minikube -y   # nếu dùng Windows + Chocolatey
+# hoặc Linux
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+# khởi động cluster Kubernetes local
+minikube start
+
+# kiểm tra
+kubectl get nodes
+```
+
+### Cách 2: Dùng **Docker Desktop (có Kubernetes tích hợp)**
+
+* Nếu Tuấn đang dùng Docker Desktop thì chỉ cần vào **Settings → Kubernetes → Enable Kubernetes** → Docker Desktop sẽ tự dựng cluster K8s local.
+
+---
+
+## 3. Bắt đầu với ví dụ Hello World
+
+Tạo file `nginx-deployment.yaml`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+```
+
+Chạy lệnh:
+
+```bash
+kubectl apply -f nginx-deployment.yaml
+kubectl get pods
+kubectl get svc
+```
+
+👉 Truy cập `http://localhost:30080` → sẽ thấy trang **Welcome to nginx!**
+
+---
+
+## 4. Các lệnh cơ bản để làm quen
+
+```bash
+kubectl get pods            # liệt kê pod
+kubectl get svc             # liệt kê service
+kubectl describe pod <ten>  # xem chi tiết pod
+kubectl logs <ten-pod>      # xem log container
+kubectl delete -f nginx-deployment.yaml  # xoá deployment & service
+```
+
+---
+
+## 5. Mục tiêu học
+
+* Bước 1: Chạy thử Pod/Deployment với image có sẵn (nginx, redis, postgres).
+* Bước 2: Đóng gói app Python/Flask của Tuấn bằng Docker → chạy trên K8s.
+* Bước 3: Học Ingress, ConfigMap, Secret để hoàn thiện pipeline.
+
+---
+
+👉 Tuấn muốn mình chuẩn bị sẵn một **lộ trình học Kubernetes trong 7 ngày** (theo kiểu từ cơ bản đến chạy app thật) hay muốn mình dẫn từng bước “học đến đâu thử ngay đến đó”?
