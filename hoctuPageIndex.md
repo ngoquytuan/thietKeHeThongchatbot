@@ -453,3 +453,20 @@ Khi áp dụng vào hệ thống của bạn để hỗ trợ tài liệu quy ch
 
 Nếu bạn muốn mình đi sâu hơn vào một kỹ thuật cụ thể (như cách sử dụng **Trace** để xử lý tham chiếu chéo trong quy chế hoặc mẫu code tích hợp **R1-Searcher**), hãy cho mình biết nhé!
 
+### Các kỹ thuật cần học hỏi từ FlashRAG cho hệ thống chatbot tài liệu nội bộ
+
+1. **Chuẩn hóa dữ liệu JSONL**: Lưu tài liệu nội bộ (quy chế, PDF) dưới dạng JSONL ({id, contents, metadata}) để dễ xử lý lớn, tích hợp với pipeline RAG. Áp dụng: Chuyển PDF/DOCX sang JSONL, đồng bộ metadata với PostgreSQL để giữ analytics.
+
+2. **Phân đoạn tài liệu với Chunkie**: Sử dụng phân đoạn semantic-based (ngữ nghĩa) để chia tài liệu quy chế thành chunk giữ ngữ cảnh, với overlap để tránh mất thông tin. Áp dụng: Thay Content Chunker, tokenize tiếng Việt bằng pyvi trước chunking cho embedding tốt hơn.
+
+3. **Tạo chỉ mục kép (FAISS + BM25s)**: FAISS cho tìm kiếm ngữ nghĩa (dense) với Vietnamese Embedding/Qwen3-Embedding-0.6B; BM25s cho tìm kiếm từ khóa (sparse) không cần embedding. Áp dụng: Xây dựng chỉ mục từ JSONL, kết hợp trong faiss_manager.py để hỗ trợ truy vấn quy chế (ngữ nghĩa + từ khóa như "Điều 5").
+
+4. **Tinh chỉnh ngữ cảnh với Refiner**: Sử dụng LongLLMLingua để nén chunk, Trace xây đồ thị tri thức liên kết điều khoản quy chế. Áp dụng: Tích hợp vào response_generator.py để lọc nội dung không liên quan, giảm hallucination trong câu trả lời.
+
+5. **Pipeline RAG linh hoạt**: Học các pipeline như Reasoning (R1-Searcher) cho truy vấn multi-hop quy chế, Conditional (Adaptive-RAG) để chọn collection dựa trên intent. Áp dụng: Tích hợp vào intent_classifier.py để xử lý truy vấn phức tạp, kết hợp với vLLM để tăng tốc LLM.
+
+6. **Tối ưu hóa hiệu suất**: Sử dụng HNSW cho FAISS nhanh hơn, vLLM/FastChat để tăng tốc suy luận. Áp dụng: Cập nhật llm_provider.py để giảm độ trễ, đặc biệt với tài liệu nội bộ lớn.
+
+7. **Giao diện UI (FlashRAG-UI)**: Cấu hình pipeline trực quan. Áp dụng: Tích hợp vào web interface để quản lý tài liệu nội bộ mà không cần code.
+
+Áp dụng dần để giữ PostgreSQL/Redis cho metadata/analytics, tập trung tiếng Việt với pyvi và embedding phù hợp.
