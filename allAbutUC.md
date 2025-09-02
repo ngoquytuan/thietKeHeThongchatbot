@@ -1,4 +1,215 @@
+Đúng rồi! 🎯 Bạn hiểu chính xác!
 
+## 💡 **USE CASES = TEST SCENARIOS**
+
+Các use cases trong Phase 8A không phải để implement từ đầu, mà là để **validate** hệ thống hoạt động đúng trong các tình huống thực tế.
+
+### **🎭 VAI TRÒ CỦA USE CASES**
+
+```
+📚 Use Cases = Kịch bản kiểm tra
+┌─────────────────────────────────────┐
+│  "Nhân viên hỏi về vacation policy" │
+│  ↓                                  │
+│  Test: Auth → RAG → UI → Response   │
+│  ✅ Kiểm tra toàn bộ workflow       │
+└─────────────────────────────────────┘
+```
+
+### **🔍 CỤ THỂ LÀ GÌ?**
+
+#### **Use Case làm gì:**
+- ✅ **Validate** hệ thống hoạt động end-to-end
+- ✅ **Test** permissions hoạt động đúng không
+- ✅ **Verify** performance đạt yêu cầu không  
+- ✅ **Check** error handling
+- ✅ **Ensure** user experience tốt
+
+#### **Use Case KHÔNG làm gì:**
+- ❌ KHÔNG phải viết code mới
+- ❌ KHÔNG phải implement features
+- ❌ KHÔNG phải design architecture  
+- ❌ KHÔNG phải tạo UI components
+
+## 📊 **VÍ DỤ THỰC TẾ**
+
+### **Use Case: "Employee asks about vacation policy"**
+
+```python
+# Đây là TEST SCRIPT, không phải implementation
+async def test_employee_vacation_query():
+    """Test scenario: Employee hỏi về vacation policy"""
+    
+    # Setup: Tạo test data
+    employee_user = create_test_user(role="employee")
+    vacation_doc = upload_test_document(
+        title="Vacation Policy", 
+        content="Employees get 20 days vacation per year",
+        access_level="employee_only"
+    )
+    
+    # Action: Employee đăng nhập và hỏi
+    login_response = await login_as_user(employee_user)
+    chat_response = await ask_chatbot(
+        query="How many vacation days do I get?",
+        user_token=login_response.token
+    )
+    
+    # Validation: Kiểm tra kết quả
+    assert chat_response.status == 200
+    assert "20 days" in chat_response.answer
+    assert vacation_doc.id in chat_response.references
+    assert chat_response.confidence > 0.7
+    
+    print("✅ Employee vacation query test PASSED")
+```
+
+### **Use Case: "Manager access control"**
+
+```python
+async def test_manager_access_control():
+    """Test scenario: Manager có thể access manager-only docs"""
+    
+    # Setup: Tạo docs với different access levels
+    public_doc = create_doc(access_level="public")
+    employee_doc = create_doc(access_level="employee_only")  
+    manager_doc = create_doc(access_level="manager_only")
+    director_doc = create_doc(access_level="director_only")
+    
+    manager_user = create_test_user(role="manager")
+    
+    # Action: Manager hỏi về tất cả loại docs
+    login_response = await login_as_user(manager_user)
+    chat_response = await ask_chatbot(
+        query="What documents are available?",
+        user_token=login_response.token
+    )
+    
+    # Validation: Manager chỉ thấy được public, employee_only, manager_only
+    references = chat_response.references
+    accessible_docs = [ref.document_id for ref in references]
+    
+    assert public_doc.id in accessible_docs      # ✅ Should have
+    assert employee_doc.id in accessible_docs    # ✅ Should have  
+    assert manager_doc.id in accessible_docs     # ✅ Should have
+    assert director_doc.id not in accessible_docs # ❌ Should NOT have
+    
+    print("✅ Manager access control test PASSED")
+```
+
+## 🎯 **TẠI SAO CẦN USE CASES?**
+
+### **1. End-to-End Validation**
+```
+User Login → Permission Check → Document Search → 
+RAG Processing → Response Generation → UI Display
+
+Use case đảm bảo TOÀN BỘ chain này hoạt động
+```
+
+### **2. Edge Case Testing** 
+```
+- User hỏi về document không tồn tại
+- User không có permission
+- System overload với 100 concurrent users
+- Database connection failed
+- LLM API timeout
+```
+
+### **3. User Experience Validation**
+```
+- Response time < 60 seconds?
+- Confidence score accurate?
+- References relevant?
+- Error messages helpful?
+- UI responsive?
+```
+
+## 📋 **TRONG THỰC TẾ, BẠN SẼ:**
+
+### **Khi develop:**
+```bash
+1. Code your modules (auth, rag, ui...)
+2. Unit test each module
+3. Integration test between modules
+4. Run use case tests để validate end-to-end
+```
+
+### **Khi có bug:**
+```bash
+1. Use case test fails
+2. Debug: Which component failed?
+3. Fix component
+4. Re-run use case test
+5. ✅ Pass → Move on
+```
+
+### **Trước khi deploy:**
+```bash
+1. Run ALL use case tests
+2. Check performance benchmarks  
+3. Validate security scenarios
+4. Test error handling
+5. Only deploy if 95%+ tests pass
+```
+
+## 🚀 **VÍ DỤ AUTOMATED TEST SUITE**
+
+```python
+# tests/integration/use_cases.py
+class ProductionReadinessTests:
+    
+    async def run_all_use_cases(self):
+        """Chạy tất cả use case tests"""
+        
+        results = []
+        
+        # Core functionality tests
+        results.append(await self.test_employee_basic_query())
+        results.append(await self.test_manager_permissions()) 
+        results.append(await self.test_document_upload_workflow())
+        
+        # Performance tests
+        results.append(await self.test_response_time_under_load())
+        results.append(await self.test_concurrent_users())
+        
+        # Security tests
+        results.append(await self.test_unauthorized_access())
+        results.append(await self.test_data_leakage())
+        
+        # Error handling tests
+        results.append(await self.test_database_failure_recovery())
+        results.append(await self.test_llm_api_timeout())
+        
+        # Generate report
+        passed = sum(1 for r in results if r.status == "PASS")
+        total = len(results)
+        
+        print(f"Use Case Tests: {passed}/{total} passed")
+        
+        if passed/total >= 0.95:
+            print("🎉 System ready for production!")
+        else:
+            print("⚠️ Fix failing tests before deployment")
+        
+        return results
+```
+
+## 💡 **TÓM LẠI**
+
+**Use Cases = Quality Assurance Scripts**
+
+- ✅ Không cần code mới
+- ✅ Chỉ cần test scripts  
+- ✅ Validate hệ thống hoạt động đúng
+- ✅ Đảm bảo user experience tốt
+- ✅ Catch bugs trước khi deploy
+- ✅ Confidence để go production
+
+**Think of them as your "System Health Check" scripts!** 🏥
+
+Bây giờ bạn đã hiểu rồi chứ? Use cases là để **test và validate**, không phải để **implement**! 😊
+---
 # USE CASE DIAGRAM - HỆ THỐNG TRỢ LÝ TRI THỨC NỘI BỘ
 
 ```mermaid
