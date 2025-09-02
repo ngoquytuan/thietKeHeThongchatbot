@@ -3,7 +3,7 @@ Dựa trên tài liệu dự án, tôi sẽ tạo cho bạn một danh sách cá
 ## 🔧 RULES TRIỂN KHAI DỰ ÁN
 
 ### **EMBEDDING & AI MODELS**
-1. **Embedding Models**: Luôn sử dụng `AITeamVN/Vietnamese_Embedding` hoặc `Qwen/Qwen3-Embedding-0.6B` - cả hai có hiệu suất ngang bằng cho tiếng Việt
+1. **Embedding Models**: Luôn sử dụng `Qwen/Qwen3-Embedding-0.6B`, back up là `AITeamVN/Vietnamese_Embedding` cả hai có hiệu suất ngang bằng cho tiếng Việt
 2. **Thư viện Embedding**: Bắt buộc dùng `sentence-transformers` để đạt hiệu quả cao nhất
 3. **GPU Support**: Luôn cài `torch` với GPU support vì máy có GPU
 4. **LLM Models**: Ưu tiên GLM-4.5-Air cho RAG, fallback là OpenAI GPT-4
@@ -47,5 +47,6 @@ Dựa trên tài liệu dự án, tôi sẽ tạo cho bạn một danh sách cá
 28. **Documentation**: Luôn update README, API docs, deployment guide song song với code
 29. **Version Control**: GitFlow workflow, feature branches, code review mandatory
 30. **Monitoring**: Log performance metrics, error rates, user feedback từ ngày đầu
+
 
 Bạn có muốn tôi detail hóa thêm rule nào hoặc thêm rules cho aspect cụ thể nào không?
