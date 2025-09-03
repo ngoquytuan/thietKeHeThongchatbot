@@ -869,3 +869,584 @@ graph LR
 **📊 Management:** Monitoring và admin tools  
 
 Mỗi "thủ thư" có personality và specialty riêng, nhưng họ làm việc như một team để phục vụ users tốt nhất! 🎪✨
+---
+## 📊 **DATABASE SCHEMA VISUALIZATION**
+
+Tôi sẽ vẽ chi tiết các bảng và trường dữ liệu trong từng database component.
+
+### **🐘 PostgreSQL Enhanced Schema**
+
+```mermaid
+erDiagram
+    %% Core Documents Table
+    documents_metadata_v2 {
+        uuid document_id PK
+        varchar title
+        text content
+        document_type_enum document_type
+        access_level_enum access_level
+        varchar department_owner
+        varchar author
+        document_status_enum status
+        varchar language_detected
+        boolean vietnamese_segmented
+        boolean diacritics_normalized
+        boolean tone_marks_preserved
+        varchar flashrag_collection
+        boolean jsonl_export_ready
+        tsvector search_tokens
+        jsonb keyword_density
+        jsonb heading_structure
+        varchar embedding_model_primary
+        integer chunk_count
+        bigint file_size_bytes
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Enhanced Chunks Table
+    document_chunks_enhanced {
+        uuid chunk_id PK
+        uuid document_id FK
+        text chunk_content
+        integer chunk_position
+        integer chunk_size_tokens
+        integer chunk_size_characters
+        boolean semantic_boundary
+        integer overlap_with_prev
+        integer overlap_with_next
+        text heading_context
+        integer paragraph_context
+        varchar chunk_method
+        decimal chunk_quality_score
+        integer faiss_index_id
+        varchar chroma_vector_id
+        varchar embedding_model
+        integer embedding_dimensions
+        tsvector bm25_tokens
+        jsonb keyword_weights
+        jsonb vietnamese_tokens
+        jsonb pos_tags
+        jsonb named_entities
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% BM25 Support Table
+    document_bm25_index {
+        uuid bm25_id PK
+        uuid document_id FK
+        uuid chunk_id FK
+        varchar term
+        integer term_frequency
+        integer document_frequency
+        decimal inverse_document_frequency
+        decimal bm25_score
+        varchar term_type
+        decimal term_importance
+        varchar language
+        boolean is_stopword
+        timestamp created_at
+    }
+    
+    %% Vietnamese Analysis Table
+    vietnamese_text_analysis {
+        uuid analysis_id PK
+        uuid document_id FK
+        uuid chunk_id FK
+        text original_text
+        text processed_text
+        jsonb word_segmentation
+        jsonb syllable_segmentation
+        jsonb pos_tagging
+        text_array compound_words
+        text_array technical_terms
+        text_array proper_nouns
+        text_array foreign_words
+        decimal readability_score
+        varchar formality_level
+        varchar regional_dialect
+        varchar processing_model
+        varchar processing_version
+        integer processing_time_ms
+        timestamp created_at
+    }
+    
+    %% Context Refinement Tracking
+    context_refinement_log {
+        uuid refinement_id PK
+        uuid query_session_id FK
+        uuid_array original_chunks
+        integer original_token_count
+        integer original_context_length
+        text refined_content
+        integer refined_token_count
+        integer refined_context_length
+        decimal compression_ratio
+        varchar refinement_method
+        decimal quality_score
+        integer processing_time_ms
+        varchar model_used
+        decimal compression_target
+        integer preserve_first_sentences
+        integer preserve_last_sentences
+        boolean dynamic_context_length
+        integer user_satisfaction
+        integer answer_quality
+        integer context_relevance
+        timestamp created_at
+    }
+    
+    %% Knowledge Graph Table
+    knowledge_graph_edges {
+        uuid edge_id PK
+        uuid source_chunk_id FK
+        uuid target_chunk_id FK
+        varchar relationship_type
+        decimal confidence_score
+        varchar extraction_method
+        text relationship_description
+        text evidence_text
+        jsonb extraction_context
+        integer hop_distance
+        decimal path_weight
+        boolean human_verified
+        timestamp verification_date
+        uuid verified_by FK
+        integer times_traversed
+        timestamp last_traversed
+        timestamp created_at
+    }
+    
+    %% Pipeline Session Tracking
+    rag_pipeline_sessions {
+        uuid session_id PK
+        uuid user_id FK
+        uuid parent_session_id FK
+        text original_query
+        text processed_query
+        varchar query_intent
+        varchar query_complexity
+        varchar query_language
+        varchar pipeline_type
+        varchar pipeline_method
+        text pipeline_reason
+        varchar retrieval_method
+        integer retrieval_k
+        decimal hybrid_alpha
+        integer chunks_retrieved
+        integer chunks_used_final
+        integer total_context_tokens
+        integer final_context_tokens
+        boolean context_refined
+        varchar refinement_method
+        varchar llm_model
+        decimal llm_temperature
+        integer llm_max_tokens
+        varchar prompt_template
+        boolean response_generated
+        integer response_length
+        decimal response_quality_score
+        integer user_feedback
+        integer processing_time_ms
+        integer retrieval_time_ms
+        integer llm_time_ms
+        integer total_time_ms
+        integer tokens_used
+        integer api_calls_count
+        decimal total_cost_usd
+        boolean had_errors
+        text_array error_messages
+        timestamp created_at
+    }
+    
+    %% Performance Metrics
+    query_performance_metrics {
+        uuid metric_id PK
+        uuid session_id FK
+        integer query_preprocessing_time_ms
+        integer embedding_generation_time_ms
+        integer vector_search_time_ms
+        integer bm25_search_time_ms
+        integer hybrid_merge_time_ms
+        integer context_refinement_time_ms
+        integer llm_processing_time_ms
+        integer response_formatting_time_ms
+        integer memory_usage_mb
+        decimal cpu_usage_percent
+        decimal gpu_usage_percent
+        integer disk_io_mb
+        integer network_io_mb
+        boolean embedding_cache_hit
+        boolean context_cache_hit
+        boolean result_cache_hit
+        decimal cache_hit_ratio
+        decimal retrieval_precision
+        decimal retrieval_recall
+        decimal answer_relevance_score
+        decimal answer_completeness_score
+        integer user_satisfaction
+        text_array errors_encountered
+        text_array warnings_encountered
+        timestamp recorded_at
+    }
+    
+    %% Embedding Model Benchmarks
+    embedding_model_benchmarks {
+        uuid benchmark_id PK
+        varchar model_name
+        varchar model_type
+        varchar model_version
+        integer embedding_dimensions
+        decimal hit_rate_at_1
+        decimal hit_rate_at_3
+        decimal hit_rate_at_5
+        decimal hit_rate_at_10
+        decimal mrr
+        decimal ndcg_at_5
+        decimal ndcg_at_10
+        integer processing_time_avg_ms
+        integer processing_time_p95_ms
+        decimal tokens_per_second
+        varchar test_dataset
+        integer test_queries_count
+        integer test_documents_count
+        varchar language
+        varchar domain
+        jsonb hardware_config
+        integer batch_size
+        varchar baseline_model
+        decimal improvement_percentage
+        timestamp tested_at
+        uuid tested_by FK
+    }
+    
+    %% FlashRAG Export Tracking
+    jsonl_exports {
+        uuid export_id PK
+        varchar collection_name
+        varchar export_type
+        uuid_array document_ids
+        timestamp date_filter_from
+        timestamp date_filter_to
+        integer documents_exported
+        integer chunks_exported
+        bigint total_size_bytes
+        boolean include_metadata
+        boolean include_embeddings
+        varchar chunk_strategy
+        text export_path
+        varchar compression_used
+        varchar file_hash
+        varchar flashrag_version
+        varchar schema_version
+        text_array compatible_pipelines
+        varchar export_status
+        text error_message
+        timestamp created_at
+        timestamp completed_at
+        uuid created_by FK
+    }
+    
+    %% Vietnamese Terminology Dictionary
+    vietnamese_terminology {
+        uuid term_id PK
+        text original_term
+        text normalized_term
+        varchar term_type
+        text definition
+        text_array context_examples
+        integer frequency_score
+        text_array synonyms
+        text_array alternative_spellings
+        timestamp first_seen
+        timestamp last_updated
+    }
+    
+    %% System Monitoring
+    system_metrics_log {
+        uuid log_id PK
+        timestamp timestamp
+        bigint database_size_bytes
+        integer active_connections
+        decimal cpu_percent
+        decimal memory_percent
+        decimal disk_percent
+        jsonb pipeline_performance_data
+        text_array alerts
+        timestamp created_at
+    }
+    
+    %% Relationships
+    documents_metadata_v2 ||--o{ document_chunks_enhanced : contains
+    documents_metadata_v2 ||--o{ document_bm25_index : indexed_by
+    documents_metadata_v2 ||--o{ vietnamese_text_analysis : analyzed_by
+    document_chunks_enhanced ||--o{ document_bm25_index : has_terms
+    document_chunks_enhanced ||--o{ vietnamese_text_analysis : analyzed
+    document_chunks_enhanced ||--o{ knowledge_graph_edges : source_chunk
+    document_chunks_enhanced ||--o{ knowledge_graph_edges : target_chunk
+    rag_pipeline_sessions ||--o{ context_refinement_log : has_refinement
+    rag_pipeline_sessions ||--o{ query_performance_metrics : measured_by
+    rag_pipeline_sessions ||--o{ rag_pipeline_sessions : follow_up
+    jsonl_exports ||--o{ documents_metadata_v2 : exports
+```
+
+### **🟢 ChromaDB Vector Storage Schema**
+
+```mermaid
+graph TB
+    subgraph "📊 ChromaDB Vector Storage Structure"
+        subgraph "Collections Layer"
+            Collection1[📚 knowledge_base_v1<br/>Default Collection]
+            Collection2[📚 test_collection<br/>Test Collection]
+            Collection3[📚 vietnamese_docs<br/>Vietnamese Collection]
+        end
+        
+        subgraph "Document Storage"
+            VectorDoc1[📄 Document Vector<br/>• id: doc_uuid<br/>• embeddings: [1536 dims]<br/>• metadata: {title, type, dept}]
+            VectorDoc2[📄 Chunk Vector<br/>• id: chunk_uuid<br/>• embeddings: [768/1536 dims]<br/>• metadata: {position, quality}]
+        end
+        
+        subgraph "Metadata Structure"
+            DocMetadata[🏷️ Document Metadata<br/>• document_id: UUID<br/>• title: String<br/>• document_type: Enum<br/>• access_level: Enum<br/>• department_owner: String<br/>• author: String<br/>• language: String<br/>• created_at: Timestamp<br/>• chunk_count: Integer]
+            
+            ChunkMetadata[🏷️ Chunk Metadata<br/>• chunk_id: UUID<br/>• document_id: UUID<br/>• chunk_position: Integer<br/>• chunk_size_tokens: Integer<br/>• semantic_boundary: Boolean<br/>• chunk_method: String<br/>• chunk_quality_score: Float<br/>• heading_context: String<br/>• overlap_prev: Integer<br/>• overlap_next: Integer]
+        end
+        
+        subgraph "Vector Indexes"
+            HNSWIndex[🔍 HNSW Index<br/>• Algorithm: HNSW<br/>• Distance: Cosine<br/>• M: 16<br/>• ef_construction: 200<br/>• ef_search: 100]
+            
+            IVFIndex[🔍 IVF Index<br/>• Algorithm: IVF<br/>• n_lists: 100<br/>• n_probes: 10<br/>• Distance: L2/IP]
+        end
+        
+        Collection1 --> VectorDoc1
+        Collection2 --> VectorDoc2
+        VectorDoc1 --> DocMetadata
+        VectorDoc2 --> ChunkMetadata
+        VectorDoc1 --> HNSWIndex
+        VectorDoc2 --> IVFIndex
+    end
+```
+
+#### **ChromaDB Collection Configuration:**
+
+```json
+{
+  "collection_configs": {
+    "knowledge_base_v1": {
+      "embedding_dimension": 1536,
+      "distance_metric": "cosine",
+      "index_type": "HNSW",
+      "max_elements": 100000,
+      "ef_construction": 200,
+      "M": 16,
+      "metadata_schema": {
+        "document_id": "string",
+        "title": "string", 
+        "document_type": "string",
+        "access_level": "string",
+        "department_owner": "string",
+        "language": "string",
+        "chunk_position": "int",
+        "quality_score": "float"
+      }
+    },
+    "vietnamese_docs": {
+      "embedding_dimension": 768,
+      "distance_metric": "cosine", 
+      "index_type": "IVF",
+      "n_lists": 100,
+      "metadata_schema": {
+        "vietnamese_segmented": "boolean",
+        "pos_tags": "string",
+        "readability_score": "float",
+        "formality_level": "string"
+      }
+    }
+  }
+}
+```
+
+### **🔴 Redis Cache Structure**
+
+```mermaid
+graph TB
+    subgraph "🔴 Redis Cache Structure"
+        subgraph "Session Management"
+            UserSession[👤 User Sessions<br/>Key: user:session:{user_id}<br/>TTL: 24h<br/>Value: {<br/>  session_id: UUID<br/>  user_id: UUID<br/>  login_time: Timestamp<br/>  permissions: Array<br/>  department: String<br/>  last_activity: Timestamp<br/>}]
+            
+            QuerySession[🔍 Query Sessions<br/>Key: query:session:{session_id}<br/>TTL: 1h<br/>Value: {<br/>  original_query: String<br/>  processed_query: String<br/>  retrieved_chunks: Array<br/>  response: String<br/>  quality_score: Float<br/>  processing_time: Integer<br/>}]
+        end
+        
+        subgraph "Embedding Cache"
+            EmbeddingCache[🧮 Embedding Cache<br/>Key: embedding:{model}:{hash}<br/>TTL: 7d<br/>Value: {<br/>  text: String<br/>  model: String<br/>  embeddings: Array[Float]<br/>  dimensions: Integer<br/>  created_at: Timestamp<br/>}]
+            
+            QueryEmbedding[🔍 Query Embedding Cache<br/>Key: query_emb:{query_hash}<br/>TTL: 1h<br/>Value: {<br/>  query: String<br/>  embeddings: Array[Float]<br/>  model_used: String<br/>  language: String<br/>}]
+        end
+        
+        subgraph "Search Results Cache"
+            SearchCache[🎯 Search Results Cache<br/>Key: search:{query_hash}:{filters}<br/>TTL: 30m<br/>Value: {<br/>  query: String<br/>  filters: Object<br/>  results: Array[{<br/>    chunk_id: UUID<br/>    score: Float<br/>    content: String<br/>    metadata: Object<br/>  }]<br/>  total_results: Integer<br/>  search_time_ms: Integer<br/>}]
+            
+            HybridResults[⚡ Hybrid Search Cache<br/>Key: hybrid:{dense_hash}:{sparse_hash}<br/>TTL: 15m<br/>Value: {<br/>  dense_results: Array<br/>  sparse_results: Array<br/>  merged_results: Array<br/>  hybrid_alpha: Float<br/>  merge_strategy: String<br/>}]
+        end
+        
+        subgraph "Performance Metrics"
+            PerfMetrics[📊 Performance Metrics<br/>Key: perf:metrics:{date}<br/>TTL: 30d<br/>Value: {<br/>  avg_query_time: Float<br/>  cache_hit_rate: Float<br/>  total_queries: Integer<br/>  error_rate: Float<br/>  top_queries: Array<br/>}]
+            
+            ModelMetrics[🧪 Model Performance<br/>Key: model:perf:{model_name}<br/>TTL: 7d<br/>Value: {<br/>  hit_rate_at_5: Float<br/>  mrr: Float<br/>  avg_processing_time: Float<br/>  total_queries: Integer<br/>  language_breakdown: Object<br/>}]
+        end
+        
+        subgraph "Vietnamese NLP Cache"
+            VietnameseNLP[🇻🇳 Vietnamese Processing<br/>Key: vn:nlp:{text_hash}<br/>TTL: 24h<br/>Value: {<br/>  original_text: String<br/>  segmented_words: Array<br/>  pos_tags: Array<br/>  named_entities: Array<br/>  readability_score: Float<br/>  processing_time: Integer<br/>}]
+            
+            TerminologyCache[📚 Terminology Cache<br/>Key: vn:term:{term}<br/>TTL: 7d<br/>Value: {<br/>  original_term: String<br/>  normalized_term: String<br/>  definition: String<br/>  synonyms: Array<br/>  frequency: Integer<br/>}]
+        end
+        
+        subgraph "Context Refinement Cache"
+            ContextCache[🎯 Context Refinement<br/>Key: context:{chunks_hash}:{method}<br/>TTL: 1h<br/>Value: {<br/>  original_chunks: Array<br/>  refined_content: String<br/>  compression_ratio: Float<br/>  quality_score: Float<br/>  refinement_method: String<br/>  processing_time_ms: Integer<br/>}]
+            
+            LLMResponseCache[🤖 LLM Response Cache<br/>Key: llm:{prompt_hash}:{model}<br/>TTL: 2h<br/>Value: {<br/>  prompt: String<br/>  response: String<br/>  model: String<br/>  tokens_used: Integer<br/>  processing_time: Integer<br/>  cost: Float<br/>}]
+        end
+    end
+```
+
+#### **Redis Key Patterns & TTL Strategy:**
+
+```yaml
+# Redis Configuration
+redis_schema:
+  session_management:
+    user_sessions:
+      pattern: "user:session:{user_id}"
+      ttl: 86400  # 24 hours
+      type: hash
+    
+    query_sessions:
+      pattern: "query:session:{session_id}" 
+      ttl: 3600   # 1 hour
+      type: hash
+  
+  embedding_cache:
+    embeddings:
+      pattern: "embedding:{model}:{text_hash}"
+      ttl: 604800  # 7 days
+      type: hash
+    
+    query_embeddings:
+      pattern: "query_emb:{query_hash}"
+      ttl: 3600    # 1 hour
+      type: hash
+  
+  search_cache:
+    search_results:
+      pattern: "search:{query_hash}:{filters_hash}"
+      ttl: 1800    # 30 minutes
+      type: hash
+    
+    hybrid_results:
+      pattern: "hybrid:{dense_hash}:{sparse_hash}"
+      ttl: 900     # 15 minutes
+      type: hash
+  
+  performance_tracking:
+    daily_metrics:
+      pattern: "perf:metrics:{YYYY-MM-DD}"
+      ttl: 2592000  # 30 days
+      type: hash
+    
+    model_performance:
+      pattern: "model:perf:{model_name}"
+      ttl: 604800   # 7 days
+      type: hash
+  
+  vietnamese_nlp:
+    processed_text:
+      pattern: "vn:nlp:{text_hash}"
+      ttl: 86400    # 24 hours
+      type: hash
+    
+    terminology:
+      pattern: "vn:term:{term}"
+      ttl: 604800   # 7 days
+      type: hash
+  
+  context_refinement:
+    refined_context:
+      pattern: "context:{chunks_hash}:{method}"
+      ttl: 3600     # 1 hour
+      type: hash
+    
+    llm_responses:
+      pattern: "llm:{prompt_hash}:{model}"
+      ttl: 7200     # 2 hours
+      type: hash
+```
+
+### **🔄 Data Flow Between Components**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Redis
+    participant PostgreSQL
+    participant ChromaDB
+    
+    User->>API: Query: "Quy trình xin nghỉ phép?"
+    
+    API->>Redis: Check query cache
+    Redis-->>API: Cache miss
+    
+    API->>PostgreSQL: Get user permissions
+    PostgreSQL-->>API: User permissions
+    
+    API->>Redis: Check embedding cache
+    Redis-->>API: Cache miss
+    
+    API->>API: Generate embedding
+    API->>Redis: Cache embedding
+    
+    API->>ChromaDB: Vector search
+    ChromaDB-->>API: Similar chunks
+    
+    API->>PostgreSQL: Get BM25 scores
+    PostgreSQL-->>API: Keyword scores
+    
+    API->>API: Hybrid merge (dense + sparse)
+    
+    API->>PostgreSQL: Get Vietnamese analysis
+    PostgreSQL-->>API: NLP metadata
+    
+    API->>Redis: Cache search results
+    
+    API->>PostgreSQL: Log pipeline session
+    PostgreSQL-->>API: Session logged
+    
+    API-->>User: Enhanced response with citations
+```
+
+### **📈 Storage Size Estimation**
+
+| Component | Data Type | Estimated Size |
+|-----------|-----------|----------------|
+| **PostgreSQL Core** |  |  |
+| - documents_metadata_v2 | 10K documents | 500 MB |
+| - document_chunks_enhanced | 100K chunks | 2 GB |
+| - document_bm25_index | 1M terms | 800 MB |
+| - vietnamese_text_analysis | 100K entries | 1.2 GB |
+| - rag_pipeline_sessions | 1M queries | 600 MB |
+| - context_refinement_log | 500K entries | 400 MB |
+| - knowledge_graph_edges | 50K edges | 200 MB |
+| **ChromaDB Vectors** |  |  |
+| - Document embeddings | 10K x 1536 dims | 60 MB |
+| - Chunk embeddings | 100K x 768 dims | 300 MB |
+| - HNSW index overhead | Index data | 150 MB |
+| **Redis Cache** |  |  |
+| - Session data | 10K active users | 50 MB |
+| - Embedding cache | 100K cached | 400 MB |
+| - Search results cache | 50K queries | 200 MB |
+| - NLP processing cache | 200K texts | 300 MB |
+| **Total Estimated** |  | **~7.2 GB** |
+
+Đây là kiến trúc database hoàn chỉnh với tất cả các bảng và trường dữ liệu được thiết kế để hỗ trợ hệ thống chatbot tiếng Việt với các tính năng nâng cao từ FlashRAG. Bạn có muốn tôi giải thích chi tiết về bất kỳ bảng hoặc mối quan hệ nào không?
+---
