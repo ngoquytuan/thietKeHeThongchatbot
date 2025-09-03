@@ -1038,10 +1038,12 @@ Lỗi này là do version conflict của `huggingface_hub`. Tôi sẽ fix nhanh:
 Cập nhật file `requirements/tool_requirements.txt`:
 
 ```txt
-# requirements/tool_requirements.txt - VERSION TƯƠNG THÍCH
+# requirements/tool_requirements.txt 
+# pip install -r tool_requirements.txt --extra-index-url https://download.pytorch.org/whl/cu126
+
 asyncpg==0.29.0
 python-multipart==0.0.6
-fastapi==0.104.1
+fastapi==0.115.9
 uvicorn==0.24.0
 streamlit==1.28.2
 python-docx==1.1.0
@@ -1053,16 +1055,20 @@ pandas==2.0.3
 huggingface_hub==0.17.3
 transformers==4.33.2
 sentence-transformers==2.2.2
-torch==2.0.1
+torch==2.8.0+cu126
+torchvision==0.23.0+cu126
+torchaudio==2.8.0+cu126
+
 tokenizers==0.13.3
 
 # Other dependencies
-chromadb==0.4.15
+chromadb==1.0.0
 redis==5.0.1
 pyvi==0.1.1
 underthesea==6.7.0
 numpy==1.24.3
 scikit-learn==1.3.0
+
 ```
 
 ## 🔄 **REBUILD CONTAINER**
