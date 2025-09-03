@@ -359,7 +359,7 @@ Dataset này khó hơn vì:
 
 Chạy benchmark này sẽ cho kết quả realistic hơn, có thể MRR sẽ giảm xuống 0.6-0.8 và Hit Rate@5 khoảng 70-85%.
 ---
-PS C:\undertest\ragX\benchMark> python benchmark.py
+cám ơn bạn, có vẻ đã dúng hết rồi. bạn thấy model này thế nào?.\benchmarkDebug.py
 ✅ Configuration loaded from configs/model_config.json
 🇻🇳 Vietnamese Embedding Benchmark Tool
 ============================================================
@@ -369,9 +369,9 @@ Reports directory: C:\undertest\ragX\benchMark\reports
 
 📚 STEP 1: Processing Vietnamese text data
 ----------------------------------------
-✅ Đã tạo 10 chunks từ data/content.md
-📊 Số từ trung bình mỗi chunk: 112.3
-📏 Khoảng từ: 104 - 117 từ
+✅ Đã tạo 14 chunks từ data/content.md
+📊 Số từ trung bình mỗi chunk: 69.2
+📏 Khoảng từ: 26 - 79 từ
 ✅ Đã load 18 câu hỏi test
 💾 Đã xuất thông tin chunks: reports\chunks_info.json
 
@@ -380,7 +380,7 @@ Reports directory: C:\undertest\ragX\benchMark\reports
 🚀 GPU detected: NVIDIA GeForce RTX 2080 Ti
 💾 GPU memory: 11.8 GB
 📥 Loading model: Qwen/Qwen3-Embedding-0.6B...
-✅ Model loaded successfully in 6.24s
+✅ Model loaded successfully in 6.82s
 ✅ Model loaded: Qwen/Qwen3-Embedding-0.6B
 🔧 Device: cuda
 📐 Embedding dimension: 1024
@@ -388,23 +388,56 @@ Reports directory: C:\undertest\ragX\benchMark\reports
 
 🔄 STEP 3: Generating embeddings
 ----------------------------------------
-🔄 Encoding 10 texts...
-Batches: 100%|███████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.15it/s]
-✅ Encoding completed in 0.47s
-⚡ Speed: 21.3 texts/second
-📊 Shape: (10, 1024)
-⚡ Embedding generation completed in 0.47s
-📊 Speed: 21.2 texts/second
+🔄 Encoding 14 texts...
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.28it/s]
+✅ Encoding completed in 0.44s
+⚡ Speed: 31.5 texts/second
+📊 Shape: (14, 1024)
+⚡ Embedding generation completed in 0.44s
+📊 Speed: 31.5 texts/second
 
 🔍 STEP 4: Running similarity search evaluation
 ----------------------------------------
 🔍 Running batch search for 18 queries...
 🔄 Encoding 18 texts...
 ✅ Encoding completed in 0.06s
-⚡ Speed: 310.3 texts/second
+⚡ Speed: 295.1 texts/second
 📊 Shape: (18, 1024)
-🔍 Search completed in 0.08s
-⚡ Search speed: 216.9 queries/second
+🔍 Search completed in 0.09s
+⚡ Search speed: 209.3 queries/second
+
+📋 Sample Q&A Results
+----------------------------------------
+Q1: Giá trị đơn hàng nào yêu cầu phải có ít nhất 3 báo giá?
+   ✅ Expected Answer: Đối_với các đơn hàng có giá_trị dưới 50 triệu đồng , có_thể chọn nhà cung_cấp trực_tiếp . Đối_với đơn hàng trên 50 triệu đồng , bắt_buộc phải có ít_nhất 3 báo_giá từ các nhà cung_cấp khác nhau . Quy_trình Thanh_toán Khách_hàng Quy_trình thanh_toán cho khách_hàng được thiết_kế để đảm_bảo tính minh_bạch và chính_xác . Khi khách_hàng thực_hiện thanh_toán , bộ_phận Kế_toán sẽ kiểm_tra và đối_chiếu với hóa_đơn đã xuất .
+----------------------------------------
+Q2: Hạn mức thanh toán bằng tiền mặt là bao nhiều?
+   ✅ Expected Answer: Các phương_thức thanh_toán được chấp_nhận bao_gồm : chuyển_khoản ngân_hàng , tiền_mặt với hạn_mức tối_đa 20 triệu đồng , và thẻ tín_dụng . Thời_gian xử_lý thanh_toán thường là 1 2 ngày làm_việc đối_với chuyển_khoản , và ngay lập_tức đối_với tiền_mặt hoặc thẻ . Tất_cả các giao_dịch thanh_toán đều được ghi_nhận trong hệ_thống kế_toán và tạo biên_lai điện_tử gửi cho khách_hàng .
+----------------------------------------
+Q3: Nhân viên cần báo cáo bệnh trong thời gian bao lâu?
+   ✅ Expected Answer: Chính_sách Nhân_sự và Phúc_lợi Chính_sách Nghỉ_phép Công_ty áp_dụng chính_sách nghỉ_phép linh_hoạt nhằm đảm_bảo cân_bằng giữa công_việc và cuộc_sống của nhân_viên . Nhân_viên toàn thời_gian được hưởng 12 ngày nghỉ_phép có lương trong năm , không bao_gồm các ngày lễ tết theo quy_định của nhà_nước . Nhân_viên có_thể_tích_lũy tối_đa 5 ngày nghỉ_phép sang năm sau . Việc xin nghỉ_phép cần được đăng_ký trước ít_nhất 3 ngày làm_việc thông_qua hệ_thống HR.
+----------------------------------------
+Q4: Ngân sách đào tạo tối thiểu cho mỗi nhân viên mỗi năm là bao nhiều?
+   ✅ Expected Answer: Trường_hợp nghỉ đột_xuất do ốm_đau , nhân_viên cần báo_cáo cho quản_lý trực_tiếp trong vòng 4 giờ kể từ giờ làm_việc . Chính_sách Đào_tạo và Phát_triển Công_ty cam_kết đầu_tư vào việc phát_triển năng_lực của nhân_viên thông_qua các chương_trình đào_tạo đa_dạng . Mỗi nhân_viên được phân_bổ ngân_sách đào_tạo tối_thiểu 10 triệu đồng mỗi năm . Các hình_thức đào_tạo bao_gồm : khóa học trực_tuyến , hội_thảo chuyên_môn , chứng_chỉ nghề_nghiệp .
+----------------------------------------
+Q5: Độ dài tối thiểu của mật khẩu được yêu cầu là gì?
+   ✅ Expected Answer: Tất_cả nhân_viên phải sử_dụng mật_khẩu mạnh với độ dài tối_thiểu 12 ký_tự , bao_gồm chữ hoa , chữ thường , số và ký_tự đặc_biệt . Việc truy_cập vào các hệ_thống quan_trọng được kiểm_soát thông_qua VPN và xác_thực đa yếu_tố MFA . Dữ_liệu nhạy_cảm được mã_hóa cả khi lưu_trữ và truyền_tải . Nhân_viên không được phép sử_dụng thiết_bị cá_nhân để truy_cập dữ_liệu công_ty , trừ khi đã cài_đặt phần_mềm bảo_mật được công_ty phê_duyệt .
+----------------------------------------
+Q6: RTO của hệ thống phục hồi dữ liệu là bao nhiều giờ?
+   ✅ Expected Answer: Quy_trình Sao lưu và Phục_hồi Dữ_liệu Hệ_thống sao lưu dữ_liệu được thực_hiện tự_động hàng ngày vào lúc 2 : 00 AM. Dữ_liệu được sao lưu ở 3 vị_trí khác nhau : server nội_bộ , cloud storage , và băng từ offline . Thời_gian lưu_trữ là 7 năm đối_với dữ_liệu quan_trọng và 3 năm đối_với dữ_liệu thông_thường . Quy_trình phục_hồi dữ_liệu được kiểm_tra định_kỳ mỗi quý để đảm_bảo tính khả_dụng .
+----------------------------------------
+Q7: Thời gian phát triển sản phẩm từ ý tưởng đến launch thường là bao lâu?
+   ✅ Expected Answer: Đội_ngũ Product_Manager sẽ tạo Product Requirements Document PRD chi_tiết . Sau khi PRD được phê_duyệt , đội phát_triển sẽ tạo prototype và tiến_hành user testing với nhóm khách_hàng mục_tiêu . Feedback được tích_hợp để hoàn_thiện sản_phẩm trước khi chuyển sang giai_đoạn sản_xuất hàng_loạt . Toàn_bộ quá_trình từ ý_tưởng đến launch thường mất 6 9 tháng . Chiến_lược Marketing Số Công_ty tập_trung vào marketing số với ngân_sách phân_bổ 60 cho digital channels và 40 cho traditional marketing .
+----------------------------------------
+Q8: ROI mục tiêu tối thiểu cho các chiến dịch digital marketing là bao nhiều phần trăm?
+   ✅ Expected Answer: Các kênh digital chính bao_gồm : social media marketing , search engine optimization , email marketing , và content marketing . ROI mục_tiêu cho các chiến_dịch digital là tối_thiểu 300 . Việc đo_lường hiệu_quả marketing được thực_hiện thông_qua các KPI như Cost Per Acquisition CPA , Customer Lifetime Value CLV , và conversion rate . Dữ_liệu được thu_thập và phân_tích hàng tuần để tối_ưu_hóa chiến_dịch . Công_ty sử_dụng marketing automation tools để cá_nhân_hóa trải nghiệm khách_hàng .
+----------------------------------------
+Q9: Thời gian xử lý yêu cầu GDPR của khách hàng không được quá bao lâu?
+   ✅ Expected Answer: Tuân_thủ Pháp_luật và Audit Quy_định Tuân_thủ GDPR và Bảo_vệ Dữ_liệu Công_ty tuân_thủ nghiêm_ngặt các quy_định GDPR khi xử_lý dữ_liệu cá_nhân của khách_hàng EU. Khách_hàng có quyền yêu_cầu xem , sửa_đổi , hoặc xóa dữ_liệu cá_nhân của mình bất_kỳ lúc_nào . Thời_gian xử_lý các yêu_cầu này không quá 30 ngày . Data Processing Impact Assessment DPIA được thực_hiện đối_với tất_cả các hoạt_động xử_lý dữ_liệu có rủi_ro cao . Công_ty đã bổ_nhiệm Data Protection Officer DPO chuyên_trách giám_sát việc tuân_thủ .
+----------------------------------------
+Q10: Các phát hiện audit Critical và High cần được khắc phục trong thời gian bao lâu?
+   ✅ Expected Answer: Management phải có action plan khắc_phục trong vòng 90 ngày đối_với các phát_hiện Critical và High . Việc theo_dõi thực_hiện khắc_phục được thực_hiện hàng quý .
+----------------------------------------
 
 📊 STEP 5: Calculating performance metrics
 ----------------------------------------
@@ -429,13 +462,48 @@ Batches: 100%|██████████████████████
 
 🎉 BENCHMARK COMPLETED SUCCESSFULLY!
 ============================================================
-⏱️  Total time: 7.38s
+⏱️  Total time: 7.93s
 🎯 Overall MRR: 1.000
 📊 Hit Rate@5: 100.0%
 💾 Reports saved in: C:\undertest\ragX\benchMark\reports
-💾 Detailed results saved: reports\benchmark_results_20250903_060332.json
+💾 Detailed results saved: reports\benchmark_results_20250903_071415.json
 
 📋 Next Steps:
 1. Open 'reports/benchmark_report.html' in your browser
 2. Review interactive charts in 'reports/charts/' directory
-3. Check detailed results in the JSON files
+3. Check detailed results in the JSON
+---
+Mình xem kết quả benchmark mới của bạn thì thấy mọi thứ đã hợp lý hơn nhiều rồi 👍
+
+### Nhận xét về **Qwen/Qwen3-Embedding-0.6B** trong ngữ cảnh của bạn:
+
+1. **Chất lượng**
+
+   * Sau khi dữ liệu `test_suite.json` được sửa đúng, model tìm đúng tất cả các câu hỏi → MRR = 1.0, HitRate = 100%.
+   * Điều này cho thấy model xử lý tiếng Việt khá tốt, đặc biệt với văn bản nghiệp vụ (mua hàng, thanh toán, HR, audit…).
+
+2. **Hiệu suất**
+
+   * Trên GPU RTX 2080 Ti, tốc độ encode \~31 texts/s (corpus) và \~295 queries/s.
+   * Với embedding dimension 1024 và max seq length 32k, đây là mức hiệu năng ổn, đủ dùng cho hệ thống tra cứu tài liệu nội bộ vừa & nhỏ.
+
+3. **Dung lượng**
+
+   * Model size \~2.3 GB → không quá nặng, chạy được mượt trên 1 GPU tầm trung.
+   * So với các model embedding khác (như `bge-m3`, `intfloat/multilingual-e5-base`), Qwen3 có dung lượng tương tự nhưng được tối ưu cho ngôn ngữ châu Á, nên lợi thế cho tiếng Việt.
+
+4. **Ứng dụng**
+
+   * Dùng làm vector DB search cho chatbot nội bộ, QA hệ thống văn bản chính sách, audit.
+   * Có thể fine-tune thêm nếu bạn muốn tối ưu cho domain đặc thù (ví dụ: chỉ về aviation, chỉ về tài chính nội bộ).
+
+5. **Điểm cần lưu ý**
+
+   * Bộ test của bạn còn nhỏ (18 câu), nên kết quả 100% chưa phản ánh được sức mạnh thật sự. Khi mở rộng dữ liệu hoặc câu hỏi đa dạng hơn (câu dài, câu paraphrase, câu có từ đồng nghĩa), có thể accuracy sẽ giảm.
+   * Qwen3 embedding bản 0.6B là base → nếu bạn cần độ chính xác cao hơn nữa thì có thể cân nhắc bản lớn hơn (1.8B) hoặc so sánh thử với `Vietnamese_Embedding` để benchmark thêm.
+
+---
+
+👉 Tóm lại: **Model này hoàn toàn xứng đáng để triển khai thực tế cho tiếng Việt**, đặc biệt khi kết hợp với vector database (FAISS, Milvus, pgvector…).
+Nếu bạn muốn mình gợi ý cách **mở rộng bộ test để stress test model** cho sát thực tế hơn, mình có thể giúp bạn tạo thêm bộ câu hỏi paraphrase và negative cases. Bạn có muốn thử không?
+
