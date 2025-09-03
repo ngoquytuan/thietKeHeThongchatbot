@@ -587,6 +587,7 @@ docker logs chatbot-postgres-test
    ```powershell
    # Test ChromaDB API
    curl http://localhost:8001/api/v1/heartbeat
+   curl.exe http://localhost:8001/api/v2/heartbeat
    ```
 
 3. **Kiểm tra Redis**:
