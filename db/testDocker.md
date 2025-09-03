@@ -688,3 +688,116 @@ Sau khi chạy thành công, bạn sẽ có:
 - 🔄 Pipeline tracking
 
 Bạn có gặp lỗi gì trong quá trình setup không? Tôi sẽ giúp troubleshoot!
+---
+Lỗi này là do version conflict của `huggingface_hub`. Tôi sẽ fix nhanh:
+
+## 🔧 **FIX NHANH - CẬP NHẬT REQUIREMENTS**
+
+Cập nhật file `requirements/tool_requirements.txt`:
+
+```txt
+# requirements/tool_requirements.txt - VERSION TƯƠNG THÍCH
+asyncpg==0.29.0
+python-multipart==0.0.6
+fastapi==0.104.1
+uvicorn==0.24.0
+streamlit==1.28.2
+python-docx==1.1.0
+PyPDF2==3.0.1
+openpyxl==3.1.2
+pandas==2.0.3
+
+# FIXED VERSIONS - tương thích với nhau
+huggingface_hub==0.17.3
+transformers==4.33.2
+sentence-transformers==2.2.2
+torch==2.0.1
+tokenizers==0.13.3
+
+# Other dependencies
+chromadb==0.4.15
+redis==5.0.1
+pyvi==0.1.1
+underthesea==6.7.0
+numpy==1.24.3
+scikit-learn==1.3.0
+```
+
+## 🔄 **REBUILD CONTAINER**
+
+```cmd
+# Dừng containers
+docker-compose -f docker-compose.tool.yml down
+
+# Xóa container cũ (force rebuild)
+docker rmi chatbot-enhanced-db-document-tool
+
+# Build lại với dependencies mới
+docker-compose -f docker-compose.tool.yml up --build -d
+
+# Xem logs
+docker logs -f chatbot-document-tool
+```
+
+## ⚡ **CÁCH NHANH HƠN - DÙNG PRE-BUILT IMAGE**
+
+Nếu vẫn lỗi, sửa `docker/Dockerfile.tool` thành:
+
+```dockerfile
+# docker/Dockerfile.tool - VERSION ĐƠN GIẢN
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies từng bước để tránh conflict
+RUN pip install --upgrade pip setuptools wheel
+
+# Install core dependencies trước
+RUN pip install torch==2.0.1 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install transformers==4.33.2
+RUN pip install sentence-transformers==2.2.2
+
+# Install other dependencies  
+RUN pip install \
+    asyncpg==0.29.0 \
+    streamlit==1.28.2 \
+    python-docx==1.1.0 \
+    PyPDF2==3.0.1 \
+    pandas==2.0.3 \
+    pyvi==0.1.1 \
+    underthesea==6.7.0 \
+    chromadb==0.4.15
+
+# Copy code
+COPY tools/ /app/tools/
+RUN mkdir -p /app/logs
+
+EXPOSE 8501
+CMD ["streamlit", "run", "tools/document_ingestion/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+## 🧪 **TEST BUILD**
+
+```cmd
+# Test build container
+docker build -f docker/Dockerfile.tool -t test-tool .
+
+# Nếu build OK, chạy full stack
+docker-compose -f docker-compose.tool.yml up --build
+```
+
+## 📊 **KIỂM TRA KẾT QUẢ**
+
+Sau khi chạy xong:
+- Streamlit tool: http://localhost:8501
+- Database: http://localhost:8080
+
+**Nếu vẫn lỗi**, bạn copy toàn bộ error message cho tôi. Tôi sẽ tạo version đơn giản hơn không dùng sentence-transformers phức tạp.
+
+Thử xem sao nhé! 🚀
