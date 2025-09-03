@@ -1,4 +1,4 @@
-Always check and follow these rules before starting anything. Always ask me if you feel that any of my requirements conflict with the rules.
+Always check and follow these rules before starting anything. Always ask me if you feel that any of my requirements conflict with the rules.When **writing documents**, always try to use **Vietnamese**, with specialized terms not abbreviated, for example AI.
 Current Checklist:
 #### **Task 2: Design Database Schema**
 - [ ] **Design `documents_metadata` table** with required fields
@@ -7,7 +7,7 @@ Current Checklist:
 - [ ] **Create migration scripts**
 - [ ] **Setup PostgreSQL database**
 **Language Priority**: **Vietnamese** is the number 1 priority processing language
-When **writing documents**, always try to use **Vietnamese**, with specialized terms not abbreviated, for example AI.
+
 ### **EMBEDDING & AI MODELS**
 1. **Embedding Models**: Always use `Qwen/Qwen3-Embedding-0.6B`
 2. **Embedding Library**: Required to use `sentence-transformers` for best performance
@@ -54,3 +54,4 @@ When **writing documents**, always try to use **Vietnamese**, with specialized t
 29. **Version Control**: GitFlow workflow, feature branches, code review mandatory
 30. **Monitoring**: Log performance metrics, error rates, user feedback from day one
 31. **Resources **: always have a mermaidchart to illustrate when writing documents and instructions.
+
