@@ -20,9 +20,9 @@ graph LR
     
     PG[🐘 PostgreSQL<br/>Full 3000 words<br/>+ Metadata + Analytics]
     
-    Chroma[🟢 ChromaDB<br/>Same 3000 words<br/>(split into chunks)<br/>+ Vector embeddings]
+    Chroma[🟢 ChromaDB<br/>Same 3000 words<br/>_split into chunks_<br/>+ Vector embeddings]
     
-    Redis[🔴 Redis<br/>~300 popular words<br/>(cached chunks only)]
+    Redis[🔴 Redis<br/>~300 popular words<br/>_cached chunks only_]
     
     Raw --> PG
     Raw --> Chroma
