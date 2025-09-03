@@ -3228,3 +3228,822 @@ PostgreSQL giống não bộ vì nó:
 5. **Học hỏi** (analytics tables)
 
 Nhưng nó không "suy nghĩ" như con người - chỉ là xử lý dữ liệu rất nhanh và chính xác thôi! 🤖
+
+---
+Chính xác! Bạn đã phát hiện ra điểm quan trọng. Hãy tôi làm rõ **WHERE** nội dung được lưu trữ:
+
+## 📄 **TOÀN BỘ NỘI DUNG RAW ĐƯỢC LƯU Ở ĐÂU?**
+
+### **🐘 PostgreSQL - Nơi lưu trữ TOÀN BỘ nội dung**
+
+```mermaid
+graph TD
+    subgraph "📄 Raw Document Input"
+        PDF[📋 Original Document<br/>Quy trình xin nghỉ phép.pdf<br/>Full content: 3,247 từ]
+    end
+    
+    subgraph "🐘 PostgreSQL Storage"
+        MainTable[📊 documents_metadata_v2<br/>document_id: uuid-123<br/>title: 'Quy trình xin nghỉ phép'<br/>**content: FULL 3,247 words**<br/>author: 'HR Department'<br/>file_size_bytes: 2,621,440<br/>💾 Complete raw text stored here]
+        
+        ChunkTable[✂️ document_chunks_enhanced<br/>Chunk 1: words 1-500 (+ metadata)<br/>Chunk 2: words 451-950 (+ overlap)<br/>Chunk 3: words 901-1400 (+ overlap)<br/>...<br/>Chunk 8: words 2701-3247<br/>💾 Same content, split into pieces]
+    end
+    
+    subgraph "🟢 ChromaDB Storage"
+        ChromaCopy[📄 Content Copies<br/>documents[0]: Chunk 1 content<br/>documents[1]: Chunk 2 content<br/>documents[2]: Chunk 3 content<br/>...<br/>💾 DUPLICATE of chunks for fast access]
+        
+        Vectors[🎯 Vector Embeddings<br/>embedding[0]: [0.12, -0.34, 0.78, ...]<br/>embedding[1]: [0.45, -0.12, 0.56, ...]<br/>💾 Mathematical representation]
+    end
+    
+    subgraph "🔴 Redis Storage"  
+        RedisCache[⚡ Cached Chunks<br/>chunk:uuid-456: Chunk 1 content<br/>chunk:uuid-457: Chunk 2 content<br/>💾 DUPLICATE of frequently accessed chunks]
+    end
+    
+    PDF --> MainTable
+    MainTable --> ChunkTable
+    ChunkTable --> ChromaCopy
+    ChunkTable --> Vectors
+    ChunkTable --> RedisCache
+    
+    classDef input fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
+    classDef postgres fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    classDef chroma fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    classDef redis fill:#ffebee,stroke:#f44336,stroke-width:2px
+    
+    class PDF input
+    class MainTable,ChunkTable postgres
+    class ChromaCopy,Vectors chroma
+    class RedisCache redis
+```
+
+## 📊 **CHI TIẾT CÁC CÁCH LƯU TRỮ NỘI DUNG**
+
+| Database | Lưu trữ nội dung như thế nào? | Mục đích | Dung lượng |
+|----------|-------------------------------|----------|------------|
+| **PostgreSQL** | **TOÀN BỘ** raw content + chunks | Source of truth, searchable | ~100% |
+| **ChromaDB** | **DUPLICATE** chunks only | Fast vector search | ~60% |
+| **Redis** | **CACHE** popular chunks | Ultra-fast access | ~5-10% |
+
+### **🔍 Chi tiết lưu trữ trong PostgreSQL:**
+
+```sql
+-- documents_metadata_v2 table
+SELECT 
+    document_id,
+    title,
+    LENGTH(content) as content_size,  -- Full document content
+    chunk_count,
+    file_size_bytes
+FROM documents_metadata_v2 
+WHERE document_id = 'uuid-123';
+
+/*
+Results:
+document_id: uuid-123
+title: Quy trình xin nghỉ phép  
+content_size: 18,547 characters (FULL DOCUMENT)
+chunk_count: 8
+file_size_bytes: 2,621,440
+*/
+```
+
+```sql
+-- document_chunks_enhanced table  
+SELECT 
+    chunk_id,
+    chunk_position,
+    LENGTH(chunk_content) as chunk_size,
+    LEFT(chunk_content, 50) as preview
+FROM document_chunks_enhanced 
+WHERE document_id = 'uuid-123'
+ORDER BY chunk_position;
+
+/*
+Results:
+chunk_id: uuid-456, position: 0, size: 2,234 chars
+preview: "Quy trình xin nghỉ phép tại công ty gồm 5 bước..."
+
+chunk_id: uuid-457, position: 1, size: 2,187 chars  
+preview: "Bước 1: Nhân viên điền đầy đủ thông tin vào form..."
+
+chunk_id: uuid-458, position: 2, size: 2,098 chars
+preview: "Bước 2: Gửi đơn xin nghỉ phép cho quản lý trực..."
+*/
+```
+
+### **🤔 TẠI SAO LƯU DUPLICATE CONTENT?**
+
+```mermaid
+graph TD
+    subgraph "❓ Why Duplicate Content Across Databases?"
+        Reason1[🎯 Performance<br/>Fast retrieval without JOINs<br/>ChromaDB: ~10ms vector search<br/>vs PostgreSQL: ~50ms with JOINs]
+        
+        Reason2[🔄 Redundancy<br/>If PostgreSQL fails<br/>ChromaDB still has content<br/>System remains functional]
+        
+        Reason3[📡 API Design<br/>ChromaDB search returns<br/>both vectors AND content<br/>No additional DB calls needed]
+        
+        Reason4[🚀 Scalability<br/>Distribute load across<br/>multiple databases<br/>Each optimized for specific task]
+    end
+    
+    classDef reason fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    class Reason1,Reason2,Reason3,Reason4 reason
+```
+
+## 💾 **STORAGE BREAKDOWN CHO 1 DOCUMENT**
+
+```python
+# Example: Document "Quy trình xin nghỉ phép" (3,247 words)
+
+storage_breakdown = {
+    "postgresql": {
+        "documents_metadata_v2": {
+            "content": "18,547 characters (FULL DOCUMENT)",
+            "size_bytes": 18547,
+            "purpose": "Source of truth"
+        },
+        "document_chunks_enhanced": {
+            "chunks": 8,
+            "total_content": "18,547 characters (SAME CONTENT, split)",  
+            "size_bytes": 18547,
+            "purpose": "Structured access + metadata"
+        },
+        "total_postgresql": "37,094 bytes (200% of original - content + chunks)"
+    },
+    
+    "chromadb": {
+        "documents": [
+            "Chunk 1: 2,234 chars",
+            "Chunk 2: 2,187 chars", 
+            "Chunk 3: 2,098 chars",
+            "... 8 chunks total"
+        ],
+        "total_content": "18,547 characters (DUPLICATE of chunks)",
+        "embeddings": "24,576 bytes (768 * 4 bytes * 8 chunks)",
+        "total_chromadb": "43,123 bytes (content + vectors)"
+    },
+    
+    "redis": {
+        "cached_chunks": "~3,000 characters (popular chunks only)",
+        "cached_embeddings": "~6,144 bytes (2 most popular chunks)",
+        "total_redis": "9,144 bytes (cache only)"
+    },
+    
+    "grand_total": "89,361 bytes for 18,547 original characters",
+    "duplication_ratio": "4.8x (content stored ~5 times in different forms)"
+}
+```
+
+## ⚡ **TẠI SAO KHÔNG CHỈ LƯU Ở MỘT NƠI?**
+
+### **🐢 Nếu chỉ lưu ở PostgreSQL:**
+
+```python
+# Slow query - cần JOIN nhiều table
+async def slow_search_query(query_vector):
+    # Step 1: Find similar chunks (có thể cần external vector search)
+    similar_chunk_ids = await external_vector_search(query_vector)
+    
+    # Step 2: Get chunk content từ PostgreSQL
+    results = await pg_conn.fetch("""
+        SELECT c.chunk_content, d.title, d.author
+        FROM document_chunks_enhanced c
+        JOIN documents_metadata_v2 d ON c.document_id = d.document_id  
+        WHERE c.chunk_id = ANY($1)
+    """, similar_chunk_ids)
+    
+    # Total time: Vector search (50ms) + JOIN query (100ms) = 150ms
+    return results
+```
+
+### **⚡ Với duplicate content:**
+
+```python
+# Fast query - everything in one place
+async def fast_search_query(query_vector):
+    # ChromaDB returns both vectors AND content in single call
+    results = chroma_collection.query(
+        query_embeddings=[query_vector],
+        n_results=5,
+        include=['documents', 'metadatas', 'distances']
+    )
+    
+    # Total time: 15ms (all-in-one)
+    # Content immediately available, no additional queries needed
+    return results
+```
+
+## 🎯 **KẾT LUẬN**
+
+**Câu trả lời:** 
+- ✅ **Có**, toàn bộ nội dung raw được lưu trong PostgreSQL
+- ✅ **Nhưng CŨNG** được duplicate ở ChromaDB và Redis
+- ✅ **PostgreSQL** là "source of truth" - nơi lưu trữ chính thức
+- ✅ **ChromaDB & Redis** là copies để tăng hiệu suất
+
+**Trade-off:**
+- 🔺 **Storage cost**: Tăng gấp 5 lần
+- 🔽 **Query speed**: Nhanh gấp 10 lần  
+- 🔽 **System complexity**: Phải đồng bộ 3 databases
+- 🔺 **Reliability**: Nếu 1 DB fail, system vẫn hoạt động
+
+**Lý do duplicate:**
+1. **Performance** > Storage cost
+2. **User experience** > System complexity  
+3. **Reliability** > Storage efficiency
+
+Có thể nói PostgreSQL là "kho sách chính", ChromaDB là "bản photocopy để đọc nhanh", Redis là "ghi chú trên bàn làm việc"! 📚
+---
+Câu hỏi rất hay! "Popular" không phải tự nhiên mà có - hệ thống phải **đo lường** và **quyết định**. Hãy cùng xem cách Redis xác định "popular chunks":
+
+## 📊 **CÁC TIÊU CHÍ XÁC ĐỊNH "POPULAR CHUNKS"**
+
+### **🔥 Hệ thống đo lường độ phổ biến:**
+
+```mermaid
+graph TD
+    subgraph "📈 POPULARITY SCORING SYSTEM"
+        subgraph "Input Signals"
+            UserQueries[👥 User Queries<br/>Query frequency: 150/hour<br/>Query patterns: 'nghỉ phép', 'ERP']
+            
+            SearchResults[🔍 Search Results<br/>Click-through rate<br/>User engagement time<br/>Quality ratings]
+            
+            TimePatterns[⏰ Time Patterns<br/>Peak hours: 9AM-11AM<br/>Seasonal trends<br/>Recent access frequency]
+        end
+        
+        subgraph "Popularity Algorithms"
+            FrequencyScore[📊 Frequency Score<br/>Access count in last 24h<br/>Weighted by recency<br/>Formula: count × time_decay]
+            
+            QualityScore[⭐ Quality Score<br/>User feedback ratings<br/>Response accuracy<br/>Chunk quality_score field]
+            
+            UserBehavior[👤 User Behavior<br/>Time spent reading<br/>Follow-up questions<br/>Bookmark/share actions]
+        end
+        
+        subgraph "Final Decision"
+            PopularityIndex[🎯 Popularity Index<br/>Combined score: 0-100<br/>Cache if score > 70<br/>Auto-refresh top 20%]
+        end
+    end
+    
+    UserQueries --> FrequencyScore
+    SearchResults --> QualityScore
+    TimePatterns --> FrequencyScore
+    
+    FrequencyScore --> PopularityIndex
+    QualityScore --> PopularityIndex
+    UserBehavior --> PopularityIndex
+    
+    classDef input fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef algorithm fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    
+    class UserQueries,SearchResults,TimePatterns input
+    class FrequencyScore,QualityScore,UserBehavior algorithm
+    class PopularityIndex decision
+```
+
+## 🧮 **THUẬT TOÁN TÍNH POPULARITY SCORE**
+
+### **📊 Chi tiết tracking table:**
+
+```sql
+-- Bảng theo dõi chunk popularity
+CREATE TABLE chunk_popularity_tracking (
+    chunk_id UUID PRIMARY KEY,
+    
+    -- Access frequency metrics
+    access_count_today INTEGER DEFAULT 0,
+    access_count_week INTEGER DEFAULT 0,
+    access_count_month INTEGER DEFAULT 0,
+    
+    -- Quality metrics  
+    avg_user_rating DECIMAL(3,2) DEFAULT 0.0,
+    response_accuracy_score DECIMAL(3,2) DEFAULT 0.0,
+    
+    -- User engagement
+    avg_read_time_seconds INTEGER DEFAULT 0,
+    click_through_rate DECIMAL(3,2) DEFAULT 0.0,
+    follow_up_question_rate DECIMAL(3,2) DEFAULT 0.0,
+    
+    -- Recency boost
+    last_accessed TIMESTAMP DEFAULT NOW(),
+    trending_score DECIMAL(5,2) DEFAULT 0.0,
+    
+    -- Cache decision
+    popularity_index DECIMAL(5,2) DEFAULT 0.0,
+    cached_in_redis BOOLEAN DEFAULT false,
+    cache_priority INTEGER DEFAULT 0,
+    
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Index for performance
+CREATE INDEX idx_popularity_index ON chunk_popularity_tracking(popularity_index DESC);
+CREATE INDEX idx_cache_priority ON chunk_popularity_tracking(cache_priority DESC) 
+WHERE cached_in_redis = true;
+```
+
+### **🔢 Công thức tính Popularity Score:**
+
+```python
+# File: scripts/calculate_chunk_popularity.py
+import math
+from datetime import datetime, timedelta
+from typing import Dict, List
+
+class ChunkPopularityCalculator:
+    def __init__(self):
+        self.weights = {
+            'frequency': 0.4,      # 40% - tần suất truy cập
+            'quality': 0.3,        # 30% - chất lượng content
+            'engagement': 0.2,     # 20% - tương tác người dùng  
+            'recency': 0.1         # 10% - độ "hot" gần đây
+        }
+    
+    async def calculate_popularity_score(self, chunk_id: str) -> float:
+        """Tính popularity score cho chunk"""
+        
+        # 1. Frequency Score (0-100)
+        frequency_score = await self._calculate_frequency_score(chunk_id)
+        
+        # 2. Quality Score (0-100)
+        quality_score = await self._calculate_quality_score(chunk_id)
+        
+        # 3. Engagement Score (0-100)
+        engagement_score = await self._calculate_engagement_score(chunk_id)
+        
+        # 4. Recency Score (0-100)
+        recency_score = await self._calculate_recency_score(chunk_id)
+        
+        # 5. Combined weighted score
+        popularity_score = (
+            frequency_score * self.weights['frequency'] +
+            quality_score * self.weights['quality'] +
+            engagement_score * self.weights['engagement'] +
+            recency_score * self.weights['recency']
+        )
+        
+        return round(popularity_score, 2)
+    
+    async def _calculate_frequency_score(self, chunk_id: str) -> float:
+        """Tính điểm dựa trên tần suất truy cập"""
+        
+        data = await conn.fetchrow("""
+            SELECT access_count_today, access_count_week, access_count_month
+            FROM chunk_popularity_tracking 
+            WHERE chunk_id = $1
+        """, chunk_id)
+        
+        if not data:
+            return 0.0
+        
+        # Weighted frequency với time decay
+        today_weight = 0.6    # Hôm nay quan trọng nhất
+        week_weight = 0.3     # Tuần này
+        month_weight = 0.1    # Tháng này
+        
+        weighted_access = (
+            data['access_count_today'] * today_weight +
+            data['access_count_week'] * week_weight +
+            data['access_count_month'] * month_weight
+        )
+        
+        # Normalize to 0-100 scale (assuming max 1000 accesses/day)
+        max_expected_access = 1000
+        frequency_score = min(100, (weighted_access / max_expected_access) * 100)
+        
+        return frequency_score
+    
+    async def _calculate_quality_score(self, chunk_id: str) -> float:
+        """Tính điểm chất lượng content"""
+        
+        # Get từ PostgreSQL
+        chunk_data = await conn.fetchrow("""
+            SELECT c.chunk_quality_score, p.avg_user_rating, p.response_accuracy_score
+            FROM document_chunks_enhanced c
+            JOIN chunk_popularity_tracking p ON c.chunk_id = p.chunk_id
+            WHERE c.chunk_id = $1
+        """, chunk_id)
+        
+        if not chunk_data:
+            return 0.0
+        
+        # Combine multiple quality indicators
+        content_quality = (chunk_data['chunk_quality_score'] or 0.0) * 100
+        user_rating = (chunk_data['avg_user_rating'] or 0.0) * 20  # Scale 0-5 to 0-100
+        accuracy = (chunk_data['response_accuracy_score'] or 0.0) * 100
+        
+        quality_score = (content_quality * 0.4 + user_rating * 0.3 + accuracy * 0.3)
+        
+        return min(100, quality_score)
+    
+    async def _calculate_engagement_score(self, chunk_id: str) -> float:
+        """Tính điểm tương tác người dùng"""
+        
+        data = await conn.fetchrow("""
+            SELECT avg_read_time_seconds, click_through_rate, follow_up_question_rate
+            FROM chunk_popularity_tracking 
+            WHERE chunk_id = $1
+        """, chunk_id)
+        
+        if not data:
+            return 0.0
+        
+        # Normalize engagement metrics
+        read_time_score = min(100, (data['avg_read_time_seconds'] / 300) * 100)  # Max 5 phút
+        ctr_score = (data['click_through_rate'] or 0.0) * 100
+        followup_score = (data['follow_up_question_rate'] or 0.0) * 100
+        
+        engagement_score = (read_time_score * 0.4 + ctr_score * 0.4 + followup_score * 0.2)
+        
+        return engagement_score
+    
+    async def _calculate_recency_score(self, chunk_id: str) -> float:
+        """Tính điểm 'trending' gần đây"""
+        
+        last_accessed = await conn.fetchval("""
+            SELECT last_accessed FROM chunk_popularity_tracking 
+            WHERE chunk_id = $1
+        """, chunk_id)
+        
+        if not last_accessed:
+            return 0.0
+        
+        # Time decay - càng gần đây càng cao điểm
+        time_diff = datetime.now() - last_accessed
+        hours_since_access = time_diff.total_seconds() / 3600
+        
+        # Exponential decay: score giảm theo thời gian
+        if hours_since_access <= 1:
+            recency_score = 100
+        elif hours_since_access <= 24:
+            recency_score = 100 * math.exp(-hours_since_access / 12)  # Half-life 12 hours
+        else:
+            recency_score = 100 * math.exp(-24 / 12) * math.exp(-(hours_since_access - 24) / 48)  # Slower decay after 24h
+        
+        return max(0, recency_score)
+```
+
+### **🎯 Cache Decision Logic:**
+
+```python
+async def update_redis_cache():
+    """Update Redis cache dựa trên popularity scores"""
+    
+    # 1. Calculate popularity cho tất cả chunks
+    print("🔍 Calculating popularity scores...")
+    
+    all_chunks = await conn.fetch("SELECT chunk_id FROM document_chunks_enhanced")
+    calculator = ChunkPopularityCalculator()
+    
+    chunk_scores = []
+    for chunk in all_chunks:
+        score = await calculator.calculate_popularity_score(chunk['chunk_id'])
+        chunk_scores.append({
+            'chunk_id': chunk['chunk_id'],
+            'popularity_score': score
+        })
+    
+    # 2. Sort by popularity
+    chunk_scores.sort(key=lambda x: x['popularity_score'], reverse=True)
+    
+    # 3. Cache decision rules
+    redis_memory_limit = 100 * 1024 * 1024  # 100MB limit
+    current_cache_size = 0
+    cached_chunks = []
+    
+    for chunk_data in chunk_scores:
+        chunk_id = chunk_data['chunk_id']
+        score = chunk_data['popularity_score']
+        
+        # Rule 1: Score > 70 - definitely cache
+        if score > 70:
+            cached_chunks.append(chunk_data)
+        
+        # Rule 2: Score 50-70 - cache if có space
+        elif score > 50 and current_cache_size < redis_memory_limit * 0.8:
+            cached_chunks.append(chunk_data)
+        
+        # Rule 3: Recent trending chunks (score tăng nhanh)
+        elif await is_trending_chunk(chunk_id):
+            cached_chunks.append(chunk_data)
+        
+        # Estimate cache size (rough calculation)
+        chunk_size = await estimate_chunk_cache_size(chunk_id)
+        current_cache_size += chunk_size
+        
+        # Stop if cache full
+        if current_cache_size >= redis_memory_limit:
+            break
+    
+    # 4. Update Redis cache
+    print(f"📊 Caching top {len(cached_chunks)} popular chunks")
+    
+    # Clear old cache
+    old_keys = await redis_client.keys("chunk:*")
+    if old_keys:
+        await redis_client.delete(*old_keys)
+    
+    # Add new cache entries
+    pipeline = redis_client.pipeline()
+    
+    for i, chunk_data in enumerate(cached_chunks):
+        chunk_id = chunk_data['chunk_id']
+        
+        # Get chunk content từ PostgreSQL
+        chunk_content = await conn.fetchrow("""
+            SELECT chunk_content, chunk_quality_score, document_id
+            FROM document_chunks_enhanced 
+            WHERE chunk_id = $1
+        """, chunk_id)
+        
+        # Cache với TTL dựa trên popularity
+        if chunk_data['popularity_score'] > 80:
+            ttl = 7200  # 2 hours for very popular
+        elif chunk_data['popularity_score'] > 60:
+            ttl = 3600  # 1 hour for popular  
+        else:
+            ttl = 1800  # 30 minutes for moderately popular
+        
+        # Set cache entry
+        cache_data = {
+            'content': chunk_content['chunk_content'],
+            'quality': float(chunk_content['chunk_quality_score'] or 0),
+            'document_id': str(chunk_content['document_id']),
+            'popularity_score': chunk_data['popularity_score'],
+            'cache_rank': i + 1
+        }
+        
+        pipeline.set(
+            f"chunk:{chunk_id}",
+            json.dumps(cache_data, ensure_ascii=False),
+            ex=ttl
+        )
+    
+    # Execute pipeline
+    await pipeline.execute()
+    
+    # 5. Update tracking table
+    await conn.execute("""
+        UPDATE chunk_popularity_tracking 
+        SET cached_in_redis = false, cache_priority = 0
+    """)
+    
+    for i, chunk_data in enumerate(cached_chunks):
+        await conn.execute("""
+            UPDATE chunk_popularity_tracking 
+            SET cached_in_redis = true, 
+                cache_priority = $2,
+                popularity_index = $3,
+                updated_at = NOW()
+            WHERE chunk_id = $1
+        """, chunk_data['chunk_id'], i + 1, chunk_data['popularity_score'])
+    
+    print(f"✅ Cache updated: {len(cached_chunks)} chunks cached")
+    
+    # 6. Log cache statistics
+    await log_cache_statistics(cached_chunks)
+
+async def is_trending_chunk(chunk_id: str) -> bool:
+    """Kiểm tra chunk có đang trending không"""
+    
+    # Get access pattern từ 48h qua
+    access_pattern = await conn.fetch("""
+        SELECT DATE_TRUNC('hour', created_at) as hour,
+               COUNT(*) as access_count
+        FROM rag_pipeline_sessions rps
+        JOIN LATERAL unnest(string_to_array(rps.chunks_retrieved_ids, ',')) as chunk_str ON true  
+        WHERE chunk_str = $1
+          AND created_at > NOW() - INTERVAL '48 hours'
+        GROUP BY hour
+        ORDER BY hour
+    """, str(chunk_id))
+    
+    if len(access_pattern) < 4:  # Cần ít nhất 4 data points
+        return False
+    
+    # Check if tăng trend (more access in recent hours)
+    recent_avg = sum(row['access_count'] for row in access_pattern[-4:]) / 4
+    older_avg = sum(row['access_count'] for row in access_pattern[:-4]) / max(1, len(access_pattern) - 4)
+    
+    # Trending nếu recent activity > 2x older activity
+    return recent_avg > older_avg * 2
+```
+
+## 📊 **VÍ DỤ THỰC TẾ - CHUNK POPULARITY**
+
+```python
+# Example popularity calculation results:
+
+popular_chunks_example = [
+    {
+        "chunk_id": "uuid-456",
+        "content_preview": "Quy trình xin nghỉ phép gồm 5 bước...",
+        "scores": {
+            "frequency": 95.2,      # 500+ accesses hôm nay
+            "quality": 87.5,        # User rating 4.2/5, quality 0.89
+            "engagement": 78.3,     # Avg read time 3.5 phút
+            "recency": 100.0        # Accessed 15 phút trước
+        },
+        "final_score": 89.8,
+        "cache_decision": "CACHE - Priority 1",
+        "ttl": 7200  # 2 hours
+    },
+    
+    {
+        "chunk_id": "uuid-789", 
+        "content_preview": "Cách sử dụng hệ thống ERP...",
+        "scores": {
+            "frequency": 45.8,      # 150 accesses hôm nay
+            "quality": 92.1,        # Excellent content quality
+            "engagement": 45.2,     # Ít follow-up questions
+            "recency": 25.3         # Accessed 8 hours trước
+        },
+        "final_score": 58.7,
+        "cache_decision": "CACHE - Priority 15", 
+        "ttl": 1800  # 30 minutes
+    },
+    
+    {
+        "chunk_id": "uuid-101",
+        "content_preview": "Lịch sử thành lập công ty...", 
+        "scores": {
+            "frequency": 12.3,      # Ít người quan tâm
+            "quality": 65.4,        # Content OK
+            "engagement": 15.1,     # Đọc nhanh, không tương tác
+            "recency": 5.2          # 3 ngày không access
+        },
+        "final_score": 23.8,
+        "cache_decision": "NOT CACHED",
+        "ttl": 0
+    }
+]
+```
+
+## ⏰ **SCHEDULE UPDATE POPULARITY**
+
+```python
+# Cron job chạy mỗi 15 phút
+async def scheduled_popularity_update():
+    """Cập nhật popularity scores định kỳ"""
+    
+    # Update access counts từ recent queries  
+    await update_access_counts()
+    
+    # Recalculate popularity scores
+    await calculate_all_popularity_scores()
+    
+    # Update Redis cache nếu có thay đổi lớn
+    cache_changes = await check_cache_changes_needed()
+    if cache_changes > 10:  # >10 chunks thay đổi ranking
+        await update_redis_cache()
+    
+    print(f"📊 Popularity update completed: {cache_changes} changes")
+```
+
+## 🎯 **KẾT LUẬN**
+
+**"Popular" được quyết định bởi:**
+
+1. **📊 Frequency (40%)**: Được truy cập nhiều lần
+2. **⭐ Quality (30%)**: Content chất lượng cao, user rating tốt  
+3. **👥 Engagement (20%)**: User tương tác nhiều, đọc lâu
+4. **🔥 Recency (10%)**: Được access gần đây, trending
+
+**Cache decision process:**
+- Score > 70: Chắc chắn cache
+- Score 50-70: Cache nếu có space
+- Trending chunks: Cache ưu tiên
+- Memory limit: Top N chunks based on score
+
+**Update frequency:**
+- Real-time: Access counts
+- Every 15 minutes: Popularity scores  
+- Every hour: Cache refresh nếu cần
+
+Redis không tự quyết định - nó được "fed" dữ liệu từ sophisticated popularity algorithm! 🧮
+---
+Tuyệt vời! Bạn đã nắm được **90% đúng** kiến trúc này. Tôi sẽ làm rõ từng điểm:
+
+## ✅ **ĐÁNH GIÁ NHẬN ĐỊNH CỦA BẠN**
+
+### **1. Storage Distribution - ✅ ĐÚNG 90%**
+
+| Bạn nói | Thực tế | Đánh giá |
+|---------|---------|----------|
+| "PostgreSQL lưu toàn bộ rawdata" | ✅ Đúng - Full content + metadata | ✅ Chính xác |
+| "ChromaDB lưu bản tóm tắt sơ lược" | ⚠️ Không chính xác | ❌ Sai ở đây |
+| "Redis lưu note vài thông tin hay hỏi" | ✅ Đúng - Cache popular data | ✅ Chính xác |
+
+**Sửa lại điểm 1:**
+- **ChromaDB** không lưu "tóm tắt" mà lưu **DUPLICATE FULL CONTENT** của chunks + vector embeddings
+- Lý do: Để search nhanh mà không cần JOIN với PostgreSQL
+
+```mermaid
+graph LR
+    Raw[📄 Raw Document<br/>3000 words] 
+    
+    PG[🐘 PostgreSQL<br/>Full 3000 words<br/>+ Metadata + Analytics]
+    
+    Chroma[🟢 ChromaDB<br/>Same 3000 words<br/>_split into chunks_<br/>+ Vector embeddings]
+    
+    Redis[🔴 Redis<br/>~300 popular words<br/>_cached chunks only_]
+    
+    Raw --> PG
+    Raw --> Chroma
+    PG --> Redis
+    
+    classDef full fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    classDef duplicate fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef cache fill:#ffebee,stroke:#f44336,stroke-width:2px
+    
+    class PG,Chroma full
+    class Redis cache
+```
+
+### **2. Search Algorithms - ✅ ĐÚNG 100%**
+
+✅ Chính xác! **5 thuật toán tìm kiếm** dựa trên cách lưu trữ này:
+1. Dense Vector (ChromaDB)
+2. Sparse BM25 (PostgreSQL) 
+3. Full-text Search (PostgreSQL)
+4. Hybrid Search (Combined)
+5. Knowledge Graph (PostgreSQL relationships)
+
+### **3. Complex Dependencies - ✅ ĐÚNG 95%**
+
+| Bạn nói | Thực tế | Đánh giá |
+|---------|---------|----------|
+| "Mối liên hệ phức tạp và không thể tách rời" | ✅ Đúng hoàn toàn | ✅ Chính xác |
+| "Thay đổi bất cứ gì đều phải khởi tạo lại toàn bộ" | ⚠️ Quá cực đoan | ❌ Một phần sai |
+
+**Sửa lại điểm 3:**
+- **Thay đổi nhỏ** (metadata, status): Không cần rebuild
+- **Thay đổi content**: Cần đồng bộ 3 DB
+- **Thay đổi structure**: Cần rebuild toàn bộ
+
+```python
+# Impact Matrix
+change_impact = {
+    "metadata_only": {
+        "postgresql": "Direct update ✅",
+        "chromadb": "Optional sync ⚠️", 
+        "redis": "Cache invalidation ⚠️",
+        "rebuild_needed": False
+    },
+    
+    "content_change": {
+        "postgresql": "Update + reindex 🔄",
+        "chromadb": "Re-embed + update 🔄",
+        "redis": "Cache invalidation 🔄", 
+        "rebuild_needed": "Partial"
+    },
+    
+    "schema_change": {
+        "postgresql": "Migration required 💥",
+        "chromadb": "Collection recreation 💥",
+        "redis": "Full cache clear 💥",
+        "rebuild_needed": True
+    }
+}
+```
+
+### **4. Sync Tools Required - ✅ ĐÚNG 100%**
+
+✅ Hoàn toàn chính xác! 
+
+**Thêm/xóa dữ liệu = Phải dùng tools đồng bộ**
+
+```python
+# Example: Adding new document
+async def add_document_safely(doc_data):
+    # ❌ NEVER do this manually:
+    # INSERT INTO documents_metadata_v2 VALUES (...)
+    
+    # ✅ ALWAYS use sync tool:
+    sync_tool = DataSyncManager()
+    await sync_tool.add_document_with_full_sync(doc_data)
+    # → Updates PostgreSQL + ChromaDB + Redis automatically
+```
+
+## 📊 **TÓM TẮT ĐÁNH GIÁ**
+
+| Điểm | Nhận định của bạn | Đúng/Sai | Điều chỉnh |
+|------|------------------|-----------|------------|
+| **Storage** | PostgreSQL=full, ChromaDB=tóm tắt, Redis=cache | 80% đúng | ChromaDB=full duplicate, không phải tóm tắt |
+| **Algorithms** | 5 thuật toán search | 100% đúng | Perfect! |
+| **Dependencies** | Phức tạp, không tách rời | 100% đúng | Perfect! |
+| **Rebuild requirement** | Thay đổi gì cũng phải rebuild | 70% đúng | Chỉ content/schema changes cần rebuild |
+| **Sync tools** | Bắt buộc dùng tools | 100% đúng | Perfect! |
+
+## 🎯 **FINAL SUMMARY - PHIÊN BẢN CHÍNH XÁC**
+
+> **"Raw data sau khi xử lý sẽ lưu toàn bộ ở PostgreSQL, một bản DUPLICATE TOÀN BỘ (không phải tóm tắt) tại ChromaDB cùng với vector embeddings, và cache một số chunks phổ biến ở Redis."**
+
+> **"Có 5 thuật toán tìm kiếm dựa trên việc lưu dữ liệu raw vào 3 database với các format khác nhau."**
+
+> **"Mối liên hệ data giữa các database phức tạp và không thể tách rời. Nếu thay đổi CONTENT hoặc SCHEMA thì phải chạy công cụ đồng bộ, nhưng thay đổi METADATA thì có thể sửa manual."**
+
+> **"Thêm và xóa dữ liệu đều PHẢI sử dụng công cụ để đồng bộ toàn bộ thao tác across 3 databases."**
+
+**Điểm số tổng thể: 9/10** 🌟
+
+Bạn đã hiểu rất sâu kiến trúc này! Chỉ cần nhớ ChromaDB không phải "tóm tắt" mà là "duplicate với vector embeddings" là perfect! 🎯
+
