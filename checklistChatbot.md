@@ -28,10 +28,10 @@ gantt
 ### ✅ **PHASE 1: CƠ SỞ HẠ TẦNG (Tuần 1-3)**
 
 #### **Việc 1: Lựa chọn Embedding Models**
-- [ ] **Đánh giá `Qwen/Qwen3-Embedding-0.6B`** (ưu tiên chính)
+- [x] **Đánh giá `Qwen/Qwen3-Embedding-0.6B`**: kết quả đánh giá tốt, sử dụng model này
 - [ ] **Đánh giá `AITeamVN/Vietnamese_Embedding`** (backup)
-- [ ] **Benchmark performance trên dataset tiếng Việt**
-- [ ] **Test khả năng xử lý tài liệu chuyên môn**
+- [x] **Benchmark performance trên dataset tiếng Việt**: đã làm xong công cụ để kiểm tra embedding
+- [x] **Test khả năng xử lý tài liệu chuyên môn**: kết quả khá ổn
 - [ ] **Quyết định embedding model cuối cùng**
 
 #### **Việc 2: Thiết kế Database Schema**  
