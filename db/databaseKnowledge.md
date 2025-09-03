@@ -499,3 +499,373 @@ redis_service = {
 **Tổng điểm: 10/10** 🌟🌟🌟
 
 Bạn đã hiểu sâu hơn tôi mong đợi! Những quan sát của bạn rất **sắc sảo** và **thực tế**! 🎯
+---
+Tuyệt vời! Tôi sẽ minh họa hệ thống như một "thư viện hiện đại" với các kho chứa và thủ thư chuyên nghiệp:
+
+## 📚 **LIBRARY ARCHITECTURE - "THƯ VIỆN TRI THỨC HIỆN ĐẠI"**
+
+```mermaid
+graph TB
+    subgraph "🏛️ KNOWLEDGE LIBRARY COMPLEX"
+        subgraph "👥 VISITORS (Users)"
+            Student[🎓 Sinh viên<br/>Tìm tài liệu học tập]
+            Researcher[👨‍🔬 Nhà nghiên cứu<br/>Tìm kiếm chuyên sâu]
+            Employee[👩‍💼 Nhân viên<br/>Tra cứu quy trình]
+        end
+        
+        subgraph "🏢 MAIN LIBRARY BUILDING"
+            subgraph "📋 Reception Desk"
+                API[🎭 Librarian API<br/>Tiếp nhận yêu cầu<br/>Phân loại câu hỏi<br/>Điều phối thủ thư]
+            end
+            
+            subgraph "🗂️ STORAGE WAREHOUSES"
+                subgraph "🏛️ Main Archive (PostgreSQL)"
+                    PGWarehouse[📚 Central Archive<br/>🏛️ PostgreSQL Container<br/>---<br/>📖 Full Documents Storage<br/>📊 Complete Metadata<br/>📋 User Records<br/>📈 Analytics Data<br/>🔍 Search Indexes<br/>---<br/>Capacity: Unlimited<br/>Access: Medium Speed]
+                    
+                    PGLibrarian[👨‍📚 Chief Librarian<br/>PostgreSQL Engine<br/>---<br/>• Catalog Management<br/>• Query Processing<br/>• Data Integrity<br/>• Transaction Control<br/>• Index Maintenance]
+                end
+                
+                subgraph "🎯 Smart Vault (ChromaDB)"
+                    ChromaWarehouse[🧠 Vector Vault<br/>🟢 ChromaDB Container<br/>---<br/>🎯 Document Copies<br/>🧮 Vector Embeddings<br/>📐 Similarity Maps<br/>🔍 HNSW Index<br/>---<br/>Capacity: High<br/>Access: Ultra Fast]
+                    
+                    ChromaLibrarian[🤖 AI Librarian<br/>ChromaDB Engine<br/>---<br/>• Semantic Understanding<br/>• Similarity Search<br/>• Vector Processing<br/>• Content Matching<br/>• Smart Retrieval]
+                end
+                
+                subgraph "⚡ Quick Access Shelf (Redis)"
+                    RedisWarehouse[⚡ Express Shelf<br/>🔴 Redis Container<br/>---<br/>📄 Popular Documents<br/>🔥 Hot Topics<br/>⏰ Recent Searches<br/>👥 User Sessions<br/>---<br/>Capacity: Limited<br/>Access: Lightning Fast]
+                    
+                    RedisLibrarian[🏃‍♂️ Speed Librarian<br/>Redis Engine<br/>---<br/>• Instant Retrieval<br/>• Memory Management<br/>• Cache Strategy<br/>• Session Tracking<br/>• Quick Responses]
+                end
+            end
+            
+            subgraph "🔧 PROCESSING ROOMS"
+                DocProcessor[📝 Document Processing<br/>Text Extraction<br/>Vietnamese NLP<br/>Quality Control]
+                
+                EmbeddingLab[🧪 Embedding Laboratory<br/>Vector Generation<br/>Similarity Calculation<br/>Index Building]
+                
+                SyncOffice[🔄 Synchronization Office<br/>Cross-warehouse Updates<br/>Consistency Checks<br/>Error Recovery]
+            end
+        end
+        
+        subgraph "📊 MANAGEMENT DASHBOARD"
+            Monitor[📈 Library Monitor<br/>Real-time Statistics<br/>Performance Tracking<br/>Health Checking]
+            
+            Adminer[🔧 Admin Console<br/>Database Browser<br/>Query Interface<br/>Maintenance Tools]
+        end
+    end
+    
+    %% User Interactions
+    Student --> API
+    Researcher --> API
+    Employee --> API
+    
+    %% API Routes to Librarians
+    API --> PGLibrarian
+    API --> ChromaLibrarian
+    API --> RedisLibrarian
+    
+    %% Librarians manage their warehouses
+    PGLibrarian -.-> PGWarehouse
+    ChromaLibrarian -.-> ChromaWarehouse
+    RedisLibrarian -.-> RedisWarehouse
+    
+    %% Processing workflow
+    API --> DocProcessor
+    DocProcessor --> EmbeddingLab
+    EmbeddingLab --> SyncOffice
+    
+    %% Sync coordinates all warehouses
+    SyncOffice -.-> PGLibrarian
+    SyncOffice -.-> ChromaLibrarian
+    SyncOffice -.-> RedisLibrarian
+    
+    %% Monitoring
+    Monitor -.-> PGWarehouse
+    Monitor -.-> ChromaWarehouse
+    Monitor -.-> RedisWarehouse
+    
+    Adminer -.-> PGWarehouse
+    
+    %% Styling
+    classDef user fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef api fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    classDef postgres fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    classDef chroma fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+    classDef redis fill:#ffebee,stroke:#f44336,stroke-width:3px
+    classDef processing fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef management fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    
+    class Student,Researcher,Employee user
+    class API api
+    class PGWarehouse,PGLibrarian postgres
+    class ChromaWarehouse,ChromaLibrarian chroma
+    class RedisWarehouse,RedisLibrarian redis
+    class DocProcessor,EmbeddingLab,SyncOffice processing
+    class Monitor,Adminer management
+```
+
+## 🎭 **CHI TIẾT TỪNG "THỦ THƯ" CONTAINER**
+
+### **👨‍📚 Chief Librarian (PostgreSQL Container)**
+
+```mermaid
+graph TD
+    subgraph "🏛️ PostgreSQL - Chief Librarian's Domain"
+        subgraph "🎭 Chief Librarian Profile"
+            ChiefProfile[👨‍📚 Chief Librarian<br/>Name: PostgreSQL Engine<br/>Age: 25+ years experience<br/>Specialty: Data Organization<br/>Motto: "Everything in its place"]
+        end
+        
+        subgraph "📚 His Warehouse"
+            MainVault[🏛️ Main Vault<br/>📖 Original Documents<br/>📊 Complete Metadata<br/>📋 User Records<br/>📈 Analytics<br/>🔍 Search Indexes<br/>💾 27GB Storage Used]
+        end
+        
+        subgraph "🛠️ His Daily Tasks"
+            Task1[📝 Catalog new documents<br/>🔍 Process search queries<br/>📊 Generate reports<br/>🔐 Manage permissions<br/>🔄 Maintain consistency]
+        end
+        
+        subgraph "💬 What he says"
+            Says1["👨‍📚 'I keep EVERYTHING organized'<br/>'Need the full document? I have it'<br/>'Want detailed analytics? My specialty'<br/>'Foreign key violations? Not on my watch!'"]
+        end
+        
+        subgraph "🏃‍♂️ His Working Style"
+            Style1[⏱️ Methodical but thorough<br/>📋 Follows strict rules<br/>🔒 Never loses data<br/>📊 Excellent at complex queries<br/>🐌 Sometimes slow but reliable]
+        end
+    end
+    
+    classDef chief fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    classDef vault fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef task fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef quote fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    classDef style fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    
+    class ChiefProfile chief
+    class MainVault vault
+    class Task1 task
+    class Says1 quote
+    class Style1 style
+```
+
+### **🤖 AI Librarian (ChromaDB Container)**
+
+```mermaid
+graph TD
+    subgraph "🎯 ChromaDB - AI Librarian's Domain"
+        subgraph "🎭 AI Librarian Profile"
+            AIProfile[🤖 AI Librarian<br/>Name: ChromaDB Engine<br/>Age: 3 years (young & smart)<br/>Specialty: Understanding meaning<br/>Motto: "I find what you mean, not just what you say"]
+        end
+        
+        subgraph "🧠 His Smart Vault"
+            SmartVault[🧠 Vector Vault<br/>🎯 Document duplicates<br/>🧮 768-dim embeddings<br/>📐 Similarity maps<br/>🔍 HNSW search index<br/>💾 15GB Storage Used]
+        end
+        
+        subgraph "🛠️ His Daily Tasks"
+            Task2[🧮 Calculate similarities<br/>🎯 Find semantic matches<br/>📊 Manage vector indexes<br/>⚡ Fast retrieval<br/>🔄 Update embeddings]
+        end
+        
+        subgraph "💬 What he says"
+            Says2["🤖 'I understand what you MEAN'<br/>'Looking for similar concepts? I got you'<br/>'Speed is my superpower'<br/>'Vector space is my playground!'"]
+        end
+        
+        subgraph "🏃‍♂️ His Working Style"
+            Style2[⚡ Lightning fast<br/>🧠 Understands context<br/>🎯 Great at "fuzzy" matching<br/>🤖 AI-powered insights<br/>📊 Optimized for similarity]
+        end
+    end
+    
+    classDef ai fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+    classDef smart fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    classDef task fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef quote fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef style fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    
+    class AIProfile ai
+    class SmartVault smart
+    class Task2 task
+    class Says2 quote
+    class Style2 style
+```
+
+### **🏃‍♂️ Speed Librarian (Redis Container)**
+
+```mermaid
+graph TD
+    subgraph "⚡ Redis - Speed Librarian's Domain"
+        subgraph "🎭 Speed Librarian Profile"
+            SpeedProfile[🏃‍♂️ Speed Librarian<br/>Name: Redis Engine<br/>Age: 15 years (experienced)<br/>Specialty: Instant access<br/>Motto: "If it's not cached, it's not fast enough"]
+        end
+        
+        subgraph "⚡ His Express Shelf"
+            ExpressShelf[⚡ Express Shelf<br/>📄 Popular chunks<br/>🔥 Hot searches<br/>👥 User sessions<br/>⏰ Recent queries<br/>💾 2GB RAM Used]
+        end
+        
+        subgraph "🛠️ His Daily Tasks"
+            Task3[⚡ Instant lookups<br/>🔥 Cache hot data<br/>⏰ TTL management<br/>👥 Session tracking<br/>🧹 Memory cleanup]
+        end
+        
+        subgraph "💬 What he says"
+            Says3["🏃‍♂️ 'Need it NOW? I'm your guy!'<br/>'Sub-millisecond response time!'<br/>'Popular stuff? Already prepared!'<br/>'Memory is precious - I optimize!'"]
+        end
+        
+        subgraph "🏃‍♂️ His Working Style"
+            Style3[⚡ Ultra-fast responses<br/>🧠 Smart memory management<br/>🔥 Anticipates popular requests<br/>⏰ Time-aware (TTL)<br/>🏃‍♂️ Always ready to go]
+        end
+    end
+    
+    classDef speed fill:#ffebee,stroke:#f44336,stroke-width:3px
+    classDef express fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef task fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    classDef quote fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef style fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    
+    class SpeedProfile speed
+    class ExpressShelf express
+    class Task3 task
+    class Says3 quote
+    class Style3 style
+```
+
+## 🎪 **WORKFLOW: MỘT NGÀY TRONG THƯ VIỆN**
+
+```mermaid
+sequenceDiagram
+    participant User as 👩‍💼 Employee
+    participant API as 🎭 Librarian API
+    participant Chief as 👨‍📚 Chief (PostgreSQL)
+    participant AI as 🤖 AI (ChromaDB) 
+    participant Speed as 🏃‍♂️ Speed (Redis)
+    
+    Note over User: "Tôi cần tìm quy trình nghỉ phép"
+    
+    User->>API: "Quy trình xin nghỉ phép như thế nào?"
+    
+    Note over API: 🤔 Phân tích yêu cầu...
+    API->>API: Parse query + Check user permissions
+    
+    Note over API: 🎯 Strategy: Try cache first, then hybrid search
+    
+    API->>Speed: "Có cache query này không?"
+    Speed-->>API: "⚡ Có! Đây là kết quả hot từ 10 phút trước"
+    
+    alt Cache Hit
+        Note over Speed: 😊 "Lucky! I have this ready!"
+        API-->>User: "📄 Đây là quy trình nghỉ phép..."
+    
+    else Cache Miss
+        Note over API: 🔍 Need to search fresh
+        
+        par Parallel Search
+            API->>AI: "Tìm documents tương tự semantic"
+            AI-->>API: "🎯 Found 3 similar documents"
+        and
+            API->>Chief: "Tìm documents có keyword match"
+            Chief-->>API: "📊 Found 5 keyword matches"
+        end
+        
+        Note over API: 🧮 Combining results...
+        API->>API: Merge + rank results
+        
+        API->>Speed: "Cache these results for next time"
+        Speed-->>API: "⚡ Cached with 30min TTL"
+        
+        API-->>User: "📄 Đây là quy trình nghỉ phép..."
+    end
+    
+    Note over Chief: 📝 Logging this query for analytics
+    API->>Chief: "Log user query + response quality"
+    Chief-->>API: "✅ Logged to rag_pipeline_sessions"
+```
+
+## 🏢 **LIBRARY FLOOR PLAN**
+
+```mermaid
+graph TD
+    subgraph "🏛️ GROUND FLOOR - Public Access"
+        Reception[🎭 Reception Desk<br/>API Gateway<br/>User Authentication<br/>Query Processing]
+        
+        ReadingRoom[📖 Reading Room<br/>User Interface<br/>Query Results Display<br/>Document Viewer]
+    end
+    
+    subgraph "📚 BASEMENT - Main Storage"
+        PostgreSQLVault[🏛️ Main Vault<br/>👨‍📚 Chief Librarian<br/>📚 Complete Archive<br/>Size: 27GB<br/>Items: 50,000+ docs]
+    end
+    
+    subgraph "🧠 FIRST FLOOR - Smart Storage"
+        ChromaDBVault[🎯 Vector Vault<br/>🤖 AI Librarian<br/>🧮 Semantic Index<br/>Size: 15GB<br/>Vectors: 200,000+]
+    end
+    
+    subgraph "⚡ ATTIC - Express Access"
+        RedisShelf[⚡ Express Shelf<br/>🏃‍♂️ Speed Librarian<br/>🔥 Hot Cache<br/>Size: 2GB RAM<br/>Items: 1,000 popular]
+    end
+    
+    subgraph "🔧 BACK OFFICE - Operations"
+        ProcessingRoom[📝 Processing Room<br/>Document Ingestion<br/>Text Extraction<br/>Quality Control]
+        
+        SyncRoom[🔄 Sync Office<br/>Cross-floor Coordination<br/>Data Synchronization<br/>Consistency Checks]
+        
+        MonitorRoom[📊 Control Room<br/>System Monitoring<br/>Performance Dashboard<br/>Health Alerts]
+    end
+    
+    %% Connections
+    Reception -.-> PostgreSQLVault
+    Reception -.-> ChromaDBVault  
+    Reception -.-> RedisShelf
+    
+    ProcessingRoom -.-> PostgreSQLVault
+    ProcessingRoom -.-> ChromaDBVault
+    
+    SyncRoom -.-> PostgreSQLVault
+    SyncRoom -.-> ChromaDBVault
+    SyncRoom -.-> RedisShelf
+    
+    MonitorRoom -.-> PostgreSQLVault
+    MonitorRoom -.-> ChromaDBVault
+    MonitorRoom -.-> RedisShelf
+    
+    classDef public fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    classDef postgres fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    classDef chroma fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+    classDef redis fill:#ffebee,stroke:#f44336,stroke-width:3px
+    classDef operations fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class Reception,ReadingRoom public
+    class PostgreSQLVault postgres
+    class ChromaDBVault chroma
+    class RedisShelf redis
+    class ProcessingRoom,SyncRoom,MonitorRoom operations
+```
+
+## 💬 **CUỘC TRẠÒ CHUYỆN GIỮA CÁC THỦ THƯ**
+
+```mermaid
+graph LR
+    subgraph "☕ Coffee Break Conversation"
+        Chief[👨‍📚 Chief Librarian<br/>"Hôm nay tôi xử lý 2,847 queries<br/>Có 15 documents mới được thêm<br/>Analytics cho thấy 'nghỉ phép' là từ khóa hot nhất"]
+        
+        AI[🤖 AI Librarian<br/>"Tôi tính được 156,000 similarity searches<br/>Vector space đang expand với model mới<br/>Accuracy tăng 12% so với tuần trước"]
+        
+        Speed[🏃‍♂️ Speed Librarian<br/>"Cache hit rate 87% hôm nay - not bad!<br/>Đã serve 5,234 requests trong 1ms<br/>Memory usage ổn định ở 75%"]
+    end
+    
+    Chief -.-> AI
+    AI -.-> Speed
+    Speed -.-> Chief
+    
+    classDef chief fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    classDef ai fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    classDef speed fill:#ffebee,stroke:#f44336,stroke-width:2px
+    
+    class Chief chief
+    class AI ai
+    class Speed speed
+```
+
+## 🎯 **TÓM TẮT: THƯ VIỆN TRI THỨC HIỆN ĐẠI**
+
+**🏛️ Main Building:** Docker containers tạo thành campus  
+**👥 Visitors:** Users với các nhu cầu khác nhau  
+**🎭 Reception:** API Gateway điều phối  
+**📚 Three Specialized Warehouses:** Mỗi container có chuyên môn riêng  
+**👨‍📚👤🏃‍♂️ Three Expert Librarians:** Engines xử lý theo strength  
+**🔄 Back Office:** Processing và synchronization  
+**📊 Management:** Monitoring và admin tools  
+
+Mỗi "thủ thư" có personality và specialty riêng, nhưng họ làm việc như một team để phục vụ users tốt nhất! 🎪✨
