@@ -689,6 +689,348 @@ Sau khi chạy thành công, bạn sẽ có:
 
 Bạn có gặp lỗi gì trong quá trình setup không? Tôi sẽ giúp troubleshoot!
 ---
+Tuyệt vời! Tôi sẽ giải thích chi tiết từng container đang chạy và vai trò của chúng trong hệ thống. Hãy cùng khám phá từng module một cách dễ hiểu:
+
+## 🐳 **GIẢI THÍCH CHI TIẾT CÁC DOCKER CONTAINERS**
+
+### **1. 🐘 chatbot-postgres-test - "Bộ não chính của hệ thống"**
+
+**Đây là gì?**
+- PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ (như Excel siêu mạnh)
+- Lưu trữ tất cả thông tin có cấu trúc: metadata tài liệu, thông tin người dùng, logs
+
+**Đang làm gì?**
+```sql
+-- Lưu thông tin tài liệu
+documents_metadata_v2: Tên file, tác giả, ngày tạo, loại tài liệu
+document_chunks_enhanced: Các đoạn văn bản đã được cắt nhỏ
+rag_pipeline_sessions: Lịch sử các câu hỏi và trả lời
+
+-- Ví dụ data thực tế:
+Title: "Quy trình xin nghỉ phép"
+Author: "HR Department" 
+Content: "Bước 1: Điền đơn..."
+Status: "approved"
+```
+
+**Kiểm tra PostgreSQL:**
+```powershell
+# Vào container PostgreSQL
+docker exec -it chatbot-postgres-test psql -U kb_admin -d knowledge_base_test
+
+# Xem các bảng đã tạo
+\dt
+
+# Xem dữ liệu mẫu
+SELECT title, author, status FROM documents_metadata_v2;
+
+# Thoát
+\q
+```
+
+### **2. 🔴 chatbot-redis-test - "Bộ nhớ đệm tốc độ cao"**
+
+**Đây là gì?**
+- Redis như "RAM mở rộng" - lưu tạm thông tin hay dùng
+- Giúp hệ thống phản hồi nhanh hơn (thay vì query database mỗi lần)
+
+**Đang làm gì?**
+```redis
+# Lưu cache các kết quả tìm kiếm
+user:123:last_query = "Quy trình nghỉ phép"
+embedding:doc_456 = [0.1, 0.8, 0.3, ...] # Vector embeddings
+
+# Session người dùng
+session:abc123 = {user_id: 456, login_time: "2024-01-01"}
+```
+
+**Kiểm tra Redis:**
+```powershell
+# Vào Redis container
+docker exec -it chatbot-redis-test redis-cli
+
+# Test Redis
+ping
+# Response: PONG
+
+# Xem tất cả keys (hiện tại còn trống)
+keys *
+
+# Tạo test data
+set test:hello "world"
+get test:hello
+
+# Thoát
+exit
+```
+
+### **3. 🟢 chatbot-chroma-test - "Kho lưu trữ vector thông minh"**
+
+**Đây là gì?**
+- ChromaDB chuyên lưu trữ "vector embeddings" (số hóa văn bản)
+- Giúp tìm kiếm theo ý nghĩa (semantic search) thay vì chỉ từ khóa
+
+**Đang làm gì?**
+```python
+# Chuyển đổi văn bản thành vector
+"Quy trình nghỉ phép" → [0.1, 0.8, 0.3, 0.5, 0.2, ...]
+"Xin phép nghỉ việc" → [0.2, 0.7, 0.4, 0.5, 0.1, ...]
+# Hai câu này có ý nghĩa gần nhau → vector gần nhau
+```
+
+**Kiểm tra ChromaDB:**
+```powershell
+# Test API của ChromaDB
+curl http://localhost:8001/api/v1/heartbeat
+
+# Xem collections (hiện tại chưa có)
+curl http://localhost:8001/api/v1/collections
+```
+
+### **4. 🌐 chatbot-adminer - "Giao diện quản lý database"**
+
+**Đây là gì?**
+- Adminer là công cụ web để xem/quản lý database (như phpMyAdmin)
+- Giúp bạn duyệt data mà không cần dùng command line
+
+**Đang làm gì?**
+- Cung cấp giao diện web tại http://localhost:8080
+- Cho phép xem/sửa/truy vấn database PostgreSQL
+
+**Cách sử dụng Adminer:**
+1. Mở trình duyệt: http://localhost:8080
+2. Đăng nhập:
+   - System: PostgreSQL
+   - Server: postgres-test
+   - Username: kb_admin
+   - Password: test_password_123
+   - Database: knowledge_base_test
+
+### **5. ❌ chatbot-db-setup - "Thợ setup database (đã hoàn thành)"**
+
+**Tại sao không chạy?**
+- Container này chỉ chạy 1 lần để setup database
+- Sau khi hoàn thành việc tạo bảng và load data mẫu → tự động tắt
+- Đây là hành vi BÌNH THƯỜNG!
+
+**Đã làm gì?**
+```python
+# 1. Tạo các bảng (tables)
+# 2. Tạo các index để tăng tốc
+# 3. Load dữ liệu mẫu (3 tài liệu tiếng Việt)
+# 4. Tạo báo cáo setup
+```
+
+**Xem logs để hiểu đã làm gì:**
+```powershell
+docker logs chatbot-db-setup
+```
+
+## 🔍 **HƯỚNG DẪN KHÁM PHÁ HỆ THỐNG**
+
+### **Bước 1: Khám phá Database qua Adminer**
+
+```powershell
+# Mở Adminer
+start http://localhost:8080
+```
+
+Trong Adminer:
+1. **Đăng nhập** với thông tin ở trên
+2. **Click vào bảng `documents_metadata_v2`** → xem dữ liệu mẫu
+3. **Click vào `SQL command`** → chạy câu lệnh:
+
+```sql
+-- Xem tất cả tài liệu
+SELECT title, author, department_owner, status 
+FROM documents_metadata_v2;
+
+-- Xem tài liệu tiếng Việt
+SELECT title, LEFT(content, 100) as preview
+FROM documents_metadata_v2 
+WHERE language_detected = 'vi';
+
+-- Đếm số bảng trong database
+SELECT COUNT(*) as total_tables 
+FROM information_schema.tables 
+WHERE table_schema = 'public';
+```
+
+### **Bước 2: Tạo file test để hiểu workflow**
+
+Tạo file `understand_system.py`:
+
+```python
+# understand_system.py
+import asyncio
+import asyncpg
+import json
+
+async def explore_database():
+    """Khám phá database để hiểu hệ thống"""
+    
+    # Kết nối database
+    conn = await asyncpg.connect(
+        host='localhost',
+        port=5433,  # Port của PostgreSQL test
+        database='knowledge_base_test',
+        user='kb_admin',
+        password='test_password_123'
+    )
+    
+    print("🔗 Connected to Enhanced Database!")
+    print("=" * 50)
+    
+    # 1. Xem tất cả bảng
+    tables = await conn.fetch("""
+        SELECT table_name, 
+               (SELECT COUNT(*) FROM information_schema.columns 
+                WHERE table_name = t.table_name AND table_schema = 'public') as column_count
+        FROM information_schema.tables t
+        WHERE table_schema = 'public'
+        ORDER BY table_name
+    """)
+    
+    print(f"📊 Database có {len(tables)} bảng:")
+    for table in tables:
+        print(f"   📋 {table['table_name']} ({table['column_count']} cột)")
+    
+    # 2. Xem dữ liệu mẫu
+    print(f"\n📄 Dữ liệu mẫu:")
+    documents = await conn.fetch("""
+        SELECT title, author, department_owner, 
+               LENGTH(content) as content_length,
+               language_detected, status
+        FROM documents_metadata_v2
+        ORDER BY title
+    """)
+    
+    for doc in documents:
+        print(f"   📝 '{doc['title']}'")
+        print(f"      👤 Tác giả: {doc['author']}")
+        print(f"      🏢 Phòng ban: {doc['department_owner']}")
+        print(f"      📏 Nội dung: {doc['content_length']} ký tự")
+        print(f"      🌐 Ngôn ngữ: {doc['language_detected']}")
+        print(f"      📊 Trạng thái: {doc['status']}")
+        print()
+    
+    # 3. Demo search functionality
+    print("🔍 Demo tìm kiếm:")
+    
+    # Tìm kiếm theo từ khóa
+    search_results = await conn.fetch("""
+        SELECT title, author
+        FROM documents_metadata_v2
+        WHERE LOWER(title) LIKE '%nghỉ phép%'
+           OR LOWER(content) LIKE '%nghỉ phép%'
+    """)
+    
+    print(f"   Tìm 'nghỉ phép': {len(search_results)} kết quả")
+    for result in search_results:
+        print(f"      ✅ {result['title']} - {result['author']}")
+    
+    # 4. Xem cấu trúc enhanced schema
+    print(f"\n🏗️ Cấu trúc Enhanced Schema:")
+    enhanced_features = await conn.fetch("""
+        SELECT 
+            COUNT(*) FILTER (WHERE vietnamese_segmented = true) as vietnamese_processed,
+            COUNT(*) FILTER (WHERE search_tokens IS NOT NULL) as search_ready,
+            COUNT(*) FILTER (WHERE jsonl_export_ready = true) as flashrag_ready
+        FROM documents_metadata_v2
+    """)
+    
+    feature = enhanced_features[0]
+    print(f"   🇻🇳 Vietnamese processed: {feature['vietnamese_processed']}")
+    print(f"   🔍 Search ready: {feature['search_ready']}")
+    print(f"   📤 FlashRAG ready: {feature['flashrag_ready']}")
+    
+    # 5. Demo tạo pipeline session
+    print(f"\n⚡ Demo tạo pipeline session:")
+    session_id = await conn.fetchval("""
+        INSERT INTO rag_pipeline_sessions (
+            original_query, processed_query, pipeline_type, pipeline_method,
+            chunks_retrieved, processing_time_ms, response_quality_score
+        ) VALUES (
+            'Làm thế nào để xin nghỉ phép?',
+            'xin nghỉ phép quy trình',
+            'standard',
+            'hybrid',
+            2,
+            230,
+            0.92
+        ) RETURNING session_id
+    """)
+    
+    print(f"   ✅ Tạo session thành công: {session_id}")
+    
+    # 6. Thống kê hệ thống
+    print(f"\n📊 Thống kê hệ thống:")
+    stats = await conn.fetchrow("""
+        SELECT 
+            pg_size_pretty(pg_database_size(current_database())) as db_size,
+            (SELECT COUNT(*) FROM documents_metadata_v2) as total_docs,
+            (SELECT COUNT(*) FROM document_chunks_enhanced) as total_chunks,
+            (SELECT COUNT(*) FROM rag_pipeline_sessions) as total_sessions
+    """)
+    
+    print(f"   💾 Dung lượng database: {stats['db_size']}")
+    print(f"   📄 Tổng documents: {stats['total_docs']}")
+    print(f"   ✂️ Tổng chunks: {stats['total_chunks']}")
+    print(f"   🔄 Tổng sessions: {stats['total_sessions']}")
+    
+    await conn.close()
+    print(f"\n🎉 Exploration completed!")
+
+if __name__ == "__main__":
+    asyncio.run(explore_database())
+```
+
+Chạy script này:
+```powershell
+pip install asyncpg
+python understand_system.py
+```
+
+### **Bước 3: Workflow thực tế**
+
+```mermaid
+graph TD
+    User[👤 User hỏi: 'Xin nghỉ phép như thế nào?']
+    
+    PostgreSQL[(🐘 PostgreSQL<br/>Tìm documents liên quan)]
+    ChromaDB[(🟢 ChromaDB<br/>Vector search theo ý nghĩa)]
+    Redis[(🔴 Redis<br/>Cache kết quả)]
+    
+    Processing[⚡ RAG Processing<br/>Kết hợp thông tin]
+    Response[💬 Trả lời: 'Quy trình gồm 5 bước...']
+    
+    User --> PostgreSQL
+    User --> ChromaDB
+    PostgreSQL --> Redis
+    ChromaDB --> Redis
+    Redis --> Processing
+    Processing --> Response
+    Response --> User
+    
+    style PostgreSQL fill:#e1f5fe
+    style ChromaDB fill:#e8f5e8
+    style Redis fill:#ffebee
+```
+
+## 🎯 **TÓM TẮT ĐƠN GIẢN**
+
+| Container | Vai trò | Giống như |
+|-----------|---------|-----------|
+| **postgres-test** | Lưu trữ dữ liệu có cấu trúc | Tủ hồ sơ có phân loại |
+| **chroma-test** | Tìm kiếm theo ý nghĩa | Thư viện thông minh hiểu ngữ cảnh |
+| **redis-test** | Bộ nhớ đệm nhanh | Bàn làm việc để đồ hay dùng |
+| **adminer** | Giao diện quản lý | Cửa sổ để nhìn vào tủ hồ sơ |
+| **db-setup** | Thợ setup (đã xong) | Người sắp xếp tủ hồ sơ ban đầu |
+
+Bây giờ bạn đã hiểu rõ hơn về hệ thống chưa? Có muốn tôi giải thích thêm phần nào không?
+
+
+---
 Lỗi này là do version conflict của `huggingface_hub`. Tôi sẽ fix nhanh:
 
 ## 🔧 **FIX NHANH - CẬP NHẬT REQUIREMENTS**
