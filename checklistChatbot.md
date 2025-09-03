@@ -29,10 +29,10 @@ gantt
 
 #### **Việc 1: Lựa chọn Embedding Models**
 - [x] **Đánh giá `Qwen/Qwen3-Embedding-0.6B`**: kết quả đánh giá tốt, sử dụng model này
-- [ ] **Đánh giá `AITeamVN/Vietnamese_Embedding`** (backup)
-- [x] **Benchmark performance trên dataset tiếng Việt**: đã làm xong công cụ để kiểm tra embedding
+- [x] **Đánh giá `AITeamVN/Vietnamese_Embedding`** (backup)
+- [x] **Benchmark performance trên dataset tiếng Việt**: đã làm xong công cụ để kiểm tra embedding, đang hoàn thiện tool.
 - [x] **Test khả năng xử lý tài liệu chuyên môn**: kết quả khá ổn
-- [ ] **Quyết định embedding model cuối cùng**
+- [x] **Quyết định embedding model cuối cùng**:`Qwen/Qwen3-Embedding-0.6B`
 
 #### **Việc 2: Thiết kế Database Schema**  
 - [ ] **Thiết kế bảng `documents_metadata`** với các trường bắt buộc
