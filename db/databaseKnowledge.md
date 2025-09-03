@@ -293,17 +293,17 @@ scores, indices = index.search(query_vector, k=5)
 ```mermaid
 graph TD
     subgraph "🔗 Traditional Database Relationships"
-        PG1[(🐘 PostgreSQL)]
-        PG2[(🐘 PostgreSQL)]
+        PG1[_🐘 PostgreSQL_]
+        PG2[_🐘 PostgreSQL_]
         FK[Foreign Keys<br/>REFERENCES<br/>CASCADE DELETE<br/>ACID Transactions]
         PG1 -.-> FK
         FK -.-> PG2
     end
     
     subgraph "🚫 Our Multi-Database Reality"
-        PostgreSQL[(🐘 PostgreSQL<br/>Port 5432)]
-        ChromaDB[(🟢 ChromaDB<br/>Port 8000)]
-        Redis[(🔴 Redis<br/>Port 6379)]
+        PostgreSQL[_🐘 PostgreSQL<br/>Port 5432_]
+        ChromaDB[_🟢 ChromaDB<br/>Port 8000_]
+        Redis[_🔴 Redis<br/>Port 6379_]
         
         Note1[❌ No Foreign Keys<br/>❌ No Transactions<br/>❌ No CASCADE<br/>❌ No DB-level constraints]
         
@@ -346,7 +346,7 @@ graph TD
         
         Scenario2[🟢💥 ChromaDB Down<br/>PostgreSQL + Redis OK<br/>Result: Keyword search works<br/>But no semantic search]
         
-        Scenario3[🔴💥 Redis Down<br/>PostgreSQL + ChromaDB OK<br/>Result: All search works<br/>Just slower (no cache)]
+        Scenario3[🔴💥 Redis Down<br/>PostgreSQL + ChromaDB OK<br/>Result: All search works<br/>Just slower _no cache_]
     end
     
     subgraph "🚀 Fallback Strategies"
