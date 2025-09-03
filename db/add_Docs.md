@@ -1223,3 +1223,47 @@ Sau khi setup thành công, bạn sẽ có:
 - Xem database được populate với enhanced schema
 
 Bạn có muốn test với tài liệu cụ thể nào không? Tôi có thể hướng dẫn thêm!
+
+---
+Bạn đúng rồi, tôi giải thích ngắn gọn:
+
+## 🎯 **MỤC TIÊU**
+Tạo tool để thêm tài liệu vào database enhanced đã có sẵn.
+
+## 🏗️ **2 CÁCH TRIỂN KHAI**
+
+### **Cách 1: Tool trong Docker (như tôi code)**
+**Ưu điểm:**
+- ✅ Tự động kết nối với database containers
+- ✅ Không cần cài Python/dependencies trên máy Windows
+- ✅ Isolated, không conflict
+- ✅ Dễ deploy và share
+
+**Nhược điểm:**  
+- ❌ Phức tạp hơn
+- ❌ Tốn resource Docker
+
+### **Cách 2: Tool ngoài Docker (đơn giản hơn)**
+**Ưu điểm:**
+- ✅ Đơn giản, chạy trực tiếp
+- ✅ Debug dễ hơn
+- ✅ Ít phụ thuộc
+
+**Nhược điểm:**
+- ❌ Phải cài Python + dependencies
+- ❌ Config connection manual
+
+## 🤔 **KHUYẾN NGHỊ**
+
+**Nếu bạn mới học:** Chọn **Cách 2** (ngoài Docker)
+- Chỉ cần 1 file Python đơn giản 
+- Chạy: `python upload_tool.py`
+- Connect tới database qua port 5433
+
+**Về embedding model:** Đúng, bạn chỉ cần đổi tên model trong code từ `'paraphrase-multilingual-MiniLM-L12-v2'` thành `'Qwen/Qwen3-Embedding-0.6B'`.
+
+## ❓ **BẠN MUỐN**
+1. Tool đơn giản ngoài Docker?
+2. Hay giữ nguyên trong Docker?
+
+Tôi sẽ hướng dẫn theo cách bạn chọn!
