@@ -138,7 +138,7 @@ graph TD
         
         Extraction[🔍 Text Extraction Process<br/>Extract only TEXT content<br/>Lose: Images, formatting, metadata]
         
-        ExtractedText[📝 Extracted Text<br/>Pure text: "Tài liệu hướng dẫn..."<br/>Size: ~500KB text only]
+        ExtractedText[📝 Extracted Text<br/>Pure text: Tài liệu hướng dẫn...<br/>Size: ~500KB text only]
     end
     
     subgraph "🐘 PostgreSQL Storage Options"
