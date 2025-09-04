@@ -149,6 +149,24 @@ WHERE document_id = 'doc_123';
 ```
 
 ## 📄 **JSONL TRONG DATA FLOW**
+**✅ ĐÚNG RỒI!**
+
+JSONL = **Import/Export tool cho PostgreSQL**
+
+```mermaid
+graph LR
+    A[📄 JSONL Files] <-->|Import/Export| B[🐘 PostgreSQL]
+    
+    B -->|Reference| C[🟢 ChromaDB]
+    B -->|Cache| D[🔴 Redis]
+```
+
+**Chức năng chính:**
+- 📤 **Export**: PostgreSQL → JSONL (backup, migrate)
+- 📥 **Import**: JSONL → PostgreSQL (restore, integrate)
+- 🔄 **Bridge**: Trao đổi data với external systems (FlashRAG, etc.)
+
+**Không phải database, chỉ là "USB" để chuyển data** 💾
 
 ```mermaid
 graph TB
