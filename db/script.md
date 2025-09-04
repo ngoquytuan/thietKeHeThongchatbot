@@ -1,3 +1,4 @@
+Tài liệu này dùng để kiểm tra hiểu về database tạo trong docker
 Câu hỏi rất hay! Tôi sẽ giải thích và bổ sung để hệ thống production-ready hơn:
 
 ## 🔄 **MIGRATION STRATEGY - KHÔNG CẦN LÀM LẠI DATABASE**
@@ -1431,3 +1432,4 @@ python export_jsonl.py --collection all --format standard
 - 📄 **JSONL**: Export/import format (snapshots)
 
 **Chỉ PostgreSQL chứa complete raw data. Các system khác là specialized layers!** 🎯
+
