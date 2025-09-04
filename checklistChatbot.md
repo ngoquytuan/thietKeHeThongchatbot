@@ -31,7 +31,7 @@ gantt
 - [x] **Đánh giá `Qwen/Qwen3-Embedding-0.6B`**: kết quả đánh giá tốt, sử dụng model này
 - [x] **Đánh giá `AITeamVN/Vietnamese_Embedding`** (backup)
 - [x] **Benchmark performance trên dataset tiếng Việt**: đã làm xong công cụ để kiểm tra embedding, đang hoàn thiện tool.
-- [x] **Test khả năng xử lý tài liệu chuyên môn**: kết quả khá ổn
+- [x] **Test khả năng xử lý tài liệu chuyên môn**: cần thử nghiệm thêm trong quá trình hoàn thiện công cụ ở bước trên
 - [x] **Quyết định embedding model cuối cùng**:`Qwen/Qwen3-Embedding-0.6B`
 
 #### **Việc 2: Thiết kế Database Schema**  
