@@ -221,6 +221,85 @@ Bạn hiểu **một phần đúng** nhưng cần làm rõ thêm. Tôi sẽ gi�
 
 **Kết luận**: Chỉ có PostgreSQL tự động setup schema, các database khác cần Python scripts để setup.
 ---
+Câu hỏi rất hay! Sự khác biệt này do **kiến trúc và cách thức hoạt động** của từng database:
+
+## 🔍 **SO SÁNH KIẾN TRÚC DATABASE**
+
+### **🐘 PostgreSQL (postgres-test)**
+- **Client-Server Protocol**: Sử dụng proprietary binary protocol qua port 5432
+- **Direct Connection**: Python/apps connect trực tiếp qua `asyncpg`, `psycopg2` libraries
+- **No HTTP needed**: PostgreSQL có protocol riêng, không cần REST API layer
+
+### **🔴 Redis (redis-test)**  
+- **Client-Server Protocol**: Sử dụng RESP (Redis Serialization Protocol) qua port 6379
+- **Direct Connection**: Python/apps connect trực tiếp qua `redis-py` library
+- **No HTTP needed**: Redis có protocol riêng, không cần REST API layer
+
+### **🟢 ChromaDB (chromadb-test)**
+- **HTTP-First Design**: ChromaDB được thiết kế như một **API service**
+- **REST API Only**: Không có direct binary connection protocol như PostgreSQL/Redis
+- **HTTP Required**: Mọi interaction đều thông qua HTTP REST calls (GET, POST, PUT, DELETE)
+- **Client library**: `chromadb` Python library thực chất chỉ là wrapper gọi HTTP API
+
+---
+
+## 🌐 **TẠI SAO CHROMADB CẦN HTTP API?**
+
+### **Modern Vector Database Design**
+- ChromaDB được thiết kế theo kiểu **microservice architecture**
+- Vector databases thường expose HTTP API để dễ integrate với các ngôn ngữ khác nhau
+- HTTP/JSON dễ debug, monitor, và scale hơn binary protocols
+
+### **Client Interaction Examples**
+
+**PostgreSQL Connection:**
+```python
+# Direct binary protocol connection
+conn = asyncpg.connect("postgresql://user:pass@localhost:5432/db")
+```
+
+**Redis Connection:**
+```python  
+# Direct RESP protocol connection
+redis_client = redis.Redis(host='localhost', port=6379)
+```
+
+**ChromaDB Connection:**
+```python
+# Actually HTTP calls under the hood
+chroma_client = chromadb.HttpClient(host='localhost', port=8000)
+# This becomes: HTTP GET http://localhost:8000/api/v1/collections
+```
+
+---
+
+## 📊 **NETWORK TRAFFIC COMPARISON**
+
+### **PostgreSQL**: Binary Protocol
+```
+Client → [Binary Protocol] → PostgreSQL Server
+```
+
+### **Redis**: RESP Protocol  
+```
+Client → [RESP Commands] → Redis Server
+```
+
+### **ChromaDB**: HTTP REST API
+```
+Client → [HTTP POST/GET] → ChromaDB HTTP Server → ChromaDB Core
+```
+
+---
+
+## 🎯 **TÓM TẮT**
+
+**PostgreSQL & Redis**: Có protocol riêng, apps connect trực tiếp → không cần HTTP API
+
+**ChromaDB**: Không có binary protocol, chỉ có HTTP API → bắt buộc phải expose HTTP port
+
+Đây là **design choice** của ChromaDB để làm vector database dễ sử dụng và integrate, nhưng trade-off là cần thêm HTTP layer overhead.
+---
 Bạn hỏi về đoạn **“Tạo 20+ indexes để optimize performance”** trong hướng dẫn cài đặt database. Mình sẽ giải thích chi tiết:
 
 ---
