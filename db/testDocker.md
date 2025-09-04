@@ -689,6 +689,46 @@ Sau khi chạy thành công, bạn sẽ có:
 
 Bạn có gặp lỗi gì trong quá trình setup không? Tôi sẽ giúp troubleshoot!
 ---
+
+Dựa trên đoạn mã bạn cung cấp, các file `docker-compose.yml` và `setup_database.py` **không có vấn đề nghiêm trọng** và được viết khá tốt để thực hiện mục đích đã đề ra. Tuy nhiên, có một vài điểm nhỏ cần lưu ý để tối ưu và phòng tránh lỗi trong các kịch bản khác nhau.
+
+---
+
+### ## 📂 File `docker-compose.yml`
+
+Nhìn chung, file này được cấu hình tốt, rõ ràng và tuân thủ các thực tiễn tốt nhất.
+
+**✅ Ưu điểm:**
+* **Tách biệt dịch vụ:** Các dịch vụ `postgres`, `redis`, `chromadb` được định nghĩa rõ ràng, dễ quản lý.
+* **Sử dụng `healthcheck`:** Đây là một điểm rất tốt, giúp đảm bảo các dịch vụ phụ thuộc (như `db-setup` và `adminer`) chỉ khởi động khi dịch vụ chính (như `postgres-test`) đã thực sự sẵn sàng, giảm thiểu lỗi kết nối.
+* **Quản lý volumes và networks:** Sử dụng volumes được đặt tên (`postgres_test_data`) và một mạng chung (`chatbot-test-network`) là cách làm chuẩn mực, giúp dữ liệu bền vững và các container giao tiếp an toàn.
+* **Gắn script migrations:** Việc mount thư mục `./scripts/migrations` vào `/docker-entrypoint-initdb.d` là cách chính xác để tự động chạy các file `.sql` khi PostgreSQL khởi tạo lần đầu.
+
+**⚠️ Điểm cần lưu ý:**
+1.  **Mật khẩu trong file:** Mật khẩu `test_password_123` được ghi trực tiếp trong file. Điều này chấp nhận được cho môi trường test, nhưng trong môi trường thực tế (production), bạn nên sử dụng Docker secrets hoặc file biến môi trường (`.env`) để quản lý thông tin nhạy cảm.
+2.  **Phiên bản `latest`:** Image `chromadb/chroma:latest` có thể gây ra lỗi không mong muốn trong tương lai nếu có một bản cập nhật lớn không tương thích. Để đảm bảo tính ổn định, bạn nên ghim vào một phiên bản cụ thể (ví dụ: `chromadb/chroma:0.4.24`).
+
+---
+
+### ## 🐍 File `scripts/setup_database.py`
+
+Đây là một script Python chắc chắn, sử dụng `asyncio` và `asyncpg` hiệu quả để kiểm tra và xác thực cơ sở dữ liệu.
+
+**✅ Ưu điểm:**
+* **Cơ chế chờ (Wait Mechanism):** Vòng lặp `for attempt in range(max_retries)` để chờ database sẵn sàng là rất quan trọng và được triển khai đúng cách. Nó giúp script không bị lỗi ngay lập tức nếu container `db-setup` khởi động nhanh hơn `postgres-test`.
+* **Xác thực toàn diện:** Script không chỉ kết nối mà còn kiểm tra sự tồn tại của bảng, số lượng dữ liệu mẫu và các tính năng như full-text search, đảm bảo database đã được khởi tạo đúng như mong đợi.
+* **Báo cáo chi tiết:** Việc tạo ra một file báo cáo (`setup_report.md`) rất hữu ích cho việc gỡ lỗi và kiểm tra nhanh trạng thái hệ thống.
+* **Sử dụng biến môi trường:** Lấy thông tin cấu hình từ biến môi trường (`os.getenv`) là một thực tiễn tốt, giúp script linh hoạt và không cần sửa code khi thay đổi cấu hình.
+
+**⚠️ Điểm cần lưu ý:**
+1.  **Thiếu thư viện trong image:** Service `db-setup` sử dụng image `python:3.9-slim` và sau đó cài đặt thư viện bằng `pip install`. Điều này hoạt động tốt nhưng mỗi lần container chạy lại, nó sẽ thực hiện cài đặt lại. Để tối ưu, bạn có thể tạo một `Dockerfile` riêng cho `db-setup`, cài sẵn các thư viện cần thiết, và build thành một image tùy chỉnh. Điều này giúp container khởi động nhanh hơn và đảm bảo môi trường nhất quán.
+2.  **Thoát với mã lỗi:** Dòng `sys.exit(0 if success else 1)` là một cách làm đúng đắn, giúp Docker Compose biết được liệu service `db-setup` đã hoàn thành thành công hay thất bại.
+
+### ## 🎯 Kết luận
+
+Cả hai file đều **an toàn để chạy** cho mục đích thử nghiệm và học tập. Các "vấn đề" được đề cập ở trên chỉ là những gợi ý để tối ưu và tăng cường bảo mật khi bạn chuyển sang một môi trường phức tạp hơn hoặc triển khai thực tế. Với hướng dẫn hiện tại, bạn có thể tự tin chạy các lệnh mà không gặp lỗi do cấu hình sai.
+
+---
 Tuyệt vời! Tôi sẽ giải thích chi tiết từng container đang chạy và vai trò của chúng trong hệ thống. Hãy cùng khám phá từng module một cách dễ hiểu:
 
 ## 🐳 **GIẢI THÍCH CHI TIẾT CÁC DOCKER CONTAINERS**
