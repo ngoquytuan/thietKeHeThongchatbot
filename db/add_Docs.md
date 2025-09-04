@@ -80,9 +80,9 @@ Bạn hiểu rất tốt! Tôi sẽ bổ sung và làm rõ những điểm bạn
 ```mermaid
 graph LR
     subgraph "🟢 ChromaDB Search Process"
-        Query[👤 User Query<br/>"Quy trình nghỉ phép"]
+        Query[👤 User Query<br/>Quy trình nghỉ phép]
         
-        Embed[🧮 Convert to Vector<br/>[0.2, 0.7, 0.1, ...]]
+        Embed[🧮 Convert to Vector<br/>0.2, 0.7, 0.1, ...]
         
         ChromaSearch[🔍 Vector Similarity<br/>Cosine distance]
         
