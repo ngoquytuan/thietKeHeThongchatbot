@@ -239,3 +239,148 @@ FROM documents_metadata; -- V1 table
 ```
 
 **🎉 Result**: V2 là bản nâng cấp mạnh mẽ với đầy đủ tính năng enterprise và AI-ready!
+---
+Bạn đặt câu hỏi rất hay! Tôi sẽ giải thích rõ hai điểm này:
+
+## 🇻🇳 **PYVI INTEGRATION - XỬ LÝ BÊN NGOÀI**
+
+### **Đúng rồi! Pyvi được xử lý bên ngoài PostgreSQL:**
+
+**Flow xử lý thực tế:**
+1. **Upload document** → PostgreSQL (content raw)
+2. **Background job** → Python script chạy Pyvi processing
+3. **Pyvi output** → Lưu vào `vietnamese_text_analysis` table
+4. **Update flag** → `vietnamese_segmented = true` trong `documents_metadata_v2`
+
+**Ví dụ thực tế:**
+```python
+# Python script chạy riêng (không phải trong PostgreSQL)
+import pyvi
+from underthesea import word_tokenize, pos_tag
+
+# Lấy document chưa xử lý
+documents = db.query("SELECT * FROM documents_metadata_v2 WHERE vietnamese_segmented = false")
+
+for doc in documents:
+    # Xử lý với Pyvi
+    segmented = pyvi.ViTokenizer.tokenize(doc.content)
+    words = word_tokenize(doc.content)
+    pos_tags = pos_tag(doc.content)
+    
+    # Lưu kết quả vào database
+    db.insert("vietnamese_text_analysis", {
+        "document_id": doc.id,
+        "word_segmentation": words,
+        "pos_tagging": pos_tags
+    })
+    
+    # Đánh dấu đã xử lý
+    db.update("documents_metadata_v2", 
+              {"vietnamese_segmented": True}, 
+              {"document_id": doc.id})
+```
+
+**PostgreSQL chỉ lưu trữ kết quả, không chạy Pyvi**
+
+---
+
+## 🤖 **MULTI-MODEL SUPPORT - HỖ TRỢ NHIỀU EMBEDDING MODEL**
+
+### **Ý nghĩa của Multi-model Support:**
+
+**V1 (giả định)**: Chỉ hỗ trợ 1 model duy nhất
+```sql
+-- V1: Chỉ có 1 model
+embedding_model VARCHAR(100) -- "text-embedding-ada-002"
+```
+
+**V2**: Hỗ trợ đồng thời nhiều models
+```sql
+-- V2: Hỗ trợ nhiều models
+embedding_model_primary VARCHAR(100),   -- "text-embedding-ada-002" 
+embedding_model_fallback VARCHAR(100),  -- "multilingual-e5-base"
+embedding_quality_vi DECIMAL(3,2)       -- Quality score cho Vietnamese
+```
+
+### **Tại sao cần Multi-model?**
+
+**1. Model Performance khác nhau:**
+- **OpenAI Ada-002**: Tốt cho English, khá cho Vietnamese
+- **Multilingual-E5**: Tốt cho Vietnamese, kém cho English  
+- **Vietnamese-SBERT**: Chuyên Vietnamese, chỉ Vietnamese
+
+**2. Cost vs Performance trade-off:**
+- **Primary model**: Expensive nhưng accurate (OpenAI)
+- **Fallback model**: Cheap nhưng acceptable (local model)
+
+**3. Language-specific optimization:**
+- **English documents**: Dùng OpenAI model
+- **Vietnamese documents**: Dùng Vietnamese-optimized model
+- **Mixed content**: Dùng multilingual model
+
+### **Thực tế sử dụng Multi-model:**
+```python
+# Logic chọn model trong code
+def choose_embedding_model(document):
+    if document.language_detected == 'vi':
+        # Vietnamese content → dùng Vietnamese model
+        primary = "keepitreal/vietnamese-sbert"
+        fallback = "multilingual-e5-base"
+    elif document.language_detected == 'en':
+        # English content → dùng OpenAI
+        primary = "text-embedding-ada-002"
+        fallback = "all-MiniLM-L6-v2"
+    else:
+        # Mixed/unknown → dùng multilingual
+        primary = "multilingual-e5-base"
+        fallback = "text-embedding-ada-002"
+    
+    return primary, fallback
+
+# Embedding generation với fallback
+try:
+    embedding = generate_embedding(text, primary_model)
+    model_used = primary_model
+except Exception:
+    # Primary model fail → dùng fallback
+    embedding = generate_embedding(text, fallback_model)
+    model_used = fallback_model
+
+# Lưu vào database
+save_document({
+    "embedding_model_primary": primary_model,
+    "embedding_model_fallback": fallback_model,
+    "actual_model_used": model_used
+})
+```
+
+---
+
+## 🎯 **TÓM TẮT CẢI TIẾN THIẾT KẾ V2**
+
+### **🏗️ Architecture Improvements:**
+1. **Separation of Concerns**: PostgreSQL lưu metadata, Python xử lý NLP
+2. **Async Processing**: Vietnamese processing chạy background, không block upload
+3. **Flexibility**: Hỗ trợ nhiều embedding models cho different use cases
+4. **Scalability**: UUID thay VARCHAR, timezone support, better constraints
+
+### **🇻🇳 Vietnamese-First Design:**
+1. **Language Detection**: Auto-detect thay vì manual input
+2. **Processing Pipeline**: Pyvi → POS tagging → Named entities
+3. **Quality Tracking**: Vietnamese-specific quality metrics
+4. **Text Normalization**: Diacritics và tone marks handling
+
+### **🤖 AI-Ready Architecture:**
+1. **Model Flexibility**: Primary/fallback strategy cho reliability
+2. **FlashRAG Integration**: JSONL export cho advanced RAG
+3. **Hybrid Search**: BM25 + Vector search structure
+4. **Performance Monitoring**: Track embedding quality per language
+
+### **📊 Production-Ready Features:**
+1. **Audit Trail**: UUID references, timezone awareness
+2. **Data Validation**: Constraints cho data integrity
+3. **Export Capabilities**: Machine learning dataset ready
+4. **Collection Management**: Multi-tenant support
+
+**Bottom line**: V2 không chỉ là upgrade, mà là **complete redesign** cho enterprise Vietnamese AI system!
+---
