@@ -1,3 +1,233 @@
+Bạn hiểu rất tốt! Tôi sẽ bổ sung và làm rõ những điểm bạn chưa rõ:
+
+## 🐘 **POSTGRESQL - 12 BẢNG HOÀN CHỈNH**
+
+### **✅ 5 bảng chính bạn đã hiểu:**
+1. **documents_metadata_v2** - Master documents
+2. **document_chunks_enhanced** - Text chunks  
+3. **document_bm25_index** - Keyword search index
+4. **rag_pipeline_sessions** - Query tracking
+5. **vietnamese_text_analysis** - Vietnamese NLP
+
+### **📋 7 bảng còn lại:**
+
+**6. context_refinement_log**
+- **Chức năng**: Theo dõi việc "tinh chỉnh ngữ cảnh" - khi hệ thống lấy quá nhiều chunk, cần nén lại
+- **Tại sao cần**: RAG thường lấy 10-20 chunks, nhưng LLM chỉ cần 3-5 chunks tốt nhất
+- **VD**: Query "nghỉ phép" → tìm được 15 chunks → tinh chỉnh còn 5 chunks relevant nhất
+
+**7. knowledge_graph_edges**  
+- **Chức năng**: Lưu mối quan hệ giữa các chunks (chunk A tham chiếu đến chunk B)
+- **Tại sao cần**: Tài liệu có thể tham chiếu lẫn nhau ("theo quy định tại mục 2.1")
+- **VD**: Chunk "quy trình nghỉ phép" → liên kết → chunk "mẫu đơn nghỉ phép"
+
+**8. query_performance_metrics**
+- **Chức năng**: Đo lường chi tiết hiệu suất từng bước xử lý query
+- **Tại sao cần**: Tối ưu hóa tốc độ - biết bước nào chậm nhất
+- **VD**: Query mất 2.5s → embedding: 0.1s, search: 0.5s, LLM: 1.9s
+
+**9. embedding_model_benchmarks**
+- **Chức năng**: So sánh hiệu suất các model embedding khác nhau
+- **Tại sao cần**: Chọn model tốt nhất cho tiếng Việt (OpenAI vs Google vs local model)
+- **VD**: OpenAI: 87% accuracy, Google: 83%, Vietnamese-BERT: 91%
+
+**10. jsonl_exports**
+- **Chức năng**: Theo dõi các lần export/import dữ liệu ra file JSONL
+- **Tại sao cần**: Backup, migrate data, integrate với FlashRAG
+- **VD**: Exported 1000 docs → production_backup.jsonl.gz (50MB)
+
+**11. vietnamese_terminology**
+- **Chức năng**: Từ điển thuật ngữ tiếng Việt của công ty
+- **Tại sao cần**: "WFH" = "làm việc từ xa", "OT" = "tăng ca"
+- **VD**: Chuẩn hóa thuật ngữ để search chính xác hơn
+
+**12. system_metrics_log**
+- **Chức năng**: Monitor hệ thống - CPU, RAM, disk usage
+- **Tại sao cần**: Phát hiện sớm khi hệ thống quá tải
+- **VD**: RAM usage 85% → cảnh báo cần upgrade server
+
+## 🟢 **CHROMADB - VECTOR SEARCH ENGINE**
+
+```mermaid
+graph LR
+    subgraph "🟢 ChromaDB Search Process"
+        Query[👤 User Query<br/>"Quy trình nghỉ phép"]
+        
+        Embed[🧮 Convert to Vector<br/>[0.2, 0.7, 0.1, ...]]
+        
+        ChromaSearch[🔍 Vector Similarity<br/>Cosine distance]
+        
+        Results[📄 Similar Chunks<br/>chunk_001: 0.95<br/>chunk_002: 0.87]
+    end
+    
+    Query --> Embed --> ChromaSearch --> Results
+```
+
+### **Document embeddings vs Chunk embeddings:**
+- **Document embeddings**: Vector của TOÀN BỘ tài liệu
+  - VD: "Quy trình xin nghỉ phép" (3000 từ) → 1 vector [1536 dimensions]
+  
+- **Chunk embeddings**: Vector của TỪNG ĐOẠN nhỏ
+  - VD: "Bước 1: Điền đơn xin nghỉ" (200 từ) → 1 vector [1536 dimensions]
+
+### **HNSW index overhead:**
+- **HNSW** = Hierarchical Navigable Small World
+- **Là gì**: Cấu trúc dữ liệu để tìm kiếm vector nhanh hơn
+- **Tại sao cần**: Thay vì so sánh với 100,000 vectors → chỉ cần so sánh với 1,000 vectors
+- **Overhead**: Chiếm thêm ~50% storage để lưu index
+
+```mermaid
+graph TB
+    subgraph "Vector Search: Brute Force vs HNSW"
+        subgraph "❌ Brute Force (Chậm)"
+            Query1[Query Vector] --> Compare1[So sánh với<br/>100,000 vectors]
+            Compare1 --> Time1[⏱️ 500ms]
+        end
+        
+        subgraph "✅ HNSW Index (Nhanh)"
+            Query2[Query Vector] --> HNSW[HNSW Index<br/>Smart routing]
+            HNSW --> Compare2[So sánh với<br/>1,000 vectors]
+            Compare2 --> Time2[⏱️ 50ms]
+        end
+    end
+```
+
+## 🔴 **REDIS CACHE SYSTEM**
+
+### **Redis lưu ở đâu?**
+- **RAM** của server (in-memory database)
+- **Persistence**: Có thể save xuống disk định kỳ
+- **Docker**: Lưu trong volume `redis_test_data`
+
+### **Popular data tracking:**
+```sql
+-- Popular score ĐƯỢC TÍNH trong PostgreSQL:
+UPDATE documents_metadata_v2 SET 
+    view_count = view_count + 1,
+    last_accessed = NOW()
+WHERE document_id = 'doc_123';
+
+-- Sau đó documents popular sẽ được cache trong Redis
+```
+
+### **Chi tiết các loại cache:**
+
+**Session data**: 
+- **Là gì**: Thông tin user đang login (KHÔNG phải chat history)
+- **VD**: `user:session:user_001` → {username: "nguyen.van.a", department: "HR", permissions: ["read", "search"]}
+
+**Embedding cache**:
+```python
+# Khi user search "nghỉ phép":
+# 1. Convert text → vector (expensive operation)
+# 2. Cache vector trong Redis để lần sau không cần convert lại
+
+"embedding:openai:hash123": {
+    "text": "quy trình nghỉ phép", 
+    "vector": [0.1, 0.2, 0.3, ...],
+    "ttl": 7_days
+}
+```
+
+**Search results cache**:
+- **Đúng rồi**: Kết quả search hay được tìm
+- **VD**: Query "nghỉ phép" được search 50 lần/ngày → cache result 30 phút
+
+**NLP processing cache**:
+```python
+# Vietnamese text processing rất chậm:
+# "Quy trình xin nghỉ phép tại công ty" 
+# → Tách từ: ["Quy_trình", "xin", "nghỉ_phép", "tại", "công_ty"]
+# → Cache kết quả để không cần process lại
+
+"vn:nlp:hash456": {
+    "original": "Quy trình xin nghỉ phép tại công ty",
+    "segmented": ["Quy_trình", "xin", "nghỉ_phép", "tại", "công_ty"],
+    "pos_tags": [{"word": "Quy_trình", "tag": "N"}, ...],
+    "ttl": 24_hours
+}
+```
+
+## 📄 **JSONL TRONG DATA FLOW**
+
+```mermaid
+graph TB
+    subgraph "🔄 Complete Data Flow"
+        subgraph "📥 INPUT"
+            UserUpload[👤 User Upload<br/>PDF, DOCX]
+            ExternalData[🌐 External JSONL<br/>From other systems]
+        end
+        
+        subgraph "🐘 PostgreSQL (Master)"
+            PGStore[💾 Permanent Storage<br/>All document data]
+        end
+        
+        subgraph "🟢 ChromaDB (Search)"
+            VectorStore[🧮 Vector Search<br/>Embeddings only]
+        end
+        
+        subgraph "🔴 Redis (Cache)"
+            CacheLayer[⚡ Fast Access<br/>Popular data]
+        end
+        
+        subgraph "📁 File System"
+            JSONLFiles[📄 JSONL Files<br/>backup_20240315.jsonl.gz<br/>external_import.jsonl]
+        end
+        
+        %% Data flow
+        UserUpload --> PGStore
+        ExternalData --> PGStore
+        
+        PGStore -->|Generate embeddings| VectorStore
+        PGStore -->|Cache popular queries| CacheLayer
+        PGStore -->|Export snapshots| JSONLFiles
+        
+        JSONLFiles -->|Import/restore| PGStore
+        
+        %% Search flow
+        CacheLayer -.->|Cache miss| VectorStore
+        VectorStore -.->|Get full content| PGStore
+    end
+```
+
+**JSONL vị trí trong hệ thống:**
+- **Không phải database** - chỉ là file format
+- **Nằm trên file system** (disk storage)
+- **Vai trò**: Import/Export bridge giữa systems
+- **Khi nào tạo**: Manual export, scheduled backup, system integration
+
+## 🎯 **SEARCH WORKFLOW THỰC TẾ**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Redis
+    participant ChromaDB  
+    participant PostgreSQL
+    
+    User->>Redis: "Quy trình nghỉ phép"
+    
+    alt Cache Hit
+        Redis-->>User: Cached results (50ms)
+    else Cache Miss
+        Redis->>ChromaDB: Vector search
+        ChromaDB->>ChromaDB: Find similar chunks
+        ChromaDB-->>Redis: chunk_001, chunk_002, chunk_003
+        
+        Redis->>PostgreSQL: Get full content
+        PostgreSQL-->>Redis: Full text + metadata
+        
+        Redis->>Redis: Cache results (30 min)
+        Redis-->>User: Complete results (300ms)
+    end
+    
+    Note over Redis: Popular queries cached
+    Note over ChromaDB: Semantic similarity only  
+    Note over PostgreSQL: Complete data source
+```
+
+**Bạn đã hiểu đúng 95%! Những điểm bổ sung này sẽ giúp bạn có cái nhìn hoàn chỉnh về architecture** 🎉
+---
 Được, tôi sẽ lập bảng so sánh **PostgreSQL, ChromaDB, Redis** theo các khía cạnh quan trọng để bạn dễ hình dung:
 
 ---
