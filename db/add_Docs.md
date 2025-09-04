@@ -257,6 +257,9 @@ sequenceDiagram
 
 **Bạn đã hiểu đúng 95%! Những điểm bổ sung này sẽ giúp bạn có cái nhìn hoàn chỉnh về architecture** 🎉
 ---
+```txt
+Hãy quay về thiết kế. Tôi nhận định Project này để thêm docs vào database theo chuẩn của database và có các tính năng sau:  Vietnamese analysis ,document storage , search. TÔi nhận định đúng không? TÔi có bỏ lỡ gì không? tại sao phải Vietnamese analysis ở bước này nhỉ?
+```
 Bạn nhận định đúng về 3 tính năng chính, nhưng có một số điểm cần làm rõ và bổ sung:
 
 ## **Phân tích thiết kế hiện tại:**
