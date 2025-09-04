@@ -1,3 +1,78 @@
+Bạn nhận định đúng về 3 tính năng chính, nhưng có một số điểm cần làm rõ và bổ sung:
+
+## **Phân tích thiết kế hiện tại:**
+
+### **3 tính năng chính bạn xác định:**
+1. **Document Storage** - Lưu trữ tài liệu vào database
+2. **Vietnamese Analysis** - Phân tích ngôn ngữ tiếng Việt 
+3. **Search** - Tìm kiếm tài liệu
+
+### **Tính năng bị bỏ lỡ:**
+4. **Semantic Chunking** - Chia tài liệu thành chunks có nghĩa
+5. **Vector Embeddings** - Tạo embedding vectors cho semantic search
+6. **ChromaDB Integration** - Vector database cho similarity search
+7. **Full-text Search** - PostgreSQL search với tsvector
+
+## **Tại sao Vietnamese Analysis ở bước này?**
+
+Vietnamese Analysis **không thực sự cần thiết** ở bước ingestion này. Đây là **over-engineering** vì:
+
+### **Lý do được thêm vào:**
+- Word segmentation cho better chunking
+- POS tagging để extract proper nouns
+- Compound word detection cho better search
+- Readability scoring cho content quality
+
+### **Tại sao có thể bỏ qua:**
+- **Modern embedding models** (như multilingual BERT) đã handle Vietnamese tốt mà không cần preprocessing
+- **Semantic search** qua embeddings hiệu quả hơn keyword search
+- **Maintenance overhead** - thêm dependencies và complexity
+- **Performance impact** - chậm quá trình ingestion
+
+## **Thiết kế tối giản hơn:**
+
+```python
+# Simplified Document Ingestion Pipeline
+class SimpleDocumentProcessor:
+    def process_document(self, file_path, metadata):
+        # 1. Extract text
+        content = self.extract_text(file_path)
+        
+        # 2. Semantic chunking (language-agnostic)
+        chunks = self.chunk_text(content)
+        
+        # 3. Generate embeddings
+        embeddings = self.generate_embeddings(chunks)
+        
+        # 4. Store in databases
+        doc_id = self.store_document(content, metadata)
+        self.store_chunks_and_embeddings(doc_id, chunks, embeddings)
+        
+        return doc_id
+```
+
+## **Recommendation cho project:**
+
+### **Keep (Essential):**
+- Document storage với metadata
+- Semantic chunking
+- Vector embeddings
+- Dual search (full-text + semantic)
+
+### **Remove/Optional (Over-engineered):**
+- Vietnamese NLP analysis
+- POS tagging
+- Compound word extraction
+- Language-specific preprocessing
+
+### **Lý do:**
+1. **Simpler = More Reliable** - Ít bugs, dễ maintain
+2. **Better Performance** - Nhanh hơn mà không mất chất lượng
+3. **Language Agnostic** - Hoạt động với mọi ngôn ngữ
+4. **Modern Approach** - Embedding models đã handle multilingual tốt
+
+Bạn có muốn tôi tạo version simplified này không? Nó sẽ ổn định hơn và tập trung vào core functionality.
+---
 Tuyệt vời! Database đã setup thành công. Bây giờ tôi sẽ hướng dẫn bạn từng bước để thêm tài liệu vào hệ thống. Tôi sẽ tạo một tool đơn giản để bạn có thể upload và xử lý tài liệu.
 
 ## 🛠️ **TOOL THÊM TÀI LIỆU - DOCUMENT INGESTION TOOL**
