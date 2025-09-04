@@ -781,10 +781,10 @@ exit
 **Kiểm tra ChromaDB:**
 ```powershell
 # Test API của ChromaDB
-curl http://localhost:8001/api/v1/heartbeat
-
+curl.exe http://localhost:8001/api/v1/heartbeat
+curl.exe http://localhost:8001/api/v2/version
 # Xem collections (hiện tại chưa có)
-curl http://localhost:8001/api/v1/collections
+curl.exe http://localhost:8001/api/v1/collections
 ```
 
 ### **4. 🌐 chatbot-adminer - "Giao diện quản lý database"**
