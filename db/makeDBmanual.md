@@ -124,6 +124,103 @@ CREATE TYPE document_status_enum AS ENUM ('draft', 'review', 'approved', 'publis
 **Thời gian setup manual: 2-4 giờ tùy kinh nghiệm**
 **Docker setup: 5-10 phút**
 ---
+Bạn hiểu **một phần đúng** nhưng cần làm rõ thêm. Tôi sẽ giải thích chính xác cách hoạt động:
+
+## 📦 **GIẢI THÍCH CHI TIẾT TỪNG CONTAINER**
+
+### **🐘 postgres-test**
+- **Container**: Tạo môi trường Linux Alpine và cài PostgreSQL 15
+- **Migration tự động**: PostgreSQL có cơ chế tự động chạy `.sql` files trong `/docker-entrypoint-initdb.d/` khi khởi động lần đầu
+- **KHÔNG cần Python**: Chỉ chạy pure SQL scripts để tạo schema, indexes, sample data
+- **Data persistence**: Lưu data trong Docker volume, không mất khi restart
+
+### **🔴 redis-test**
+- **Container**: Tạo môi trường Linux Alpine và cài Redis 7
+- **Tự động khởi động**: Redis server chạy ngay, không cần setup gì thêm
+- **Cache structure**: Được tạo sau bởi redis-setup container (Python script)
+
+### **🟢 chromadb-test**
+- **Container**: Tạo môi trường và chạy ChromaDB HTTP server
+- **API ready**: Expose port 8000 cho HTTP API
+- **Collections**: Được tạo sau bởi chromadb-setup container (Python script)
+
+### **⚙️ db-setup (Python container)**
+- **Container**: Môi trường Linux + Python 3.9
+- **Nhiệm vụ**: Chạy Python script `setup_database.py` để verify PostgreSQL đã setup đúng
+- **Tự động exit**: Chạy xong thì container tự động tắt
+
+### **⚙️ chromadb-setup (Python container)**
+- **Container**: Môi trường Linux + Python 3.9
+- **Nhiệm vụ**: Chạy Python script `setup_chromadb.py` để tạo collections và sample data
+- **Tự động exit**: Chạy xong thì container tự động tắt
+
+### **⚙️ redis-setup (Python container)**
+- **Container**: Môi trường Linux + Python 3.9
+- **Nhiệm vụ**: Chạy Python script `setup_redis.py` để populate cache structure
+- **Tự động exit**: Chạy xong thì container tự động tắt
+
+### **✅ verification (Python container)**
+- **Container**: Môi trường Linux + Python 3.9
+- **Nhiệm vụ**: Chạy Python script verify tất cả 3 databases hoạt động đúng
+- **Generate report**: Tạo báo cáo markdown và JSON
+- **Tự động exit**: Chạy xong thì container tự động tắt
+
+### **🌐 adminer**
+- **Container**: Môi trường Linux + PHP + Adminer (web app)
+- **Web interface**: Cung cấp GUI để browse PostgreSQL database
+- **Chạy liên tục**: Không tự động tắt, để user truy cập web
+
+---
+
+## 🔄 **TIMELINE HOẠT ĐỘNG**
+
+1. **Khởi động đồng thời**: postgres-test, redis-test, chromadb-test, adminer
+2. **PostgreSQL tự động**: Chạy SQL migration khi start lần đầu (không cần Python)
+3. **Chờ databases ready**: db-setup đợi PostgreSQL healthy
+4. **Python setup 1**: db-setup chạy Python script verify PostgreSQL
+5. **Python setup 2**: chromadb-setup chạy Python script tạo collections  
+6. **Python setup 3**: redis-setup chạy Python script populate cache
+7. **Python verify**: verification chạy Python script test toàn bộ hệ thống
+8. **Kết thúc**: Chỉ còn 4 containers chạy (postgres, redis, chroma, adminer)
+
+---
+
+## 🎯 **TÓM TẮT ĐÚNG THEO YÊU CẦU CỦA BẠN**
+
+### **postgres-test**
+- Tạo container Linux Alpine và cài PostgreSQL 15
+- Tự động chạy SQL scripts để tạo schema khi khởi động (built-in PostgreSQL feature)
+
+### **redis-test** 
+- Tạo container Linux Alpine và cài Redis 7
+- Chạy Redis server, chờ script Python khác populate data
+
+### **chromadb-test**
+- Tạo container và cài ChromaDB server
+- Chạy HTTP API server, chờ script Python khác tạo collections
+
+### **db-setup**
+- Tạo container Linux và cài Python
+- Chạy script Python để verify PostgreSQL setup thành công
+
+### **chromadb-setup**
+- Tạo container Linux và cài Python  
+- Chạy script Python để tạo collections trong ChromaDB
+
+### **redis-setup**
+- Tạo container Linux và cài Python
+- Chạy script Python để populate cache structure trong Redis
+
+### **verification**
+- Tạo container Linux và cài Python
+- Chạy script Python để test toàn bộ hệ thống và generate report
+
+### **adminer**
+- Tạo container Linux và cài PHP web server + Adminer
+- Chạy web interface để browse database
+
+**Kết luận**: Chỉ có PostgreSQL tự động setup schema, các database khác cần Python scripts để setup.
+---
 Bạn hỏi về đoạn **“Tạo 20+ indexes để optimize performance”** trong hướng dẫn cài đặt database. Mình sẽ giải thích chi tiết:
 
 ---
