@@ -694,6 +694,65 @@ Dựa trên đoạn mã bạn cung cấp, các file `docker-compose.yml` và `se
 
 ---
 
+Chào bạn, sau khi chạy tất cả các lệnh trong hướng dẫn, cơ sở dữ liệu PostgreSQL của bạn (tên là `knowledge_base_test`) sẽ có **5 bảng chính**.
+
+Các bảng này được tạo ra bởi file script `scripts/migrations/01_init_database.sql`. Dưới đây là danh sách và chức năng của từng bảng:
+
+---
+
+### ## 1. `documents_metadata_v2`
+Đây là bảng quan trọng nhất, dùng để lưu trữ thông tin tổng quan (siêu dữ liệu) về mỗi tài liệu gốc.
+* **Chức năng chính**: Quản lý các tài liệu như chính sách, quy trình, hướng dẫn...
+* **Các cột đáng chú ý**:
+    * `document_id`: Khóa chính định danh cho mỗi tài liệu.
+    * `title`, `content`: Tiêu đề và nội dung chính của tài liệu.
+    * `document_type`, `access_level`, `status`: Các trường dùng kiểu dữ liệu `ENUM` để phân loại tài liệu (ví dụ: 'policy', 'procedure'), quy định quyền truy cập và trạng thái ('draft', 'approved').
+    * `search_tokens`: Trường `TSVECTOR` để hỗ trợ tìm kiếm toàn văn (full-text search).
+
+---
+
+### ## 2. `document_chunks_enhanced`
+Bảng này chứa các "mẩu" hoặc "đoạn" văn bản (chunks) được chia nhỏ ra từ tài liệu gốc trong bảng `documents_metadata_v2`.
+* **Chức năng chính**: Chia nhỏ tài liệu để dễ dàng xử lý, nhúng (embedding) và tìm kiếm ngữ nghĩa (semantic search).
+* **Các cột đáng chú ý**:
+    * `chunk_id`: Khóa chính cho mỗi đoạn văn bản.
+    * `document_id`: Khóa ngoại, liên kết đoạn văn bản này với tài liệu gốc của nó.
+    * `chunk_content`: Nội dung của đoạn văn bản.
+    * `chunk_position`: Vị trí của đoạn văn bản trong tài liệu gốc.
+
+---
+
+### ## 3. `document_bm25_index`
+Bảng này hỗ trợ cho việc tìm kiếm từ khóa truyền thống bằng thuật toán BM25.
+* **Chức năng chính**: Lưu trữ chỉ mục (index) các từ khóa để tăng tốc độ và độ chính xác của tìm kiếm lai (hybrid search), kết hợp cả tìm kiếm từ khóa và tìm kiếm ngữ nghĩa.
+* **Các cột đáng chú ý**:
+    * `chunk_id`: Liên kết đến đoạn văn bản chứa từ khóa.
+    * `term`: Từ khóa được tìm thấy.
+    * `term_frequency`: Tần suất xuất hiện của từ khóa.
+
+---
+
+### ## 4. `rag_pipeline_sessions`
+Bảng này dùng để theo dõi và ghi lại lịch sử các phiên truy vấn của người dùng hoặc hệ thống.
+* **Chức năng chính**: Giám sát hiệu suất của hệ thống RAG (Retrieval-Augmented Generation), phân tích các câu hỏi và chất lượng câu trả lời.
+* **Các cột đáng chú ý**:
+    * `session_id`: Định danh cho mỗi phiên làm việc.
+    * `original_query`: Câu hỏi gốc của người dùng.
+    * `processing_time_ms`: Thời gian xử lý để đưa ra câu trả lời.
+    * `response_quality_score`: Điểm chất lượng của câu trả lời.
+
+---
+
+### ## 5. `vietnamese_text_analysis`
+Bảng này được thiết kế đặc biệt để lưu kết quả phân tích sâu về văn bản tiếng Việt.
+* **Chức năng chính**: Hỗ trợ xử lý ngôn ngữ tự nhiên (NLP) cho tiếng Việt, như tách từ, gắn thẻ từ loại, nhận diện danh từ riêng...
+* **Các cột đáng chú ý**:
+    * `document_id`, `chunk_id`: Liên kết đến tài liệu/đoạn văn bản được phân tích.
+    * `word_segmentation`, `pos_tagging`: Lưu kết quả tách từ và gắn thẻ từ loại dưới dạng `JSONB`.
+    * `technical_terms`, `proper_nouns`: Lưu các mảng (array) chứa thuật ngữ kỹ thuật hoặc danh từ riêng.
+
+Tóm lại, 5 bảng này cùng nhau tạo nên một kiến trúc cơ sở dữ liệu hoàn chỉnh để xây dựng và quản lý một hệ thống hỏi đáp thông minh (chatbot/RAG) có hỗ trợ chuyên sâu cho tiếng Việt.
+---
 ### ## 📂 File `docker-compose.yml`
 
 Nhìn chung, file này được cấu hình tốt, rõ ràng và tuân thủ các thực tiễn tốt nhất.
