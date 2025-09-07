@@ -1,0 +1,1 @@
+PS C:\undertest\FR-02.2\knowledge-assistant-api> venv\Scripts\activate
