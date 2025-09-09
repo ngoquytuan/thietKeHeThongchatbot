@@ -3,3 +3,4 @@
 - Danh sách các phần mềm, farmework như python, nextjs, docker thực sự đã sử dụng trong dự án
 - Lập sơ đồ theo khối chức năng FR
 - FR1 dùng framework gì?
+- Lập lại checklist fr theo tài liệu handover đã có.
