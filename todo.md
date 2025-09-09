@@ -1,0 +1,2 @@
+- Viết lại đặc tả phần mềm theo thực tế các phần đã triển khai
+- Viết lại FR trùng khớp với thực tế
