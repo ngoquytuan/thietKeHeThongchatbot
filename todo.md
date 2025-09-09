@@ -1,2 +1,5 @@
 - Viết lại đặc tả phần mềm theo thực tế các phần đã triển khai
 - Viết lại FR trùng khớp với thực tế
+- Danh sách các phần mềm, farmework như python, nextjs, docker thực sự đã sử dụng trong dự án
+- Lập sơ đồ theo khối chức năng FR
+- FR1 dùng framework gì?
