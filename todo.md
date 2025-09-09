@@ -4,3 +4,4 @@
 - Lập sơ đồ theo khối chức năng FR
 - FR1 dùng framework gì?
 - Lập lại checklist fr theo tài liệu handover đã có.
+- Nếu tất cả các module cùng triển khai trên một máy tính ubuntu thì sẽ như thế nào?
