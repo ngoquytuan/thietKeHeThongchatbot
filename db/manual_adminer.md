@@ -810,6 +810,91 @@ graph TD
     K --> F
 ```
 
+---
+Hay, mình giải thích ngắn gọn nhé.
+
+---
+
+## 🧩 **Conceptual Design – ERD**
+
+* **Conceptual Design**: Là bước **thiết kế khái niệm** trong quá trình xây database.
+  → Bạn chưa cần nghĩ đến bảng, cột, index cụ thể, chỉ cần mô hình hóa dữ liệu ở mức khái niệm (cái gì liên quan đến cái gì).
+
+* **ERD (Entity-Relationship Diagram)**: Là sơ đồ mô tả **các thực thể (entity)** và **mối quan hệ (relationship)** giữa chúng.
+
+Ví dụ: hệ thống bán hàng
+
+* **Entity** (thực thể): `Customer`, `Order`, `Product`
+* **Attributes** (thuộc tính):
+
+  * Customer: `customer_id`, `name`, `email`
+  * Order: `order_id`, `date`, `total_price`
+  * Product: `product_id`, `name`, `price`
+* **Relationships** (quan hệ):
+
+  * Một `Customer` có thể có nhiều `Order` (1\:N)
+  * Một `Order` có thể chứa nhiều `Product`, và một `Product` có thể nằm trong nhiều `Order` (N\:M)
+
+---
+
+## 🔎 Hình dung
+
+ERD giống như **bản vẽ kiến trúc sơ bộ** cho database.
+
+* Chưa có chi tiết kỹ thuật.
+* Dùng để trao đổi giữa **business analyst ↔ developer**.
+* Sau này sẽ được chuyển thành **Logical Design (Schema)**, tức là bảng/cột cụ thể trong SQL.
+
+---
+
+👉 Nói ngắn gọn: **Conceptual Design – ERD** = bản vẽ sơ đồ dữ liệu ở mức ý tưởng, mô tả **cái gì** cần lưu, và **chúng liên hệ với nhau thế nào**, chứ chưa đi sâu vào database cụ thể.
+
+---
+
+Bạn có muốn mình vẽ thử một sơ đồ ERD đơn giản bằng mermaid cho ví dụ `Customer – Order – Product` không?
+Ok, mình sẽ vẽ ERD bằng **Mermaid** cho ví dụ `Customer – Order – Product`.
+
+```mermaid
+erDiagram
+    CUSTOMER {
+        int customer_id PK
+        string name
+        string email
+    }
+
+    ORDER {
+        int order_id PK
+        date order_date
+        float total_price
+        int customer_id FK
+    }
+
+    PRODUCT {
+        int product_id PK
+        string name
+        float price
+    }
+
+    ORDER ||--o{ CUSTOMER : "belongs to"
+    CUSTOMER ||--o{ ORDER : "places"
+    ORDER ||--o{ PRODUCT : "contains"
+    PRODUCT ||--o{ ORDER : "included in"
+```
+
+---
+
+## 📝 Giải thích
+
+* **CUSTOMER – ORDER**: 1 khách hàng có nhiều đơn hàng (1\:N).
+* **ORDER – PRODUCT**: 1 đơn hàng có nhiều sản phẩm, và 1 sản phẩm có thể nằm trong nhiều đơn hàng (N\:M).
+
+(Thực tế N\:M sẽ cần bảng trung gian `Order_Detail` để lưu số lượng, giá tại thời điểm mua.)
+
+---
+
+Bạn có muốn mình bổ sung thêm bảng **Order\_Detail** để thể hiện rõ mối quan hệ N\:M không?
+
+---
 ### **Phase 2: Continuous Evolution**
 Đúng vậy! Database sẽ **outdated** khi:
 - **New Features** cần thêm tables/columns
