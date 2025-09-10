@@ -1217,6 +1217,172 @@ INSERT INTO schema_migrations VALUES
 ('20250101_001', NOW(), 'ALTER TABLE...', 'Add user profiles');
 ```
 
+---
+Ok, mình giải thích chỗ này cho dễ hiểu nhé:
+
+---
+
+### **Schema version tracking là gì?**
+
+Khi database thay đổi (thêm bảng, thêm cột, tạo index…), bạn cần **ghi lại** để biết:
+
+* Đã áp dụng thay đổi nào.
+* Áp dụng khi nào.
+* Có thể rollback không.
+
+Giống như **lịch sử phiên bản** (version history) của database, tương tự như Git đối với code.
+
+---
+
+### **Ý nghĩa đoạn SQL:**
+
+```sql
+CREATE TABLE schema_migrations (
+    version VARCHAR(50) PRIMARY KEY,   -- Mã phiên bản (vd: 20250101_001)
+    applied_at TIMESTAMP DEFAULT NOW(),-- Ngày giờ chạy migration
+    rollback_sql TEXT,                 -- Lưu câu lệnh để rollback nếu lỗi
+    description TEXT                   -- Mô tả ngắn gọn thay đổi
+);
+```
+
+* `version`: mỗi thay đổi được đánh số riêng, ví dụ `20250101_001` (ngày + số thứ tự).
+* `applied_at`: hệ thống tự ghi lại thời điểm áp dụng thay đổi.
+* `rollback_sql`: nếu migration lỗi, bạn có thể chạy ngược lại lệnh trong cột này để khôi phục.
+* `description`: mô tả ngắn, giúp team nhớ thay đổi là gì.
+
+---
+
+### **Ví dụ sử dụng**
+
+```sql
+INSERT INTO schema_migrations VALUES 
+('20250101_001', NOW(), 'ALTER TABLE users DROP COLUMN profile_data;', 'Add user profiles');
+```
+
+Nghĩa là:
+
+* Vào ngày 2025-01-01, migration `001` được chạy.
+* Thay đổi: **thêm user profiles**.
+* Nếu cần rollback thì chạy lệnh trong `rollback_sql` (ở đây là `ALTER TABLE users DROP COLUMN profile_data;`).
+
+---
+
+👉 Lợi ích:
+
+* Team biết chính xác database đang ở phiên bản nào.
+* Khi deploy nhiều server/database, đảm bảo tất cả đều đồng bộ.
+* Có thể rollback an toàn nếu lỗi.
+
+---
+
+Bạn có muốn mình làm một ví dụ **chu trình migration đầy đủ** (tạo bảng mới → lưu version → rollback nếu cần) để bạn thấy nó chạy như thế nào không?
+
+Rồi 👍 mình sẽ làm ví dụ **chu trình migration đầy đủ** để bạn thấy rõ luồng hoạt động:
+
+---
+
+## 🏗️ **Kịch bản**
+
+* Bạn muốn thêm bảng `user_profiles` vào database.
+* Bạn sẽ viết 2 script:
+
+  * **Up migration** (áp dụng thay đổi).
+  * **Down migration** (rollback nếu có lỗi).
+* Sau đó lưu lại vào bảng `schema_migrations`.
+
+---
+
+### **Bước 1: Tạo bảng quản lý version (chạy 1 lần duy nhất)**
+
+```sql
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version VARCHAR(50) PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT NOW(),
+    rollback_sql TEXT,
+    description TEXT
+);
+```
+
+---
+
+### **Bước 2: Up Migration (thêm bảng mới)**
+
+```sql
+-- Tạo bảng user_profiles
+CREATE TABLE user_profiles (
+    profile_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    bio TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Lưu version vào schema_migrations
+INSERT INTO schema_migrations (version, rollback_sql, description)
+VALUES (
+    '20250911_001', 
+    'DROP TABLE user_profiles;', 
+    'Create user_profiles table'
+);
+```
+
+👉 Ở đây:
+
+* `20250911_001` = ngày (2025-09-11) + số thứ tự (001).
+* `rollback_sql` = lệnh để xóa bảng nếu muốn quay lại.
+* `description` = mô tả ngắn.
+
+---
+
+### **Bước 3: Kiểm tra**
+
+```sql
+SELECT * FROM schema_migrations;
+```
+
+Kết quả (ví dụ):
+
+| version       | applied\_at         | rollback\_sql              | description                 |
+| ------------- | ------------------- | -------------------------- | --------------------------- |
+| 20250911\_001 | 2025-09-11 10:00:00 | DROP TABLE user\_profiles; | Create user\_profiles table |
+
+---
+
+### **Bước 4: Rollback (nếu cần)**
+
+Nếu deploy lỗi hoặc muốn quay lại:
+
+```sql
+-- Lấy rollback_sql từ bảng schema_migrations
+SELECT rollback_sql FROM schema_migrations 
+WHERE version = '20250911_001';
+
+-- Chạy rollback
+DROP TABLE user_profiles;
+
+-- Xóa version khỏi schema_migrations
+DELETE FROM schema_migrations 
+WHERE version = '20250911_001';
+```
+
+---
+
+## 🔄 Chu trình tổng quát
+
+1. **Viết migration mới** (có up + rollback).
+2. **Chạy up migration** → thay đổi DB + ghi version.
+3. Nếu lỗi → chạy rollback theo rollback\_sql, xóa version.
+4. Nếu ok → migration được giữ lại như lịch sử.
+
+---
+
+👉 Đây chính là cách mà các tool như **Flyway, Alembic, Liquibase** làm, chỉ khác là họ tự động hóa bước ghi version + rollback.
+
+---
+
+Bạn có muốn mình viết thêm 1 ví dụ **nâng cấp bảng có dữ liệu (ALTER TABLE)** để thấy cách rollback phức tạp hơn không?
+
+---
 ### **2. Backward Compatibility Rules**
 ```python
 # ✅ SAFE Changes (No downtime)
