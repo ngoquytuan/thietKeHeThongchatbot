@@ -895,6 +895,130 @@ erDiagram
 Bạn có muốn mình bổ sung thêm bảng **Order\_Detail** để thể hiện rõ mối quan hệ N\:M không?
 
 ---
+Bạn hiểu đúng hướng rồi 👍 nhưng mình chỉnh lại chi tiết cho rõ hơn nhé.
+
+---
+
+## 1. Quan hệ trong ERD là gì?
+
+Trong **ERD (Entity Relationship Diagram)**, các đường nối chính là để biểu thị **mối quan hệ giữa các thực thể (entity)**. Khi đưa vào database, chúng trở thành **quan hệ giữa các bảng** (qua khóa chính – khóa ngoại).
+
+---
+
+## 2. Các kiểu quan hệ chính
+
+Có 3 loại quan hệ cơ bản:
+
+1. **One-to-One (1:1)**
+
+   * Ví dụ: Mỗi `Person` chỉ có một `Passport`.
+   * Biểu diễn: `PERSON ||--|| PASSPORT`
+
+2. **One-to-Many (1\:N)**
+
+   * Ví dụ: Một `Customer` có thể tạo nhiều `Order`.
+   * Biểu diễn: `CUSTOMER ||--o{ ORDER`
+   * Ý nghĩa: Một khách hàng có nhiều đơn hàng, nhưng một đơn hàng chỉ thuộc về **một** khách hàng.
+
+3. **Many-to-Many (M\:N)**
+
+   * Ví dụ: Một `Order` có nhiều `Product`, và một `Product` có thể nằm trong nhiều `Order`.
+   * Biểu diễn: `ORDER }o--o{ PRODUCT`
+   * Thực tế trong database phải dùng **bảng trung gian** (ví dụ `Order_Detail`) để thể hiện.
+
+---
+
+## 3. Giải thích quan hệ trong sơ đồ bạn thấy
+
+```mermaid
+erDiagram
+    ORDER ||--o{ CUSTOMER : "belongs to"
+    CUSTOMER ||--o{ ORDER : "places"
+```
+
+* `CUSTOMER ||--o{ ORDER : "places"`
+  → Một customer có thể “places” (tạo) nhiều order.
+
+* `ORDER ||--o{ CUSTOMER : "belongs to"`
+  → Một order chỉ “belongs to” (thuộc về) **một** customer.
+
+⚠️ Không phải order thuộc về nhiều customer nhé. Chỉ có **ngược lại**: nhiều order thuộc về 1 customer.
+
+---
+
+✅ Tóm gọn: Trong ví dụ của bạn:
+
+* **Customer ↔ Order** = 1\:N
+* **Order ↔ Product** = N\:M (cần bảng trung gian)
+
+---
+
+Bạn có muốn mình vẽ lại sơ đồ ERD hoàn chỉnh (thêm `Order_Detail` để rõ quan hệ N\:M giữa `Order` và `Product`) không?
+
+---
+Ok, mình sẽ vẽ lại sơ đồ ERD đầy đủ, thêm bảng **Order\_Detail** để thể hiện rõ mối quan hệ **N\:M** giữa `Order` và `Product`.
+
+```mermaid
+erDiagram
+    CUSTOMER {
+        int customer_id PK
+        string name
+        string email
+    }
+
+    ORDER {
+        int order_id PK
+        date order_date
+        float total_price
+        int customer_id FK
+    }
+
+    PRODUCT {
+        int product_id PK
+        string name
+        float price
+    }
+
+    ORDER_DETAIL {
+        int order_id FK
+        int product_id FK
+        int quantity
+        float unit_price
+    }
+
+    CUSTOMER ||--o{ ORDER : "places"
+    ORDER ||--o{ CUSTOMER : "belongs to"
+
+    ORDER ||--o{ ORDER_DETAIL : "has"
+    PRODUCT ||--o{ ORDER_DETAIL : "included in"
+
+    ORDER_DETAIL }o--|| ORDER : "refers to"
+    ORDER_DETAIL }o--|| PRODUCT : "refers to"
+```
+
+---
+
+## 📝 Giải thích:
+
+* **CUSTOMER – ORDER (1\:N)**
+
+  * Một khách hàng có thể có nhiều đơn hàng.
+  * Một đơn hàng chỉ thuộc về một khách hàng.
+
+* **ORDER – PRODUCT (N\:M)**
+
+  * Thực hiện thông qua **ORDER\_DETAIL**.
+  * `ORDER_DETAIL` lưu **số lượng** và **giá sản phẩm tại thời điểm mua**.
+
+* **ORDER\_DETAIL** chính là **bảng trung gian** để giải quyết quan hệ N\:M.
+
+---
+
+👉 Đây là mô hình **chuẩn hóa** và thường gặp trong các hệ thống bán hàng/thương mại điện tử.
+
+Bạn có muốn mình viết luôn **các lệnh SQL CREATE TABLE** tương ứng với sơ đồ ERD này để dễ hình dung hơn không?
+
+---
 ### **Phase 2: Continuous Evolution**
 Đúng vậy! Database sẽ **outdated** khi:
 - **New Features** cần thêm tables/columns
