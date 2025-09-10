@@ -1383,6 +1383,102 @@ WHERE version = '20250911_001';
 Bạn có muốn mình viết thêm 1 ví dụ **nâng cấp bảng có dữ liệu (ALTER TABLE)** để thấy cách rollback phức tạp hơn không?
 
 ---
+Ok, mình hiểu tình huống của bạn 👍. Đây là case rất thực tế: đang chạy app với **table1**, sau đó phát hiện cần **table2** có cấu trúc gần giống (5 trường y hệt + thêm 2 trường mới).
+
+---
+
+## 🏗️ Cách xử lý chuẩn công nghiệp
+
+### 1. Không sửa trực tiếp database production
+
+* Không vào DB gõ `CREATE TABLE` hoặc `ALTER TABLE` trực tiếp.
+* Luôn viết **migration script** → dễ quản lý version, rollback, CI/CD.
+
+---
+
+### 2. Viết migration cho **table2**
+
+Ví dụ table1 có 5 trường:
+
+```sql
+CREATE TABLE table1 (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100),
+    email VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    status VARCHAR(50)
+);
+```
+
+Giờ cần thêm `table2` có 7 trường (5 giống + 2 mới):
+
+```sql
+-- Migration Up
+CREATE TABLE table2 (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100),
+    email VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    status VARCHAR(50),
+    phone VARCHAR(20),              -- Trường mới
+    address TEXT                    -- Trường mới
+);
+
+-- Ghi lại version vào schema_migrations
+INSERT INTO schema_migrations (version, rollback_sql, description)
+VALUES (
+    '20250911_002',
+    'DROP TABLE table2;',
+    'Create table2 with 2 extra fields'
+);
+```
+
+---
+
+### 3. Nếu phát hiện lỗi → rollback
+
+```sql
+-- Rollback (Down migration)
+DROP TABLE table2;
+
+DELETE FROM schema_migrations 
+WHERE version = '20250911_002';
+```
+
+---
+
+### 4. Câu hỏi quan trọng trong chuẩn công nghiệp
+
+* **table1 có dữ liệu không?**
+
+  * Nếu dữ liệu ở table1 cần dùng cho table2 → cần **data migration script** (copy dữ liệu từ table1 → table2, thêm giá trị mặc định cho 2 cột mới).
+  * Nếu table2 là bảng hoàn toàn mới → chỉ cần tạo bảng, không ảnh hưởng table1.
+
+---
+
+### 5. Nếu muốn chuyển hẳn sang table2 (thay thế table1)
+
+Trong chuẩn công nghiệp sẽ đi theo các bước an toàn:
+
+1. **Tạo table2** (song song với table1).
+2. **Dual write**: app vừa ghi vào table1 vừa ghi vào table2 (hoặc copy dữ liệu batch).
+3. **So sánh dữ liệu**: đảm bảo table2 hoạt động đúng.
+4. **Cutover**: chuyển app chỉ dùng table2.
+5. (Tùy chọn) **Drop table1** khi chắc chắn không cần nữa.
+
+---
+
+## 🔑 Tóm lại
+
+* **Cách xử lý chuẩn công nghiệp**: viết migration script để tạo table2, có rollback, lưu vào schema\_migrations.
+* Nếu cần thay thế table1 → dùng chiến lược **song song + dual write + cutover** để tránh downtime và mất dữ liệu.
+* Không bao giờ “chỉnh tay” trực tiếp trên DB production.
+
+---
+
+👉 Bạn có muốn mình viết thêm ví dụ **migration có data copy từ table1 → table2** để thấy kịch bản phức tạp hơn (trong trường hợp bạn muốn giữ dữ liệu cũ) không?
+
+---
 ### **2. Backward Compatibility Rules**
 ```python
 # ✅ SAFE Changes (No downtime)
