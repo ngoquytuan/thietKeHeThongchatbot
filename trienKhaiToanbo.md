@@ -1,3 +1,120 @@
+Bạn hoàn toàn đúng! Luồng tích hợp theo dependencies thực tế sẽ hợp lý hơn nhiều. Tôi sẽ sửa lại kế hoạch theo flow này:
+
+# 📋 **KẾ HOẠCH TÍCH HỢP & TRIỂN KHAI HỆ THỐNG RAG - THEO LUỒNG DEPENDENCIES**
+
+## **Bước 1: Kiểm tra và Chuẩn bị Môi trường**
+**Lý do**: Đảm bảo môi trường Ubuntu có đầy đủ dependencies cần thiết
+- Kiểm tra Docker, Python 3.10.11, GPU, Vietnamese NLP libraries
+- Setup project structure và environment variables
+- **Điều kiện chuyển bước**: Environment sẵn sàng cho tất cả modules
+
+## **Bước 2: Tích hợp FR-03.1 → FR-03.2**
+**Lý do**: FR-03.1 đã 98% hoàn thành, cần tích hợp với FR-03.2 để có quality control pipeline
+- Deploy FR-03.1 Document Processing module
+- Deploy FR-03.2 Quality Control module  
+- Test integration giữa 2 modules
+- Verify export packages tương thích
+- **Điều kiện chuyển bước**: FR-03.1/FR-03.2 tạo ra export.zip chất lượng
+
+## **Bước 3: Export.zip → FR-03.3 Data Ingestion**
+**Lý do**: FR-03.3 đã implement xong và chờ input từ export.zip
+- Deploy FR-03.3 Data Ingestion Pipeline
+- Configure để nhận input từ export.zip của FR-03.1/FR-03.2
+- Test database ingestion pipeline
+- Verify Vietnamese text processing và embedding generation
+- **Điều kiện chuyển bước**: FR-03.3 successfully ingest data từ export.zip
+
+## **Bước 4: FR-03.3 → FR-02.1 Database Integration**
+**Lý do**: FR-02.1 dual database system đã complete, cần data từ FR-03.3
+- Deploy FR-02.1 dual database system (PostgreSQL + ChromaDB + Redis)
+- Configure FR-03.3 để output vào FR-02.1 databases
+- Migrate và sync data từ FR-03.3 sang FR-02.1
+- Verify database schema và data consistency
+- **Điều kiện chuyển bước**: Data flow từ FR-03.3 vào FR-02.1 hoạt động ổn định
+
+## **Bước 5: FR-02.1 → FR-02.2 API Layer**
+**Lý do**: FR-02.2 API đã implementation complete, cần dữ liệu từ FR-02.1
+- Deploy FR-02.2 API management layer
+- Connect với databases từ FR-02.1
+- Test end-to-end data access via APIs
+- Verify analytics và search features
+- **Điều kiện chuyển bước**: FR-02.2 APIs serve data từ FR-02.1 successfully
+
+## **Bước 6: Triển khai FR-04.1 Retrieval Engine**
+**Lý do**: Cần search capabilities sử dụng data từ database layer
+- Deploy FR-04.1 Retrieval Engine
+- Connect với FR-02.1 databases qua FR-02.2 APIs
+- Test semantic search, keyword search, hybrid ranking
+- Verify Vietnamese query processing
+- **Điều kiện chuyển bước**: Search functions hoạt động với real data
+
+## **Bước 7: Triển khai FR-04.2 Synthesis Engine**
+**Lý do**: Cần tổng hợp context từ search results của FR-04.1
+- Deploy FR-04.2 Synthesis Engine
+- Connect với FR-04.1 Retrieval Engine
+- Test context retrieval và prompt assembly
+- Verify context quality và template management
+- **Điều kiện chuyển bước**: Synthesis tạo ra quality context từ search results
+
+## **Bước 8: Triển khai FR-04.3 Generation Engine**
+**Lý do**: Module cuối của RAG pipeline, cần context từ FR-04.2
+- Deploy FR-04.3 Generation Engine với LLM providers
+- Connect với FR-04.2 Synthesis Engine
+- Test generation với synthesized context
+- Verify Vietnamese generation quality và multiple LLM support
+- **Điều kiện chuyển bước**: Complete RAG pipeline từ query đến answer
+
+## **Bước 9: Triển khai FR-06 Authentication & Security**
+**Lý do**: Secure system trước khi deploy user interfaces
+- Deploy authentication system
+- Implement security layer cho all APIs
+- Test role-based access control
+- Setup API security và rate limiting
+- **Điều kiện chuyển bước**: Security layer protect all backend services
+
+## **Bước 10: Triển khai FR-05 User Interface**
+**Lý do**: Deploy user-facing interface sau khi backend và security ready
+- Deploy Streamlit interface
+- Connect với secured backend APIs
+- Test complete user workflows
+- Verify user experience và functionality
+- **Điều kiện chuyển bước**: Users có thể sử dụng hệ thống an toàn
+
+## **Bước 11: Triển khai FR-07 Analytics & Monitoring**
+**Lý do**: Monitor system health và performance của integrated system
+- Deploy Prometheus, Grafana, logging systems
+- Setup metrics collection từ all modules
+- Test monitoring dashboards và alerting
+- Verify performance tracking
+- **Điều kiện chuyển bước**: Comprehensive monitoring cho toàn hệ thống
+
+## **Bước 12: Triển khai FR-08 Administration Tools**
+**Lý do**: Admin tools để manage integrated system
+- Deploy admin dashboard và management tools
+- Test system administration functions
+- Setup maintenance procedures
+- Verify bulk operations và system control
+- **Điều kiện chuyển bước**: Admins có thể quản lý toàn hệ thống
+
+## **Bước 13: End-to-End Integration Testing**
+**Lý do**: Validate toàn bộ data flow từ document input đến user response
+- Test complete workflow: Document → Processing → Storage → Search → Generation → UI
+- Test multi-user scenarios, concurrent access, error handling
+- Verify data consistency across all modules
+- Performance testing under realistic load
+- **Điều kiện chuyển bước**: System passes all integration tests
+
+## **Bước 14: Production Optimization và Final Validation**
+**Lý do**: Optimize và validate system cho production deployment
+- Performance tuning, resource optimization
+- Security audit, backup/recovery testing  
+- Load testing với production-like data volumes
+- Final system validation và sign-off
+- **Kết thúc**: Hệ thống RAG production-ready
+
+---
+
+**Nguyên tắc**: Follow dependency chain - module upstream phải stable trước khi integrate downstream module. Mỗi integration point phải validate kỹ trước khi tiếp tục.
 # 📋 **KẾ HOẠCH TÍCH HỢP & TRIỂN KHAI HỆ THỐNG RAG - TỪNG BƯỚC**
 
 ## **Bước 1: Kiểm tra và Chuẩn bị Môi trường**
