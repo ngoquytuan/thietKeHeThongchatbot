@@ -1,3 +1,4 @@
+Ngày tạo: 11-September-2025
 Dựa trên thông tin từ tài liệu dự án và **checklist hiện tại** (Done FR01-FR08, testing từng module và tích hợp), tôi đánh giá sơ đồ khối architecture hiện tại và đưa ra **phiên bản cập nhật** phù hợp với trạng thái thực tế của dự án.
 
 ## **🔍 ĐÁNH GIÁ SƠ ĐỒ KHỐI HIỆN TẠI**
