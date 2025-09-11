@@ -1,0 +1,474 @@
+---
+Ngày tạo 11-September-2025
+
+---
+Tôi sẽ đánh giá lại các sơ đồ trong tài liệu FR-01.2 để xem nội dung nào đã lạc hậu hoặc cần cập nhật.Dựa trên thông tin từ project knowledge, tôi thấy một số sơ đồ trong tài liệu FR-01.2 đã lạc hậu và cần cập nhật để phản ánh đúng trạng thái hiện tại của dự án. Sau đây là các sơ đồ cần được viết lại:
+
+## 1. SƠ ĐỒ WORKFLOW IMPLEMENTATION CHUẨN HÓA
+
+```mermaid
+graph TD
+    Start([🚀 Start Implementation]) --> EnvSetup[💻 Setup Development Environment]
+    
+    EnvSetup --> EnvCheck{Environment Ready?}
+    EnvCheck -->|No| FixEnv[🔧 Fix Environment Issues]
+    FixEnv --> EnvCheck
+    EnvCheck -->|Yes| IntegrationCheck[🔄 Check Integration Status]
+    
+    IntegrationCheck --> FR02Status{FR-02 Status?}
+    FR02Status -->|✅ Complete| FR03Status{FR-03 Status?}
+    FR02Status -->|❌ Incomplete| WaitFR02[⏳ Wait for FR-02 Completion]
+    WaitFR02 --> FR02Status
+    
+    FR03Status -->|✅ Complete| SchemaDesign[📊 Update Database Schema for Integration]
+    FR03Status -->|❌ Incomplete| WaitFR03[⏳ Wait for FR-03 Completion]
+    WaitFR03 --> FR03Status
+    
+    SchemaDesign --> SchemaReview[👥 Schema Review & Approval]
+    SchemaReview --> SchemaApproved{Schema Approved?}
+    SchemaApproved -->|No| SchemaRevision[📝 Revise Schema for Vietnamese Support]
+    SchemaRevision --> SchemaReview
+    
+    SchemaApproved -->|Yes| CreateDB[🗄️ Create Enhanced Database Schema]
+    
+    CreateDB --> DBCreated{DB Creation Success?}
+    DBCreated -->|No| DebugDB[🔍 Debug Database Issues]
+    DebugDB --> CreateDB
+    
+    DBCreated -->|Yes| CreateIndexes[📇 Create Vietnamese-Optimized Indexes]
+    
+    CreateIndexes --> IndexSuccess{Indexes Created?}
+    IndexSuccess -->|No| FixIndexes[🔧 Fix Index Issues]
+    FixIndexes --> CreateIndexes
+    
+    IndexSuccess -->|Yes| IntegrationData[🔗 Setup Integration Data Pipeline]
+    
+    IntegrationData --> DataValidation[✅ Validate Integration Structure]
+    
+    DataValidation --> ValidationPass{Validation Pass?}
+    ValidationPass -->|No| FixData[🔧 Fix Data Integration Issues]
+    FixData --> DataValidation
+    
+    ValidationPass -->|Yes| APIEndpoints[🌐 Create Enhanced API Endpoints]
+    
+    APIEndpoints --> APITest[🧪 Test API with FR-04 Integration]
+    
+    APITest --> APIWorking{APIs Working?}
+    APIWorking -->|No| DebugAPI[🔍 Debug API Integration Issues]
+    DebugAPI --> APIEndpoints
+    
+    APIWorking -->|Yes| Performance[⚡ Performance Testing with Real Data]
+    
+    Performance --> PerfGood{Performance OK?}
+    PerfGood -->|No| Optimization[🚀 Optimize for Vietnamese Processing]
+    Optimization --> Performance
+    
+    PerfGood -->|Yes| Documentation[📚 Update Documentation for Current Status]
+    
+    Documentation --> FinalReview[👥 Final Integration Review]
+    
+    FinalReview --> ReviewPass{Review Pass?}
+    ReviewPass -->|No| FinalFixes[🔧 Final Integration Fixes]
+    FinalFixes --> FinalReview
+    
+    ReviewPass -->|Yes| ProductionDeploy[🚀 Deploy to Production Environment]
+    
+    ProductionDeploy --> Complete([✅ FR-01.2 v2.0 Complete & Integrated])
+    
+    %% Rollback points với thông tin hiện tại
+    DebugDB -.->|Major Issues| Rollback1[↩️ Rollback to Integration Planning]
+    DebugAPI -.->|Architecture Issues| Rollback2[↩️ Rollback to Schema Design]
+    FinalFixes -.->|Critical Issues| Rollback3[↩️ Rollback to API Development]
+    
+    Rollback1 --> IntegrationCheck
+    Rollback2 --> SchemaDesign
+    Rollback3 --> APIEndpoints
+    
+    %% Styling
+    classDef startEnd fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    classDef process fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef problem fill:#ffebee,stroke:#f44336,stroke-width:2px
+    classDef rollback fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    classDef integration fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    
+    class Start,Complete startEnd
+    class EnvSetup,SchemaDesign,CreateDB,CreateIndexes,IntegrationData,DataValidation,APIEndpoints,Performance,Documentation,FinalReview,ProductionDeploy process
+    class EnvCheck,FR02Status,FR03Status,SchemaApproved,DBCreated,IndexSuccess,ValidationPass,APIWorking,PerfGood,ReviewPass decision
+    class FixEnv,SchemaRevision,DebugDB,FixIndexes,FixData,DebugAPI,Optimization,FinalFixes problem
+    class Rollback1,Rollback2,Rollback3 rollback
+    class IntegrationCheck,WaitFR02,WaitFR03 integration
+```
+
+## 2. SƠ ĐỒ DATABASE SCHEMA HIỆN TẠI (CẬP NHẬT)
+
+```mermaid
+erDiagram
+    documents_metadata_v2 {
+        uuid id PK
+        varchar title
+        text content
+        varchar source
+        varchar document_type
+        varchar author
+        varchar access_level
+        text_array tags
+        jsonb metadata
+        varchar status
+        timestamp created_at
+        timestamp updated_at
+        integer quality_score
+        boolean quality_passed
+        jsonb quality_details
+        vector embedding_vector
+        varchar language
+        integer chunk_count
+        boolean vietnamese_processed
+    }
+    
+    document_chunks {
+        serial id PK
+        integer document_id FK
+        integer chunk_index
+        text content
+        vector embedding_vector
+        timestamp created_at
+        jsonb vietnamese_metadata
+        float quality_score
+    }
+    
+    data_ingestion_jobs {
+        uuid job_id PK
+        uuid document_id FK
+        varchar source_file
+        varchar status
+        varchar current_stage
+        integer total_chunks
+        integer processed_chunks
+        integer failed_chunks
+        timestamp created_at
+        timestamp started_at
+        timestamp completed_at
+        text error_message
+        jsonb processing_metadata
+        integer quality_score
+        boolean quality_passed
+        jsonb quality_details
+        integer processing_duration_ms
+        jsonb stage_durations
+    }
+    
+    chunk_processing_logs {
+        uuid log_id PK
+        uuid job_id FK
+        varchar chunk_id
+        text chunk_text
+        integer token_count
+        integer chunk_position
+        varchar stage
+        varchar status
+        timestamp started_at
+        timestamp completed_at
+        integer processing_duration_ms
+        jsonb embedding_vector
+        jsonb storage_ids
+        text error_message
+        integer retry_count
+    }
+    
+    search_analytics {
+        serial id PK
+        varchar search_id
+        varchar user_id
+        text query
+        text processed_query
+        varchar strategy
+        jsonb filters
+        integer total_results
+        integer search_time_ms
+        varchar intent
+        varchar language
+        float confidence
+        timestamp created_at
+    }
+    
+    user_activity_summary {
+        uuid user_id PK
+        integer total_queries
+        integer avg_session_duration_ms
+        timestamp last_active
+        varchar user_level
+    }
+    
+    document_usage_stats {
+        uuid document_id PK
+        integer access_count
+        timestamp last_accessed
+        varchar most_frequent_user_level
+    }
+    
+    report_generation {
+        serial report_id PK
+        varchar report_type
+        timestamp generated_at
+        varchar file_path
+        uuid user_id FK
+    }
+    
+    documents_metadata_v2 ||--o{ document_chunks : "has chunks"
+    documents_metadata_v2 ||--o{ data_ingestion_jobs : "processed by"
+    data_ingestion_jobs ||--o{ chunk_processing_logs : "contains logs"
+    documents_metadata_v2 ||--o{ document_usage_stats : "usage tracked"
+    documents_metadata_v2 ||--o{ search_analytics : "searched"
+    user_activity_summary ||--o{ search_analytics : "user searches"
+    user_activity_summary ||--o{ report_generation : "generates reports"
+```
+
+## 3. SƠ ĐỒ TÍCH HỢP HỆ THỐNG HIỆN TẠI
+
+```mermaid
+graph TB
+    subgraph "FR-01.2 v2.0 Enhanced Database System"
+        DB1[(PostgreSQL<br/>Metadata Storage)]
+        DB2[(ChromaDB<br/>Vector Storage)]
+        API1[Enhanced Metadata API]
+    end
+    
+    subgraph "FR-02.2 Database Management (COMPLETED)"
+        DBMgr[Database Manager]
+        Cache[(Redis Cache)]
+        Monitor[Health Monitor]
+    end
+    
+    subgraph "FR-03.1 Document Processing (COMPLETED)"
+        DocProc[Document Processor]
+        Extract[Text Extraction]
+        Validate[Content Validation]
+    end
+    
+    subgraph "FR-03.2 Quality Control (COMPLETED)"
+        Quality[Quality Assessment]
+        Duplicate[Duplicate Detection]
+        Score[Scoring Engine]
+    end
+    
+    subgraph "FR-03.3 Data Ingestion (COMPLETED)"
+        Pipeline[Ingestion Pipeline]
+        Chunk[Vietnamese Chunking]
+        Embed[Embedding Service]
+        Storage[Dual Storage Manager]
+    end
+    
+    subgraph "FR-04.1 RAG Core (COMPLETED)"
+        RAG[RAG Engine]
+        Search[Hybrid Search]
+        Rank[Result Ranking]
+        Suggest[Query Suggestions]
+    end
+    
+    subgraph "FR-07 Analytics (IN PROGRESS)"
+        Analytics[Analytics Engine]
+        Reports[Report Generator]
+        Dashboard[Admin Dashboard]
+    end
+    
+    %% Data Flow
+    DocProc --> Quality
+    Quality --> Pipeline
+    Pipeline --> Chunk
+    Chunk --> Embed
+    Embed --> Storage
+    Storage --> DB1
+    Storage --> DB2
+    
+    %% API Integration
+    API1 --> DBMgr
+    DBMgr --> Cache
+    DBMgr --> Monitor
+    
+    %% Search Integration
+    RAG --> Search
+    Search --> DB1
+    Search --> DB2
+    Search --> Rank
+    Rank --> Suggest
+    
+    %% Analytics Integration
+    Search --> Analytics
+    API1 --> Analytics
+    Analytics --> Reports
+    Reports --> Dashboard
+    
+    %% Monitoring
+    Monitor --> DB1
+    Monitor --> DB2
+    Monitor --> Cache
+    
+    classDef completed fill:#d4edda,stroke:#155724,stroke-width:3px
+    classDef inProgress fill:#fff3cd,stroke:#856404,stroke-width:3px
+    classDef database fill:#cce5ff,stroke:#004085,stroke-width:2px
+    classDef api fill:#f8d7da,stroke:#721c24,stroke-width:2px
+    
+    class DocProc,Extract,Validate,Quality,Duplicate,Score,Pipeline,Chunk,Embed,Storage,DBMgr,Cache,Monitor,RAG,Search,Rank,Suggest completed
+    class Analytics,Reports,Dashboard inProgress
+    class DB1,DB2 database
+    class API1 api
+```
+
+## 4. SƠ ĐỒ PHÂN QUYỀN VÀ BẢO MẬT NÂNG CAO
+
+```mermaid
+graph TD
+    User[User Authentication] --> AuthCheck{Authentication Valid?}
+    AuthCheck -->|No| Reject[❌ Access Denied]
+    AuthCheck -->|Yes| RoleCheck[Check User Role & Department]
+    
+    RoleCheck --> Permission{Permission Matrix}
+    
+    Permission -->|Guest| GuestAccess[🔍 Public Documents Only<br/>- Basic search<br/>- Limited analytics<br/>- No download]
+    Permission -->|Employee| EmployeeAccess[📋 Employee Level Access<br/>- Department documents<br/>- Full search<br/>- Basic analytics<br/>- Download allowed]
+    Permission -->|Manager| ManagerAccess[📊 Manager Level Access<br/>- Cross-department view<br/>- Advanced analytics<br/>- Report generation<br/>- User management]
+    Permission -->|Director| DirectorAccess[🎯 Director Level Access<br/>- All documents<br/>- Full analytics<br/>- Executive reports<br/>- System configuration]
+    Permission -->|System Admin| AdminAccess[⚙️ Full System Access<br/>- All documents<br/>- System monitoring<br/>- Database management<br/>- Security configuration]
+    
+    subgraph "Data Access Control"
+        DataFilter[Document Filtering<br/>Based on Access Level]
+        FieldMask[Field-Level Security<br/>Sensitive Data Masking]
+        AuditLog[📝 Comprehensive Audit Logging<br/>- All access attempts<br/>- Data modifications<br/>- Search queries<br/>- Vietnamese text processing]
+    end
+    
+    subgraph "Vietnamese Language Security"
+        VNProcess[Vietnamese Text Processing<br/>- Diacritic handling<br/>- Encoding validation<br/>- Content sanitization]
+        VNSearch[Vietnamese Search Security<br/>- Query sanitization<br/>- Result filtering<br/>- Language-specific validation]
+    end
+    
+    GuestAccess --> DataFilter
+    EmployeeAccess --> DataFilter
+    ManagerAccess --> DataFilter
+    DirectorAccess --> DataFilter
+    AdminAccess --> DataFilter
+    
+    DataFilter --> FieldMask
+    FieldMask --> VNProcess
+    VNProcess --> VNSearch
+    VNSearch --> AuditLog
+    
+    AuditLog --> Success[✅ Secure Access Granted]
+    
+    classDef userLevel fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef security fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef vietnamese fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef audit fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    
+    class GuestAccess,EmployeeAccess,ManagerAccess,DirectorAccess,AdminAccess userLevel
+    class DataFilter,FieldMask security
+    class VNProcess,VNSearch vietnamese
+    class AuditLog audit
+```
+
+## 5. SƠ ĐỒ KIẾN TRÚC PRODUCTION HIỆN TẠI
+
+```mermaid
+graph TB
+    subgraph "Load Balancer"
+        LB[Nginx Load Balancer<br/>SSL Termination]
+    end
+    
+    subgraph "Application Layer"
+        API1[FR-01.2 v2.0 API<br/>Instance 1]
+        API2[FR-01.2 v2.0 API<br/>Instance 2]
+        API3[FR-04.1 RAG API<br/>Search Engine]
+        API4[FR-07 Analytics API<br/>Reporting]
+    end
+    
+    subgraph "Processing Layer"
+        Worker1[FR-03.3 Processing<br/>Worker 1]
+        Worker2[FR-03.3 Processing<br/>Worker 2]
+        Queue[Redis Task Queue<br/>Vietnamese Processing]
+    end
+    
+    subgraph "Database Layer"
+        PG[(PostgreSQL Cluster<br/>Master + 2 Replicas<br/>Vietnamese Collation)]
+        Chroma[(ChromaDB Cluster<br/>Vector Storage<br/>Qwen Embeddings)]
+        Redis[(Redis Cluster<br/>Session + Cache)]
+    end
+    
+    subgraph "Monitoring & Security"
+        Monitor[Grafana + Prometheus<br/>Vietnamese Metrics]
+        Log[ELK Stack<br/>Vietnamese Log Analysis]
+        Backup[Automated Backups<br/>Point-in-time Recovery]
+    end
+    
+    %% Load Balancing
+    LB --> API1
+    LB --> API2
+    LB --> API3
+    LB --> API4
+    
+    %% Database Connections
+    API1 --> PG
+    API2 --> PG
+    API3 --> Chroma
+    API3 --> PG
+    API4 --> PG
+    
+    %% Processing Queue
+    API1 --> Queue
+    API2 --> Queue
+    Queue --> Worker1
+    Queue --> Worker2
+    Worker1 --> PG
+    Worker1 --> Chroma
+    Worker2 --> PG
+    Worker2 --> Chroma
+    
+    %% Cache Layer
+    API1 --> Redis
+    API2 --> Redis
+    API3 --> Redis
+    API4 --> Redis
+    
+    %% Monitoring
+    Monitor --> API1
+    Monitor --> API2
+    Monitor --> API3
+    Monitor --> API4
+    Monitor --> PG
+    Monitor --> Chroma
+    Monitor --> Redis
+    
+    Log --> API1
+    Log --> API2
+    Log --> Worker1
+    Log --> Worker2
+    
+    Backup --> PG
+    Backup --> Chroma
+    
+    classDef api fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    classDef database fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
+    classDef processing fill:#e8f5e8,stroke:#388e3c,stroke-width:3px
+    classDef monitoring fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    classDef loadbalancer fill:#ffebee,stroke:#d32f2f,stroke-width:3px
+    
+    class API1,API2,API3,API4 api
+    class PG,Chroma,Redis database
+    class Worker1,Worker2,Queue processing
+    class Monitor,Log,Backup monitoring
+    class LB loadbalancer
+```
+
+Những sơ đồ mới này phản ánh đúng trạng thái hiện tại của dự án:
+
+1. **FR-02, FR-03, FR-04 đã hoàn thành** và đang tích hợp
+2. **Database schema đã được nâng cấp** với Vietnamese support
+3. **Vector database và embedding** đã được triển khai
+4. **Production architecture** đã được thiết lập
+5. **Analytics module (FR-07)** đang trong quá trình phát triển
+
+Các thay đổi chính so với tài liệu gốc:
+- Cập nhật workflow để phản ánh dependencies đã hoàn thành
+- Schema mới với Vietnamese optimization
+- Integration architecture với các module đã complete
+- Production deployment thực tế
+- Security model nâng cao cho Vietnamese content
