@@ -72,7 +72,7 @@ graph TB
     %% Storage Layer với enhanced schema
     subgraph "🗄️ ENHANCED STORAGE LAYER"
         subgraph "🔢 Vector Storage"
-            ChromaDB[🔢 ChromaDB 1.0.0<br/>Qwen Embeddings (1024-dim)]
+            ChromaDB[🔢 ChromaDB 1.0.0<br/>Qwen Embeddings 1024-dim]
             VectorIndex[📇 FAISS Index<br/>IndexFlatIP Optimized]
         end
         
@@ -89,7 +89,7 @@ graph TB
         
         subgraph "🔍 Search Engine"
             FullTextIndex[📝 Full-text Search<br/>PostgreSQL + tsvector]
-            ElasticSearch[🔍 Elasticsearch<br/>Advanced Search (Optional)]
+            ElasticSearch[🔍 Elasticsearch<br/>Advanced Search Optional]
         end
     end
     
@@ -97,13 +97,13 @@ graph TB
     subgraph "🌐 EXTERNAL SERVICES"
         LLMServices[🧠 LLM Services<br/>OpenAI/Claude/Local Models]
         EmbeddingAPI[📡 Embedding API<br/>Qwen Model Endpoint]
-        MonitoringExt[📊 External Monitoring<br/>Grafana Cloud (Optional)]
+        MonitoringExt[📊 External Monitoring<br/>Grafana Cloud Optional]
     end
     
     %% Infrastructure Layer với monitoring
     subgraph "🗄️ INFRASTRUCTURE & MONITORING"
         subgraph "🐳 Container Platform"
-            K8s[☸️ Kubernetes<br/>(Production Option)]
+            K8s[☸️ Kubernetes<br/>Production Option]
             Docker[🐋 Docker Compose<br/>✅ CURRENT DEPLOYMENT]
         end
         
