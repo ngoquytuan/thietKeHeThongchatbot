@@ -1,4 +1,428 @@
+Tôi sẽ giúp bạn tạo sơ đồ module chức năng với các port được phân bổ rõ ràng để tránh xung đột. Trước tiên, hãy để tôi tìm hiểu về cấu trúc dự án hiện tại.Bây giờ để tôi tìm hiểu thêm về cấu trúc port và deployment của các module:Bây giờ tôi đã có đủ thông tin để tạo sơ đồ phân bổ port và module. Dưới đây là sơ đồ chi tiết:
 
+# 🏗️ **SƠ ĐỒ MODULE & PORT ALLOCATION - HỆ THỐNG RAG KNOWLEDGE ASSISTANT**
+
+## 📊 **MERMAID CHART - SYSTEM ARCHITECTURE**
+
+```mermaid
+graph TB
+    %% Server 1 - Master Node
+    subgraph "🎯 SERVER 1 - MASTER NODE (Control Plane)"
+        S1_API[API Gateway<br/>FR-06.1 Auth]
+        S1_LB[Load Balancer<br/>Nginx]
+        S1_PROM[Prometheus<br/>:9090]
+    end
+    
+    %% Server 2 - RAG Engine 
+    subgraph "🤖 SERVER 2 - RAG ENGINE NODE"
+        S2_RAG[RAG Core<br/>FR-04.1 Retrieval<br/>:8001]
+        S2_GEN[Generation Engine<br/>FR-04.3<br/>:8002]
+        S2_REDIS[Redis Cache<br/>:6379]
+    end
+    
+    %% Server 3 - Database Node
+    subgraph "🗄️ SERVER 3 - DATABASE NODE"
+        S3_PG[PostgreSQL<br/>FR-01.2<br/>:5433]
+        S3_CHROMA[ChromaDB<br/>FR-01.2<br/>:8001]
+        S3_ADMIN[Adminer<br/>:8080]
+    end
+    
+    %% Server 4 - Storage & Processing
+    subgraph "📁 SERVER 4 - STORAGE NODE"
+        S4_INGESTION[Data Ingestion<br/>FR-03.3<br/>:8003]
+        S4_STORAGE[File Storage<br/>MinIO<br/>:9000]
+        S4_ELASTIC[Elasticsearch<br/>:9200]
+    end
+    
+    %% Server 5 - Monitoring & Analytics
+    subgraph "📊 SERVER 5 - MONITORING NODE"
+        S5_ANALYTICS[Analytics API<br/>FR-07<br/>:8005]
+        S5_ADMIN[Admin Tools<br/>FR-08<br/>:8006]
+        S5_GRAFANA[Grafana<br/>:3000]
+        S5_UI[Frontend UI<br/>FR-05<br/>:3001]
+    end
+    
+    %% Connections
+    S1_LB --> S2_RAG
+    S1_LB --> S4_INGESTION
+    S1_LB --> S5_ANALYTICS
+    S1_API --> S3_PG
+    
+    S2_RAG --> S3_PG
+    S2_RAG --> S3_CHROMA
+    S2_RAG --> S2_REDIS
+    S2_GEN --> S2_REDIS
+    
+    S4_INGESTION --> S3_PG
+    S4_INGESTION --> S3_CHROMA
+    S4_INGESTION --> S4_STORAGE
+    
+    S5_ANALYTICS --> S3_PG
+    S5_ADMIN --> S3_PG
+    S5_UI --> S1_LB
+    
+    S1_PROM --> S2_RAG
+    S1_PROM --> S3_PG
+    S1_PROM --> S4_INGESTION
+    S1_PROM --> S5_ANALYTICS
+```
+
+## 🖥️ **CHI TIẾT CẤU HÌNH MÁY CHỦ VÀ PORT**
+
+### **🎯 Server 1 - MASTER NODE (Control Plane)**
+```yaml
+Vai trò: API Gateway + Authentication + Load Balancing
+Module triển khai: FR-06.1 (Authentication & Authorization)
+
+Services & Ports:
+├── Nginx Load Balancer
+│   ├── HTTP: :80 → :443 (SSL redirect)
+│   └── HTTPS: :443 (External access point)
+├── API Gateway (FR-06.1)
+│   ├── Auth API: :8000 (Internal)
+│   └── JWT Service: :8007 (Internal)
+├── Prometheus Monitoring
+│   ├── Metrics Collection: :9090
+│   └── Node Exporter: :9100
+└── Consul Service Discovery: :8500
+
+Network Configuration:
+├── External Interface: 192.168.1.10/24
+├── Internal Cluster: 10.0.1.10/16
+└── Management VLAN: 172.16.1.10/24
+
+Cấu hình tối thiểu:
+├── CPU: Intel i7-12700 (12 cores)
+├── RAM: 32GB DDR4-3200
+├── Storage: 500GB NVMe SSD
+└── Network: 2x Gigabit Ethernet
+```
+
+### **🤖 Server 2 - RAG ENGINE NODE**
+```yaml
+Vai trò: RAG Core Processing + Text Generation
+Module triển khai: FR-04.1 (Retrieval) + FR-04.3 (Generation)
+
+Services & Ports:
+├── Document Retrieval API (FR-04.1)
+│   ├── Search API: :8001 (Primary service)
+│   ├── Health Check: :8001/health
+│   └── Metrics: :8001/metrics
+├── Text Generation API (FR-04.3)
+│   ├── Generation API: :8002 (Primary service)
+│   ├── Streaming: :8002/stream
+│   └── Batch Processing: :8002/batch
+├── Redis Cache Cluster
+│   ├── Master: :6379
+│   ├── Replica 1: :6380
+│   └── Replica 2: :6381
+└── Background Processing
+    ├── Celery Worker: :5555 (Flower UI)
+    └── Task Queue: Redis Channel 0
+
+Network Configuration:
+├── External Interface: 192.168.1.20/24
+├── Internal Cluster: 10.0.1.20/16
+└── GPU Network: 10.1.0.20/16 (Dedicated for ML)
+
+Cấu hình tối thiểu:
+├── CPU: Intel i9-13700K (16 cores)
+├── RAM: 64GB DDR4-3200
+├── GPU: NVIDIA RTX 4060 Ti 16GB
+└── Storage: 1TB NVMe (App) + 2TB NVMe (Cache)
+```
+
+### **🗄️ Server 3 - DATABASE NODE**
+```yaml
+Vai trò: Primary & Vector Database + Caching
+Module triển khai: FR-01.2 (Database Schema v2.0)
+
+Services & Ports:
+├── PostgreSQL Database
+│   ├── Main DB: :5433 (External access)
+│   ├── Replica 1: :5434 (Read-only)
+│   ├── Replica 2: :5435 (Read-only)
+│   └── PgBouncer: :6432 (Connection pooling)
+├── ChromaDB Vector Database
+│   ├── API Server: :8000 (Changed to avoid conflict)
+│   ├── Admin Interface: :8000/admin
+│   └── Collection API: :8000/api/v1
+├── Database Administration
+│   ├── Adminer: :8080 (Web interface)
+│   ├── pgAdmin: :5050 (PostgreSQL admin)
+│   └── Grafana DB Dashboard: :3002
+└── Backup Services
+    ├── pg_dump Service: :9876
+    └── Backup Scheduler: :9877
+
+Network Configuration:
+├── External Interface: 192.168.1.30/24
+├── Internal Cluster: 10.0.1.30/16
+└── Database VLAN: 172.16.2.30/24
+
+Cấu hình tối thiểu:
+├── CPU: Intel i7-13700 (16 cores)
+├── RAM: 64GB DDR4-3200 ECC
+├── Storage: 500GB NVMe (OS) + 4TB NVMe RAID-1 (DB)
+└── Network: 2x Gigabit + 10Gb SFP+ (optional)
+```
+
+### **📁 Server 4 - STORAGE & PROCESSING NODE**
+```yaml
+Vai trò: File Storage + Data Processing Pipeline
+Module triển khai: FR-03.3 (Data Ingestion Pipeline)
+
+Services & Ports:
+├── Data Ingestion API (FR-03.3)
+│   ├── Upload API: :8003 (Document upload)
+│   ├── Processing API: :8003/process
+│   ├── Batch API: :8003/batch
+│   └── Status API: :8003/status
+├── File Storage System
+│   ├── MinIO Object Storage: :9000
+│   ├── MinIO Console: :9001
+│   └── SFTP Server: :2222 (Secure file transfer)
+├── Search Infrastructure
+│   ├── Elasticsearch: :9200
+│   ├── Kibana: :5601 (Log analysis)
+│   └── Logstash: :5044 (Log processing)
+└── Processing Services
+    ├── Document Parser: :8004 (Internal)
+    ├── Vietnamese NLP: :8005 (Internal)
+    └── Embedding Service: :8006 (Internal)
+
+Network Configuration:
+├── External Interface: 192.168.1.40/24
+├── Internal Cluster: 10.0.1.40/16
+└── Storage VLAN: 172.16.3.40/24
+
+Cấu hình tối thiểu:
+├── CPU: Intel i5-13400 (10 cores)
+├── RAM: 32GB DDR4-3200
+├── Storage: 8TB HDD RAID-5 + 2TB NVMe Cache
+└── Network: 2x Gigabit Ethernet
+```
+
+### **📊 Server 5 - MONITORING & ANALYTICS NODE**
+```yaml
+Vai trò: Analytics + Admin Tools + Frontend UI
+Module triển khai: FR-07 (Analytics) + FR-08 (Admin Tools) + FR-05 (UI)
+
+Services & Ports:
+├── Analytics & Reporting (FR-07)
+│   ├── Analytics API: :8005 (Business intelligence)
+│   ├── Streamlit Dashboard: :8501
+│   ├── Report Generator: :8502
+│   └── Data Export API: :8503
+├── Admin & Maintenance (FR-08)
+│   ├── Admin API: :8006 (System administration)
+│   ├── Maintenance Tools: :8506
+│   ├── Backup Manager: :8507
+│   └── Health Monitor: :8508
+├── Frontend Interface (FR-05)
+│   ├── Main UI: :3001 (Next.js application)
+│   ├── Chatbot Interface: :3002 (FR-05.2)
+│   ├── Admin Panel: :3003
+│   └── Mobile API: :3004
+├── Monitoring Stack
+│   ├── Grafana: :3000 (Dashboards)
+│   ├── AlertManager: :9093
+│   └── Jaeger Tracing: :14268
+└── Communication Services
+    ├── WebSocket Gateway: :8080 (Real-time)
+    └── Notification Service: :8081
+
+Network Configuration:
+├── External Interface: 192.168.1.50/24 (DMZ)
+├── Internal Cluster: 10.0.1.50/16
+└── Management VLAN: 172.16.1.50/24
+
+Cấu hình tối thiểu:
+├── CPU: Intel i5-12400 (6 cores)
+├── RAM: 32GB DDR4-3200
+├── Storage: 4TB HDD (Logs) + 500GB NVMe (Apps)
+└── Network: 2x Gigabit Ethernet
+```
+
+## 🔗 **BẢNG TỔNG HỢP PORT ALLOCATION**
+
+| **Server** | **Service** | **Module** | **Internal Port** | **External Port** | **Protocol** | **Purpose** |
+|------------|-------------|------------|-------------------|-------------------|--------------|-------------|
+| **Server 1** | Nginx LB | FR-06.1 | 80/443 | 80/443 | HTTP/HTTPS | Load Balancing |
+| | API Gateway | FR-06.1 | 8000 | - | HTTP | Authentication |
+| | Prometheus | Monitoring | 9090 | 9090 | HTTP | Metrics Collection |
+| | Node Exporter | Monitoring | 9100 | - | HTTP | System Metrics |
+| **Server 2** | Retrieval API | FR-04.1 | 8001 | 8001 | HTTP | Document Search |
+| | Generation API | FR-04.3 | 8002 | 8002 | HTTP | Text Generation |
+| | Redis Master | Cache | 6379 | - | TCP | Primary Cache |
+| | Redis Replica | Cache | 6380/6381 | - | TCP | Cache Replication |
+| **Server 3** | PostgreSQL | FR-01.2 | 5433 | 5433 | TCP | Primary Database |
+| | ChromaDB | FR-01.2 | 8000 | 8000 | HTTP | Vector Database |
+| | Adminer | Admin | 8080 | 8080 | HTTP | DB Administration |
+| | PgBouncer | Connection Pool | 6432 | - | TCP | Connection Pooling |
+| **Server 4** | Ingestion API | FR-03.3 | 8003 | 8003 | HTTP | Data Processing |
+| | MinIO | Storage | 9000/9001 | 9000 | HTTP | Object Storage |
+| | Elasticsearch | Search | 9200 | 9200 | HTTP | Full-text Search |
+| | Kibana | Logging | 5601 | 5601 | HTTP | Log Analysis |
+| **Server 5** | Analytics API | FR-07 | 8005 | 8005 | HTTP | Business Analytics |
+| | Admin Tools | FR-08 | 8006 | 8006 | HTTP | System Admin |
+| | Frontend UI | FR-05 | 3001 | 3001 | HTTP | Main Interface |
+| | Grafana | Monitoring | 3000 | 3000 | HTTP | Dashboards |
+
+## 🚨 **XỬ LÝ XUNG ĐỘT PORT - TROUBLESHOOTING**
+
+### **🔍 Kiểm tra Port đang sử dụng**
+```bash
+# Kiểm tra tất cả port đang mở
+netstat -tulpn | grep LISTEN
+
+# Kiểm tra port cụ thể
+lsof -i :8001
+
+# Kiểm tra container Docker
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+```
+
+### **⚠️ Các Port Conflict phổ biến**
+```yaml
+Common Conflicts:
+├── PostgreSQL: 5432 vs 5433 (Use 5433 for FR-01.2)
+├── Redis: 6379 vs 6380 (Use 6379 for master, 6380+ for replicas)  
+├── ChromaDB: 8000 vs 8001 (Use 8000 for Chroma, 8001 for Retrieval)
+├── Frontend: 3000 vs 3001 (Use 3000 for Grafana, 3001 for UI)
+└── MinIO: 9000 vs 9200 (Use 9000 for MinIO, 9200 for Elasticsearch)
+```
+
+### **🛠️ Script tự động kiểm tra Port**
+```bash
+#!/bin/bash
+# save as: check_ports.sh
+
+echo "🔍 Kiểm tra Port Allocation - RAG Knowledge System"
+
+# Danh sách port cần kiểm tra theo module
+declare -A ports=(
+    ["80"]="Nginx HTTP"
+    ["443"]="Nginx HTTPS"
+    ["3000"]="Grafana Dashboard"
+    ["3001"]="Frontend UI (FR-05)"
+    ["5433"]="PostgreSQL (FR-01.2)"
+    ["6379"]="Redis Master"
+    ["8000"]="ChromaDB (FR-01.2)"
+    ["8001"]="Retrieval API (FR-04.1)"
+    ["8002"]="Generation API (FR-04.3)"
+    ["8003"]="Ingestion API (FR-03.3)"
+    ["8005"]="Analytics API (FR-07)"
+    ["8006"]="Admin Tools (FR-08)"
+    ["9000"]="MinIO Storage"
+    ["9090"]="Prometheus"
+    ["9200"]="Elasticsearch"
+)
+
+echo "🚦 Port Status Check:"
+for port in "${!ports[@]}"; do
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        service=$(lsof -Pi :$port -sTCP:LISTEN | awk 'NR==2{print $1}')
+        echo "⚠️  Port $port: ${ports[$port]} - OCCUPIED by $service"
+    else
+        echo "✅ Port $port: ${ports[$port]} - AVAILABLE"
+    fi
+done
+
+echo ""
+echo "🐳 Docker Container Port Check:"
+docker ps --format "table {{.Names}}\t{{.Ports}}" 2>/dev/null || echo "Docker not running"
+
+echo ""
+echo "💡 Quick Fix Commands:"
+echo "   Stop conflicting services: sudo systemctl stop postgresql redis-server nginx"
+echo "   Free up ports: sudo fuser -k 5432/tcp 6379/tcp 3000/tcp"
+echo "   Restart with clean slate: docker-compose down && docker-compose up -d"
+```
+
+## 🔄 **FLOW DIAGRAM - MODULE INTERACTIONS**
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant LB as 🎯 Load Balancer<br/>Server 1
+    participant Auth as 🔐 Auth API<br/>FR-06.1
+    participant UI as 🖥️ Frontend<br/>FR-05 (Server 5)
+    participant RAG as 🤖 RAG Engine<br/>FR-04.1 (Server 2)
+    participant Gen as ⚡ Generator<br/>FR-04.3 (Server 2)  
+    participant DB as 🗄️ Database<br/>FR-01.2 (Server 3)
+    participant Analytics as 📊 Analytics<br/>FR-07 (Server 5)
+
+    User->>+LB: HTTPS Request (:443)
+    LB->>+Auth: Authenticate (:8000)
+    Auth->>+DB: Verify User (:5433)
+    DB-->>-Auth: User Data
+    Auth-->>-LB: JWT Token
+    LB->>+UI: Route to Frontend (:3001)
+    
+    UI->>+RAG: Search Query (:8001)
+    RAG->>+DB: Vector Search (:8000)
+    DB-->>-RAG: Search Results
+    RAG->>+Gen: Generate Response (:8002)
+    Gen-->>-RAG: Generated Text
+    RAG-->>-UI: Complete Response
+    UI-->>-LB: Display Results
+    LB-->>-User: Final Response
+    
+    RAG->>+Analytics: Log Search (:8005)
+    Analytics->>+DB: Store Metrics (:5433)
+    DB-->>-Analytics: Confirmation
+```
+
+## 📝 **CHECKLIST TRIỂN KHAI**
+
+### **✅ Pre-deployment Checklist**
+```bash
+# 1. Kiểm tra port conflicts
+./check_ports.sh
+
+# 2. Verify system requirements  
+free -h && df -h && nproc
+
+# 3. Check Docker installation
+docker --version && docker-compose --version
+
+# 4. Test network connectivity
+ping 192.168.1.10 && ping 192.168.1.20  # Test inter-server communication
+
+# 5. Verify environment files
+ls -la */.env && grep -l "PASSWORD\|SECRET" */.env
+```
+
+### **🚀 Deployment Sequence**
+```yaml
+Deployment Order:
+1. Server 3 (Database): FR-01.2 Database setup first
+2. Server 1 (Control): API Gateway and authentication
+3. Server 4 (Storage): Data ingestion pipeline  
+4. Server 2 (RAG): Core processing engines
+5. Server 5 (UI/Analytics): User interface and monitoring
+
+Health Check Sequence:
+├── Database connectivity (:5433, :8000)
+├── Authentication service (:8000) 
+├── Core APIs (:8001, :8002, :8003)
+├── Frontend UI (:3001)
+└── Monitoring (:3000, :9090)
+```
+
+### **🔧 Recovery Points**
+```yaml
+Failure Recovery:
+├── Database failure → Restore from backup, switch to replica
+├── Service crash → Docker restart, health check validation
+├── Port conflict → Kill conflicting process, update config
+├── Network issue → Check firewall, restart network service
+└── Resource exhaustion → Scale up, optimize queries
+```
+
+**Chuyên gia, với sơ đồ này bạn có thể tránh được mọi xung đột port và triển khai hệ thống một cách có hệ thống. Mỗi module đã được phân bổ port riêng biệt và có backup plan khi gặp sự cố!** 🎯✅
+---
 # KIẾN TRÚC GIẢI PHÁP ĐỀ XUẤT
 ## PROPOSED SOLUTION ARCHITECTURE
 
