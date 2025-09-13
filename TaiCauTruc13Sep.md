@@ -140,3 +140,28 @@ PLATFORM TIER (FR-5x):
 - Feature flags để switch giữa old/new implementations
 
 Bạn nghĩ sao về hybrid approach này? Có phù hợp với constraints và goals của project không?
+FR02.1 v2: thiếu cách xử lý file gốc
+
+📋 MÔ TẢ CHỨC NĂNG CÁC MODULE HỆ THỐNG RAG
+FR-01.2: Enhanced Database System với PostgreSQL 15 + ChromaDB 1.0.0
+Hệ thống database nâng cao với PostgreSQL làm primary database lưu trữ metadata, user data và ChromaDB làm vector database cho semantic search. Hỗ trợ full-text search tiếng Việt, optimized indexing và high-performance queries. Tích hợp Redis cho caching và session management.
+FR-02.1: Dual Database Architecture với Vietnamese optimization
+Kiến trúc database kép được tối ưu đặc biệt cho tiếng Việt với PostgreSQL (metadata + relational data) và ChromaDB (vector embeddings). Đồng bộ dữ liệu real-time giữa 2 hệ thống, hỗ trợ Vietnamese text search configuration. Backup và recovery procedures cho cả 2 database systems.
+FR-02.2: Unified Management API
+API quản lý thống nhất cung cấp RESTful endpoints để truy cập cả PostgreSQL và ChromaDB thông qua single interface. CRUD operations cho documents, users, permissions với data validation và error handling. OpenAPI documentation và SDK support cho easy integration.
+FR-03.1: Document Processing Tool (Production Ready)
+Công cụ xử lý tài liệu production-ready hỗ trợ multiple formats (PDF, DOCX, TXT, XLSX) với Vietnamese NLP processing. Intelligent document chunking, metadata extraction và content analysis. Export processed documents dưới dạng standardized packages cho downstream services.
+FR-03.2: Quality Control Service
+Dịch vụ kiểm soát chất lượng tài liệu với automated quality assessment, content validation và compliance checking. Scoring system cho document quality, duplicate detection và content filtering. Integration với FR-03.1 để reject/approve documents trước khi processing.
+FR-03.3: Database Integration Service
+Dịch vụ tích hợp database nhận processed documents từ FR-03.1/FR-03.2 và ingest vào dual database system. Vietnamese text processing, embedding generation với Qwen model và dual storage (PostgreSQL + ChromaDB). Real-time ingestion pipeline với error handling và retry mechanisms.
+FR-04.1: RAG Core Engine với Hybrid Search
+Engine RAG core với hybrid search combining semantic (ChromaDB) và keyword search (PostgreSQL full-text). Vietnamese query processing, result ranking fusion và context retrieval optimization. Support multiple search strategies và intelligent result reranking cho Vietnamese content.
+FR-05.1: Chat Interface
+Giao diện chat user-friendly với Streamlit cho RAG conversations, document upload và search functionality. Real-time chat với typing indicators, conversation history và response citations. Mobile-responsive design với Vietnamese input method support.
+FR-06.1: Authentication & Authorization (JWT + RBAC)
+Hệ thống xác thực và phân quyền với JWT tokens và Role-Based Access Control (4 levels: Guest < Employee < Manager < Director). Document-level permissions, API rate limiting và audit logging. Session management với Redis và secure password policies.
+FR-07: Analytics & Reporting với Streamlit Dashboard
+Dashboard analytics toàn diện với Streamlit hiển thị system metrics, user activity và document statistics. Real-time monitoring, performance analytics và custom reports generation. Integration với Prometheus/Grafana cho advanced monitoring.
+FR-08: System Management & Monitoring
+Công cụ quản trị hệ thống với admin dashboard, user management và system configuration. Health monitoring, log management và automated maintenance tasks. Backup/restore procedures, system alerts và performance optimization tools.
