@@ -1,3 +1,355 @@
+Tốt câu hỏi! Trong sơ đồ tôi vẽ, **API Gateway (nginx + load balancer)** hiện tại chưa có module cụ thể. Hãy để tôi làm rõ và đề xuất giải pháp:## **🚪 PHÂN TÍCH API GATEWAY - VỊ TRÍ TRONG KIẾN TRÚC**
+
+Dựa trên tài liệu hiện tại, **API Gateway** đang **THIẾU** trong các module đã định nghĩa. Đây là gap cần fill để hoàn thiện kiến trúc:
+
+### **📊 HIỆN TRẠNG API GATEWAY:**
+
+```mermaid
+graph TB
+    subgraph "❌ MISSING: API GATEWAY LAYER"
+        Missing1[🚪 API Gateway - CHƯA CÓ MODULE]
+        Missing2[⚖️ Load Balancer - CHƯA CÓ MODULE]
+        Missing3[🔄 Reverse Proxy - CHƯA CÓ MODULE]
+    end
+    
+    subgraph "✅ EXISTING MODULES"
+        FR022[FR-02.2: Admin API<br/>✅ Complete]
+        FR044[FR-04.4: RAG API<br/>✅ Complete]
+        FR06[FR-06: Authentication<br/>✅ Complete]
+        FR07[FR-07: Analytics<br/>✅ Complete]
+        FR08[FR-08: Admin Tools<br/>✅ Complete]
+    end
+    
+    Missing1 -.->|Should Route To| FR022
+    Missing1 -.->|Should Route To| FR044
+    Missing1 -.->|Should Authenticate Via| FR06
+```
+
+## **🔧 ĐỀ XUẤT GIẢI PHÁP: TẠO FR-42 API GATEWAY**
+
+### **Option 1: Module Riêng - FR-42 API Gateway (KHUYẾN NGHỊ)**
+
+```mermaid
+graph TB
+    subgraph "🆕 FR-42: API Gateway Module"
+        Gateway[🌐 API Gateway<br/>Kong/Nginx/Traefik]
+        LoadBalancer[⚖️ Load Balancer<br/>HAProxy/nginx]
+        SSL[🔒 SSL Termination<br/>Let's Encrypt]
+        RateLimit[📊 Rate Limiting<br/>Per User/IP]
+        CORS[🌍 CORS Management<br/>Cross-origin]
+        Monitoring[📊 Gateway Metrics<br/>Prometheus]
+    end
+    
+    Internet[🌍 Internet] --> SSL
+    SSL --> LoadBalancer
+    LoadBalancer --> Gateway
+    Gateway --> RateLimit
+    RateLimit --> CORS
+    
+    Gateway --> FR06[FR-06: Auth Service]
+    Gateway --> FR044[FR-04.4: RAG API] 
+    Gateway --> FR022[FR-02.2: Admin API]
+    Gateway --> FR07[FR-07: Analytics]
+    Gateway --> FR05[FR-05: Web UI]
+```
+
+### **Option 2: Tích hợp vào FR-04.4 (Đơn giản hơn)**
+
+Mở rộng FR-04.4 RAG API để bao gồm gateway functionality:
+
+```yaml
+FR-04.4 Enhanced:
+  - Main RAG API endpoints
+  - API Gateway features:
+    * Request routing
+    * Load balancing
+    * Rate limiting
+    * SSL termination
+    * Authentication proxy
+```
+
+## **🛠️ TRIỂN KHAI SOLUTION - FR-42 API GATEWAY**
+
+### **📁 Cấu trúc Module FR-42:**
+
+```
+FR-42-API-Gateway/
+├── nginx/
+│   ├── nginx.conf              # Main nginx config
+│   ├── sites-available/        # Virtual hosts
+│   ├── ssl/                    # SSL certificates
+│   └── logs/                   # Access logs
+├── kong/                       # Alternative: Kong Gateway
+│   ├── kong.yml               # Kong configuration
+│   └── plugins/               # Custom plugins
+├── monitoring/
+│   ├── prometheus.yml         # Metrics collection
+│   └── grafana-dashboard.json # Gateway dashboard
+├── scripts/
+│   ├── deploy-gateway.sh      # Deployment script
+│   ├── ssl-setup.sh          # SSL automation
+│   └── health-check.sh       # Health monitoring
+└── docker-compose.yml        # Complete stack
+```
+
+### **🔧 Nginx Configuration cho PC1:**
+
+```nginx
+# nginx/nginx.conf
+upstream pc2_rag_api {
+    least_conn;
+    server 192.168.1.101:8033 max_fails=3 fail_timeout=30s;
+    # server 192.168.1.102:8033; # Additional PC2 if needed
+}
+
+upstream pc1_auth_service {
+    server 127.0.0.1:8001 max_fails=3 fail_timeout=30s;
+}
+
+upstream pc1_admin_api {
+    server 127.0.0.1:8002 max_fails=3 fail_timeout=30s;
+}
+
+upstream pc1_analytics {
+    server 127.0.0.1:8003 max_fails=3 fail_timeout=30s;
+}
+
+upstream pc1_web_interface {
+    server 127.0.0.1:8004 max_fails=3 fail_timeout=30s;
+}
+
+# Rate limiting zones
+limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=100r/m;
+limit_req_zone $binary_remote_addr zone=rag_limit:10m rate=60r/m;
+
+server {
+    listen 80;
+    listen 443 ssl http2;
+    server_name chatbot.local;
+
+    # SSL Configuration
+    ssl_certificate /etc/nginx/ssl/cert.pem;
+    ssl_certificate_key /etc/nginx/ssl/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+
+    # Main Web Interface (PC1)
+    location / {
+        proxy_pass http://pc1_web_interface;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Authentication API (PC1)
+    location /api/auth/ {
+        limit_req zone=auth_limit burst=20 nodelay;
+        proxy_pass http://pc1_auth_service/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # RAG API (PC2)
+    location /api/rag/ {
+        limit_req zone=rag_limit burst=10 nodelay;
+        proxy_pass http://pc2_rag_api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 120s;
+    }
+
+    # Admin API (PC1) - Restricted access
+    location /api/admin/ {
+        limit_req zone=api_limit burst=50 nodelay;
+        # IP restriction for admin
+        allow 192.168.1.0/24;
+        allow 127.0.0.1;
+        deny all;
+        
+        proxy_pass http://pc1_admin_api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Analytics API (PC1)
+    location /api/analytics/ {
+        limit_req zone=api_limit burst=50 nodelay;
+        proxy_pass http://pc1_analytics/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Health checks
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Metrics endpoint for monitoring
+    location /nginx_status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        deny all;
+    }
+}
+```
+
+### **📦 Docker Compose for API Gateway:**
+
+```yaml
+# docker-compose.gateway.yml
+version: '3.8'
+services:
+  api_gateway:
+    image: nginx:alpine
+    container_name: rag_api_gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - auth_service
+      - admin_tools
+      - analytics
+      - web_interface
+    restart: unless-stopped
+    networks:
+      - rag_network
+
+  # SSL Certificate Management
+  certbot:
+    image: certbot/certbot
+    container_name: rag_certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+    command: ["--version"]  # Override in production
+
+  # Gateway Monitoring
+  nginx_exporter:
+    image: nginx/nginx-prometheus-exporter
+    container_name: rag_nginx_exporter
+    ports:
+      - "9113:9113"
+    command:
+      - -nginx.scrape-uri=http://api_gateway/nginx_status
+    depends_on:
+      - api_gateway
+
+networks:
+  rag_network:
+    external: true
+```
+
+### **⚙️ Environment Variables cho Gateway:**
+
+```env
+# .env.gateway
+# API Gateway Configuration
+GATEWAY_HTTP_PORT=80
+GATEWAY_HTTPS_PORT=443
+GATEWAY_WORKER_PROCESSES=auto
+GATEWAY_WORKER_CONNECTIONS=1024
+GATEWAY_CLIENT_MAX_BODY_SIZE=100M
+
+# SSL Configuration
+SSL_ENABLED=true
+SSL_CERT_PATH=/etc/nginx/ssl/cert.pem
+SSL_KEY_PATH=/etc/nginx/ssl/key.pem
+SSL_PROTOCOLS="TLSv1.2 TLSv1.3"
+
+# Rate Limiting
+AUTH_RATE_LIMIT=10r/m
+API_RATE_LIMIT=100r/m
+RAG_RATE_LIMIT=60r/m
+
+# Upstream Servers
+PC1_IP=192.168.1.100
+PC2_IP=192.168.1.101
+AUTH_SERVICE_URL=http://${PC1_IP}:8001
+ADMIN_API_URL=http://${PC1_IP}:8002
+ANALYTICS_URL=http://${PC1_IP}:8003
+WEB_UI_URL=http://${PC1_IP}:8004
+RAG_API_URL=http://${PC2_IP}:8033
+
+# Monitoring
+METRICS_ENABLED=true
+NGINX_EXPORTER_PORT=9113
+ACCESS_LOG_ENABLED=true
+ERROR_LOG_LEVEL=warn
+```
+
+### **🚀 Deployment Script:**
+
+```bash
+#!/bin/bash
+# deploy-gateway.sh
+
+echo "🚪 Deploying API Gateway (FR-42)..."
+
+# Create SSL certificates (development)
+mkdir -p nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout nginx/ssl/key.pem \
+    -out nginx/ssl/cert.pem \
+    -subj "/C=VN/ST=HoChiMinh/L=HoChiMinh/O=ChatbotAI/CN=chatbot.local"
+
+# Create log directory
+mkdir -p nginx/logs
+
+# Deploy gateway
+docker-compose -f docker-compose.gateway.yml up -d
+
+# Health check
+sleep 10
+curl -f http://localhost/health || exit 1
+
+echo "✅ API Gateway deployed successfully!"
+echo "🌐 Access: http://localhost or https://localhost"
+echo "📊 Metrics: http://localhost:9113/metrics"
+```
+
+## **🎯 FINAL RECOMMENDATION:**
+
+### **Cho setup 2 PC hiện tại:**
+
+1. **Triển khai FR-42 trên PC1** (Database server) vì:
+   - PC1 đã có web interface và admin APIs
+   - Gateway cần stable network connection
+   - Dễ quản lý SSL certificates
+
+2. **Route traffic như sau:**
+   ```
+   Internet → PC1 (Gateway) → {
+     /api/auth/*     → PC1:8001 (Auth)
+     /api/admin/*    → PC1:8002 (Admin) 
+     /api/analytics/* → PC1:8003 (Analytics)
+     /api/rag/*      → PC2:8033 (RAG API)
+     /*              → PC1:8004 (Web UI)
+   }
+   ```
+
+3. **Performance benefits:**
+   - Load balancing giữa services
+   - Rate limiting protection
+   - SSL termination tập trung
+   - Centralized logging và monitoring
+
+**Kết luận: FR-42 API Gateway là module THIẾU và cần thiết để hoàn thiện kiến trúc. Nên triển khai ngay để có production-ready system!**
+---
+
 ## 📊 **ĐÁNH GIÁ TOÀN DIỆN FR-03.1 V2.0 ENHANCED - BÁO CÁO CUỐI CÙNG**
 
 Sau khi phân tích đầy đủ tất cả các file trong export package, đây là đánh giá khách quan và chi tiết:
