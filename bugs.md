@@ -1,4 +1,27 @@
 ---
+Xử lý bug tại FR03.3/refactor_FR03.3.md
+```mermaid
+graph TD
+    A[FR03.1 Export ZIP] --> B[Extract & Validate]
+    B --> C{Validation OK?}
+    C -->|No| D[Move to Failed]
+    C -->|Yes| E[Stage 1: Direct Import]
+    E --> F[Stage 2: Enhanced Processing]
+    F --> G[Stage 3: Vector DB Import]
+    G --> H[Stage 4: Search Index]
+    H --> I[Stage 5: Archive]
+    
+    D --> J[Log Error & Alert]
+    I --> K[Update Job Status]
+    
+    style A fill:#e3f2fd
+    style E fill:#e8f5e8
+    style F fill:#fff3e0
+    style G fill:#f3e5f5
+    style I fill:#e0f2f1
+    style D fill:#ffebee
+```
+---
 
 Bạn đã chỉ ra một **thiếu sót quan trọng** trong schema hiện tại! Schema FR-02.1 v2.0 hiện tại **chưa có trường lưu đường dẫn file gốc**. Đây là vấn đề cần bổ sung ngay.
 
