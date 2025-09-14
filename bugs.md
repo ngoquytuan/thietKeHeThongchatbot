@@ -1,7 +1,7 @@
 ---
 Xử lý bug tại FR03.3/refactor_FR03.3.md
-```mermaid
-graph TD
+📋 QUY TRÌNH TỔNG QUAN
+mermaidgraph TD
     A[FR03.1 Export ZIP] --> B[Extract & Validate]
     B --> C{Validation OK?}
     C -->|No| D[Move to Failed]
@@ -20,7 +20,7 @@ graph TD
     style G fill:#f3e5f5
     style I fill:#e0f2f1
     style D fill:#ffebee
-```
+🗂️ CẤU TRÚC THƒ MỤC LÀM VIỆC
 ---
 
 Bạn đã chỉ ra một **thiếu sót quan trọng** trong schema hiện tại! Schema FR-02.1 v2.0 hiện tại **chưa có trường lưu đường dẫn file gốc**. Đây là vấn đề cần bổ sung ngay.
