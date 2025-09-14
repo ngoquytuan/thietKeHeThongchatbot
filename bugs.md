@@ -1,3 +1,7 @@
+FR03.3 Không nạp được dữ liệu vào database
+- do kết nối
+- Do source code 
+---
 Tốt câu hỏi! Trong sơ đồ tôi vẽ, **API Gateway (nginx + load balancer)** hiện tại chưa có module cụ thể. Hãy để tôi làm rõ và đề xuất giải pháp:## **🚪 PHÂN TÍCH API GATEWAY - VỊ TRÍ TRONG KIẾN TRÚC**
 
 Dựa trên tài liệu hiện tại, **API Gateway** đang **THIẾU** trong các module đã định nghĩa. Đây là gap cần fill để hoàn thiện kiến trúc:
