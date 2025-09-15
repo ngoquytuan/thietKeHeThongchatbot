@@ -57,6 +57,8 @@ graph TD
 8001  # ChromaDB (UPDATED từ 8000)
 6379  # Redis Master
 6380  # Redis Replica
+9121  # Redis Exporter
+9187  # Postgre Exporter
 8002  # File Management API (NEW)
 9090  # Prometheus
 3009  # Grafana
