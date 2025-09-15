@@ -61,6 +61,7 @@ graph TD
 9187  # Postgre Exporter
 8002  # File Management API (NEW)
 9090  # Prometheus
+9100  # Node Exporter
 3009  # Grafana
 80,443 # NGINX
 8081  # Adminer
