@@ -1,3 +1,59 @@
+---
+```mermaid
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph subGraph0["FR02.1 v2.1 Infrastructure (13 Services)"]
+        A1["PostgreSQL:5432"]
+        A2["ChromaDB:8001"]
+        A3["Redis Master:6379"]
+        A4["Redis Replica:6380"]
+        A5["File API:8002"]
+        A6["Prometheus:9090"]
+        A7["Grafana:3009"]
+        A8["NGINX:80,443"]
+        A9["PgBouncer:6432"]
+        A10["Adminer:8081"]
+        A11["Exporters..."]
+  end
+ subgraph subGraph1["FR02.2 Management Layer (NEW)"]
+        B1["Document Management API:8004"]
+        B2["Admin Dashboard:8005"]
+  end
+ subgraph subGraph2["FR03.x Processing Pipeline"]
+        C1["FR03.3 Data Ingestion:8003"]
+        C2["FR03.2 Quality Control:8502"]
+        C3["FR03.1 Raw-to-Clean:various"]
+  end
+ subgraph subGraph3["Shared Storage"]
+        D1["PostgreSQL Database"]
+        D2["ChromaDB Vectors"]
+        D3["File Storage: D:\chatbot-storage"]
+        D4["Redis Cache"]
+  end
+ subgraph subGraph4["Windows Machine - D:\Projects\checkbot"]
+        subGraph0
+        subGraph1
+        subGraph2
+        subGraph3
+  end
+    A1 --> D1
+    A2 --> D2
+    A3 --> D4
+    A5 --> D3
+    B1 --> D1 & D2 & D4
+    C1 --> D1 & D2 & D3
+    style B1 fill:#90EE90
+    style B2 fill:#90EE90
+    style D1 fill:#FFE4B5
+    style D2 fill:#FFE4B5
+    style D3 fill:#FFE4B5
+
+```
+---
+
 ```mermaid
 graph TB
     subgraph "User Layer"
