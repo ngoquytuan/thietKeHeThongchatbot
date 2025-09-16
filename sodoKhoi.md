@@ -1,3 +1,67 @@
+```mermaid
+graph TB
+    subgraph "User Layer"
+        EndUser[👥 End Users]
+        Admin[🔧 Administrators]
+    end
+    
+    subgraph "API Layer"
+        subgraph "FR04.4 - RAG API Endpoint"
+            ChatAPI[🤖 Chat API<br/>/api/v1/chat]
+            QueryAPI[❓ Query API<br/>/api/v1/query]
+            AnswerAPI[💬 Answer API<br/>/api/v1/answer]
+        end
+        
+        subgraph "FR02.2 - Admin API"
+            DocumentAPI[📄 Documents API<br/>/api/documents]
+            UserAPI[👤 Users API<br/>/api/users]
+            SearchAPI[🔍 Search API<br/>/api/search]
+            AnalyticsAPI[📊 Analytics API<br/>/api/analytics]
+        end
+    end
+    
+    subgraph "Processing Layer"
+        RAGPipeline[🔄 RAG Pipeline<br/>FR04.1-FR04.3]
+        DataIngestion[📥 Data Pipeline<br/>FR03.3]
+    end
+    
+    subgraph "Storage Layer"
+        VectorDB[🔢 Vector DB<br/>ChromaDB]
+        PostgreSQL[🗄️ PostgreSQL<br/>Metadata]
+    end
+    
+    %% User connections
+    EndUser --> ChatAPI
+    EndUser --> QueryAPI
+    Admin --> DocumentAPI
+    Admin --> UserAPI
+    Admin --> AnalyticsAPI
+    
+    %% API connections  
+    ChatAPI --> RAGPipeline
+    QueryAPI --> RAGPipeline
+    DocumentAPI --> DataIngestion
+    SearchAPI --> VectorDB
+    
+    %% Pipeline connections
+    RAGPipeline --> VectorDB
+    RAGPipeline --> PostgreSQL
+    DataIngestion --> VectorDB
+    DataIngestion --> PostgreSQL
+    
+    %% Styling
+    classDef userFacing fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef adminAPI fill:#e8f5e8,stroke:#388e3c,stroke-width:2px  
+    classDef ragAPI fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef processing fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef storage fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    
+    class EndUser,Admin userFacing
+    class DocumentAPI,UserAPI,SearchAPI,AnalyticsAPI adminAPI
+    class ChatAPI,QueryAPI,AnswerAPI ragAPI
+    class RAGPipeline,DataIngestion processing
+    class VectorDB,PostgreSQL storage
+```
 Tôi sẽ giúp bạn tạo sơ đồ module chức năng với các port được phân bổ rõ ràng để tránh xung đột. Trước tiên, hãy để tôi tìm hiểu về cấu trúc dự án hiện tại.Bây giờ để tôi tìm hiểu thêm về cấu trúc port và deployment của các module:Bây giờ tôi đã có đủ thông tin để tạo sơ đồ phân bổ port và module. Dưới đây là sơ đồ chi tiết:
 
 # 🏗️ **SƠ ĐỒ MODULE & PORT ALLOCATION - HỆ THỐNG RAG KNOWLEDGE ASSISTANT**
