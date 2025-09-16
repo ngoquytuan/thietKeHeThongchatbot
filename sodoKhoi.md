@@ -1,9 +1,5 @@
 ---
 ```mermaid
----
-config:
-  layout: elk
----
 flowchart TB
  subgraph subGraph0["FR02.1 v2.1 Infrastructure (13 Services)"]
         A1["PostgreSQL:5432"]
