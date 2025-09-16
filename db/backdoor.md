@@ -339,3 +339,230 @@ async def get_document(doc_id: str, current_user: User):
 Trong development environment, những backdoors này là acceptable risk. Trong production, chúng là critical vulnerabilities cần address.
 
 Key takeaway: Application-layer security chỉ hiệu quả khi infrastructure security cũng được implement properly. Database credentials là "master key" cần được protect cẩn thận nhất.
+
+Đúng vậy, bạn đang gặp chicken-and-egg problem trong design. Hệ thống cần login để search, nhưng chưa có UI để login. Có vài cách giải quyết:
+
+## Quick Solutions cho Testing
+
+### Option 1: Simple HTML Login Form (15 phút)
+```html
+<!-- login.html - đặt trong FR02.2/static/ -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Login Test</title>
+</head>
+<body>
+    <form id="loginForm">
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="admin123456">
+        <button type="submit">Login</button>
+    </form>
+    
+    <div id="result"></div>
+    <div id="searchSection" style="display:none;">
+        <input type="text" id="searchQuery" placeholder="Tìm kiếm...">
+        <button onclick="search()">Search</button>
+        <div id="searchResults"></div>
+    </div>
+
+    <script>
+        let token = '';
+        
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const response = await fetch('http://localhost:8004/api/v1/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                token = data.access_token;
+                document.getElementById('result').innerHTML = 'Login success!';
+                document.getElementById('searchSection').style.display = 'block';
+            } else {
+                document.getElementById('result').innerHTML = 'Login failed';
+            }
+        };
+        
+        async function search() {
+            const query = document.getElementById('searchQuery').value;
+            const response = await fetch('http://localhost:8004/api/v1/documents/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({query: query, limit: 5})
+            });
+            
+            const results = await response.json();
+            document.getElementById('searchResults').innerHTML = JSON.stringify(results, null, 2);
+        }
+    </script>
+</body>
+</html>
+```
+
+### Option 2: Postman Collection (10 phút)
+```json
+{
+  "info": {"name": "FR02.2 Testing"},
+  "item": [
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8004/api/v1/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\":\"admin\",\"password\":\"admin123456\"}"
+        }
+      }
+    },
+    {
+      "name": "Search Documents", 
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8004/api/v1/documents/",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{"key": "token", "value": "{{access_token}}"}]
+        }
+      }
+    }
+  ]
+}
+```
+
+### Option 3: Bypass Authentication cho Testing
+```python
+# Trong app/api/dependencies/auth.py - thêm bypass cho testing
+async def get_current_user_optional(token: str = Depends(oauth2_scheme)):
+    if settings.TESTING_MODE:  # Thêm vào .env: TESTING_MODE=true
+        # Return default admin user for testing
+        return User(
+            user_id="test-admin-id",
+            username="test-admin", 
+            user_level="SYSTEM_ADMIN"
+        )
+    
+    # Normal authentication logic...
+```
+
+### Option 4: Command Line Testing
+```bash
+# Get token
+TOKEN=$(curl -s -X POST "http://localhost:8004/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123456"}' | \
+  jq -r '.access_token')
+
+# Test search with token
+curl -X GET "http://localhost:8004/api/v1/documents/" \
+  -H "Authorization: Bearer $TOKEN" | jq '.'
+
+# Search documents
+curl -X POST "http://localhost:8004/api/v1/documents/search" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"test","limit":5}' | jq '.'
+```
+
+## Long-term UI Solutions
+
+### Option A: Add Streamlit Auth Page
+```python
+# auth_page.py
+import streamlit as st
+import requests
+
+def login_page():
+    st.title("Knowledge Assistant Login")
+    
+    with st.form("login_form"):
+        username = st.text_input("Username", value="admin")
+        password = st.text_input("Password", type="password", value="admin123456")
+        submitted = st.form_submit_button("Login")
+        
+        if submitted:
+            response = requests.post("http://localhost:8004/api/v1/auth/login", 
+                json={"username": username, "password": password})
+            
+            if response.status_code == 200:
+                token = response.json()["access_token"]
+                st.session_state.token = token
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("Login failed")
+
+def search_page():
+    st.title("Document Search")
+    
+    query = st.text_input("Search query:")
+    if st.button("Search"):
+        headers = {"Authorization": f"Bearer {st.session_state.token}"}
+        response = requests.get(f"http://localhost:8004/api/v1/documents/", headers=headers)
+        
+        if response.status_code == 200:
+            results = response.json()
+            st.json(results)
+        else:
+            st.error("Search failed")
+
+# Main app
+if "token" not in st.session_state:
+    login_page()
+else:
+    search_page()
+```
+
+### Option B: Simple FastAPI Static Files
+```python
+# Trong app/main.py - thêm static file serving
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Tạo folder static/ với login.html ở trên
+```
+
+## Testing Strategy
+
+### Phase 1: API Testing (Ngay)
+- Dùng Postman hoặc curl commands
+- Test authentication flow
+- Verify search endpoints work
+
+### Phase 2: Simple UI (1-2 tiếng)  
+- HTML form hoặc Streamlit page
+- Basic login + search functionality
+- Đủ để demo và test
+
+### Phase 3: Proper Frontend (Sau này)
+- React/Vue application
+- Professional UI/UX
+- Full feature set
+
+## Quick Start Testing
+
+```bash
+# Test authentication endpoint exists:
+curl http://localhost:8004/api/v1/auth/login
+
+# If 404, check if auth router được include trong main.py
+# If 500, debug authentication logic
+
+# Test với existing admin user:
+curl -X POST "http://localhost:8004/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123456"}'
+```
+
+Khuyến nghị: Bắt đầu với **Option 4 (Command line)** để test API trước, sau đó làm **Option 1 (Simple HTML)** để có UI cơ bản. Bạn muốn thử approach nào trước?
