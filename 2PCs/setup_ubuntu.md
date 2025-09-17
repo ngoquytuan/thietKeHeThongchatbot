@@ -1246,3 +1246,1231 @@ bash ~/chatbot-ai/PC2/pc2_status.sh
 | **IP Address** | 192.168.1.201 | 192.168.1.202 |
 
 Bây giờ mỗi PC sẽ chỉ cài những gì cần thiết cho vai trò của nó! 🎯
+
+---
+Tôi sẽ tạo script setup hoàn chỉnh cho Ubuntu dựa trên requirements của dự án. Đây là script triển khai tự động:Dựa trên requirements của dự án, tôi sẽ tạo script setup hoàn chỉnh cho Ubuntu:
+
+## 🛠️ **SCRIPT SETUP UBUNTU CHO DỰ ÁN CHATBOT AI**
+
+### **Script 1: setup_ubuntu_base.sh - Cài đặt cơ bản**
+
+```bash
+#!/bin/bash
+
+# =============================================================================
+# Ubuntu Setup Script for Chatbot AI Project
+# Compatible with: Ubuntu 20.04/22.04 LTS
+# Target: PC1 (Database Hub) & PC2 (AI Engine)
+# =============================================================================
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}============================================${NC}"
+    echo -e "${BLUE} $1${NC}"
+    echo -e "${BLUE}============================================${NC}"
+}
+
+# Function: Update system
+update_system() {
+    print_header "1. UPDATING SYSTEM PACKAGES"
+    sudo apt update && sudo apt upgrade -y
+    sudo apt install -y curl wget git vim nano htop tree unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release
+    print_status "System updated successfully"
+}
+
+# Function: Install essential utilities
+install_utilities() {
+    print_header "2. INSTALLING ESSENTIAL UTILITIES"
+    
+    # SSH Server (for remote management)
+    sudo apt install -y openssh-server
+    sudo systemctl enable ssh
+    sudo systemctl start ssh
+    
+    # System monitoring tools
+    sudo apt install -y htop btop neofetch iotop nethogs
+    
+    # Network tools
+    sudo apt install -y net-tools nmap traceroute
+    
+    # Development tools
+    sudo apt install -y build-essential cmake pkg-config
+    
+    # Text processing tools
+    sudo apt install -y jq yq
+    
+    print_status "Essential utilities installed"
+}
+
+# Function: Install Python 3.10.11 (Required for underthesea, pyvi)
+install_python() {
+    print_header "3. INSTALLING PYTHON 3.10.11"
+    
+    # Add deadsnakes PPA for Python versions
+    sudo add-apt-repository ppa:deadsnakes/ppa -y
+    sudo apt update
+    
+    # Install Python 3.10.11 and required packages
+    sudo apt install -y python3.10 python3.10-venv python3.10-dev python3.10-distutils
+    
+    # Install pip for Python 3.10
+    curl -sS https://bootstrap.pypa.io/get-pip.py | sudo python3.10
+    
+    # Create symlinks
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+    sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+    
+    # Verify installation
+    python3.10 --version
+    pip3.10 --version
+    
+    print_status "Python 3.10.11 installed successfully"
+}
+
+# Function: Install Docker & Docker Compose
+install_docker() {
+    print_header "4. INSTALLING DOCKER & DOCKER COMPOSE"
+    
+    # Remove old Docker versions
+    sudo apt remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+    
+    # Add Docker GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    
+    # Add Docker repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    # Install Docker
+    sudo apt update
+    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    
+    # Start and enable Docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    
+    # Add current user to docker group
+    sudo usermod -aG docker $USER
+    
+    # Install Docker Compose standalone
+    DOCKER_COMPOSE_VERSION="v2.23.0"
+    sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    
+    print_status "Docker & Docker Compose installed"
+    print_warning "Please logout and login again to use Docker without sudo"
+}
+
+# Function: Install NVIDIA drivers and CUDA (for PC2 only)
+install_nvidia_cuda() {
+    print_header "5. INSTALLING NVIDIA DRIVERS & CUDA (Optional - PC2 only)"
+    
+    read -p "Is this PC2 (AI Engine) with NVIDIA GPU? (y/N): " install_gpu
+    if [[ $install_gpu =~ ^[Yy]$ ]]; then
+        # Check if NVIDIA GPU exists
+        if command -v nvidia-smi &> /dev/null; then
+            print_status "NVIDIA drivers already installed"
+        else
+            # Install NVIDIA drivers
+            sudo apt install -y ubuntu-drivers-common
+            sudo ubuntu-drivers autoinstall
+            
+            # Install CUDA 11.8 (compatible with PyTorch)
+            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
+            sudo dpkg -i cuda-keyring_1.0-1_all.deb
+            sudo apt update
+            sudo apt install -y cuda-11-8
+            
+            # Add CUDA to PATH
+            echo 'export PATH=/usr/local/cuda-11.8/bin:$PATH' >> ~/.bashrc
+            echo 'export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
+        fi
+        
+        # Install NVIDIA Container Toolkit for Docker
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+            && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+            && curl -s -L https://nvidia.github.io/libnvidia-container/experimental/$distribution/libnvidia-container.list | \
+                sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        
+        sudo apt update
+        sudo apt install -y nvidia-docker2
+        sudo systemctl restart docker
+        
+        print_status "NVIDIA drivers and CUDA installed"
+        print_warning "Please reboot the system to complete GPU setup"
+    else
+        print_status "Skipping NVIDIA/CUDA installation"
+    fi
+}
+
+# Function: Setup network configuration
+setup_network() {
+    print_header "6. NETWORK CONFIGURATION"
+    
+    # Get current IP
+    CURRENT_IP=$(hostname -I | awk '{print $1}')
+    print_status "Current IP: $CURRENT_IP"
+    
+    read -p "Configure static IP? (y/N): " setup_static
+    if [[ $setup_static =~ ^[Yy]$ ]]; then
+        read -p "Enter static IP (e.g., 192.168.1.201): " static_ip
+        read -p "Enter gateway (e.g., 192.168.1.1): " gateway
+        read -p "Enter DNS servers (e.g., 8.8.8.8,8.8.4.4): " dns_servers
+        
+        # Backup current netplan
+        sudo cp /etc/netplan/*.yaml /etc/netplan/backup-$(date +%Y%m%d).yaml 2>/dev/null || true
+        
+        # Create new netplan configuration
+        INTERFACE=$(ip route | grep default | awk '{print $5}' | head -1)
+        
+        sudo tee /etc/netplan/01-network-manager-all.yaml > /dev/null <<EOF
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    $INTERFACE:
+      dhcp4: false
+      addresses:
+        - $static_ip/24
+      gateway4: $gateway
+      nameservers:
+        addresses: [${dns_servers//,/, }]
+EOF
+        
+        print_status "Static IP configured. Apply with: sudo netplan apply"
+    fi
+}
+
+# Function: Configure firewall
+setup_firewall() {
+    print_header "7. FIREWALL CONFIGURATION"
+    
+    # Enable UFW
+    sudo ufw --force enable
+    
+    # SSH access
+    sudo ufw allow ssh
+    
+    # Common ports for the project
+    sudo ufw allow 80/tcp comment 'HTTP'
+    sudo ufw allow 443/tcp comment 'HTTPS'
+    sudo ufw allow 5432/tcp comment 'PostgreSQL'
+    sudo ufw allow 6379/tcp comment 'Redis'
+    sudo ufw allow 8000/tcp comment 'ChromaDB'
+    sudo ufw allow 3000/tcp comment 'Frontend'
+    sudo ufw allow 8501/tcp comment 'Streamlit'
+    sudo ufw allow from 192.168.1.0/24 comment 'LAN access'
+    
+    # Show status
+    sudo ufw status verbose
+    
+    print_status "Firewall configured"
+}
+
+# Main execution
+main() {
+    print_header "UBUNTU SETUP FOR CHATBOT AI PROJECT"
+    
+    update_system
+    install_utilities
+    install_python
+    install_docker
+    install_nvidia_cuda
+    setup_network
+    setup_firewall
+    
+    print_header "SETUP COMPLETED"
+    print_status "Next steps:"
+    echo "1. Reboot the system: sudo reboot"
+    echo "2. Run setup_python_env.sh to setup Python environment"
+    echo "3. Run setup_databases.sh to setup databases"
+    echo "4. Configure your project-specific settings"
+    
+    print_warning "Please reboot before proceeding with Python environment setup"
+}
+
+# Run main function
+main "$@"
+```
+
+### **Script 2: setup_python_env.sh - Môi trường Python**
+
+```bash
+#!/bin/bash
+
+# =============================================================================
+# Python Environment Setup for Chatbot AI Project
+# Requirements: Python 3.10.11, Vietnamese NLP, GPU support
+# =============================================================================
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}============================================${NC}"
+    echo -e "${BLUE} $1${NC}"
+    echo -e "${BLUE}============================================${NC}"
+}
+
+# Create project structure
+create_project_structure() {
+    print_header "1. CREATING PROJECT STRUCTURE"
+    
+    # Create main directories
+    mkdir -p ~/chatbot-ai/{PC1,PC2,shared}
+    mkdir -p ~/chatbot-ai/PC1/{FR02,FR05,FR07,FR08}
+    mkdir -p ~/chatbot-ai/PC2/{FR03,FR04}
+    mkdir -p ~/chatbot-ai/shared/{docs,scripts,configs}
+    
+    print_status "Project structure created in ~/chatbot-ai/"
+}
+
+# Setup Python virtual environment
+setup_python_env() {
+    print_header "2. SETTING UP PYTHON VIRTUAL ENVIRONMENT"
+    
+    cd ~/chatbot-ai
+    
+    # Create virtual environment with Python 3.10
+    python3.10 -m venv venv
+    source venv/bin/activate
+    
+    # Upgrade pip
+    pip install --upgrade pip setuptools wheel
+    
+    print_status "Virtual environment created and activated"
+}
+
+# Install base requirements
+install_base_requirements() {
+    print_header "3. INSTALLING BASE PYTHON PACKAGES"
+    
+    # Create requirements.txt
+    cat > ~/chatbot-ai/requirements.txt << 'EOF'
+# =============================================================================
+# Python Requirements for Chatbot AI Project
+# Compatible with: Python 3.10.11
+# =============================================================================
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Embedding & AI Models (Qwen/Qwen3-Embedding-0.6B required)
+sentence-transformers>=2.2.2
+transformers>=4.35.0
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Vietnamese NLP (Required: Python 3.10.11)
+pyvi>=0.1.1
+underthesea>=6.7.0
+regex>=2022.7.9
+unicodedata2>=15.0.0
+
+# Vector Databases
+chromadb==1.0.0
+faiss-cpu==1.7.4
+
+# Traditional Databases
+asyncpg==0.29.0
+sqlalchemy[asyncio]==2.0.23
+alembic==1.12.1
+
+# Caching & Session
+redis==5.0.1
+python-redis-lock==4.0.0
+
+# Text Processing
+tiktoken==0.5.1
+langchain-text-splitters==0.0.1
+textstat==0.7.3
+
+# Data Science & ML
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+scipy>=1.9.0
+
+# Web & API
+httpx>=0.25.0
+websockets>=12.0
+aiofiles==23.2.1
+
+# Monitoring & Logging
+prometheus-client==0.19.0
+loguru==0.7.2
+tenacity==8.2.3
+
+# Visualization & Reporting
+streamlit>=1.28.0
+plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Development & Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.9.0
+isort>=5.12.0
+
+# Utilities
+python-dotenv>=1.0.0
+typer>=0.9.0
+rich>=13.6.0
+tqdm>=4.66.0
+jinja2>=3.1.0
+pyyaml>=6.0.1
+
+# Security
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.6
+EOF
+
+    # Install packages
+    source venv/bin/activate
+    pip install -r requirements.txt
+    
+    print_status "Base requirements installed"
+}
+
+# Install GPU-specific packages (for PC2)
+install_gpu_packages() {
+    print_header "4. GPU PACKAGES INSTALLATION"
+    
+    read -p "Install GPU-optimized packages for PC2? (y/N): " install_gpu
+    if [[ $install_gpu =~ ^[Yy]$ ]]; then
+        source venv/bin/activate
+        
+        # Install PyTorch with CUDA 11.8 support
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+        
+        # Install GPU-accelerated packages
+        pip install faiss-gpu==1.7.4
+        pip install accelerate>=0.24.0
+        pip install bitsandbytes>=0.41.0
+        
+        # Install CUDA-specific utilities
+        pip install nvidia-ml-py3>=7.352.0
+        
+        print_status "GPU packages installed"
+        
+        # Test GPU availability
+        python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'GPU Count: {torch.cuda.device_count()}'); print(f'GPU Name: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"No GPU\"}')"
+    else
+        print_status "Skipping GPU packages"
+    fi
+}
+
+# Download and test embedding models
+setup_embedding_models() {
+    print_header "5. DOWNLOADING EMBEDDING MODELS"
+    
+    source venv/bin/activate
+    
+    # Create model test script
+    cat > ~/chatbot-ai/test_models.py << 'EOF'
+#!/usr/bin/env python3
+"""
+Test script for embedding models
+"""
+import torch
+from sentence_transformers import SentenceTransformer
+import time
+
+def test_embedding_model(model_name):
+    print(f"\n🧪 Testing model: {model_name}")
+    try:
+        start_time = time.time()
+        model = SentenceTransformer(model_name)
+        load_time = time.time() - start_time
+        
+        # Test Vietnamese text
+        test_texts = [
+            "Quy trình mua hàng của công ty như thế nào?",
+            "Hướng dẫn sử dụng hệ thống quản lý nhân sự",
+            "Company procurement process guidelines"
+        ]
+        
+        start_time = time.time()
+        embeddings = model.encode(test_texts)
+        encode_time = time.time() - start_time
+        
+        print(f"✅ Model loaded successfully")
+        print(f"   Load time: {load_time:.2f}s")
+        print(f"   Encode time: {encode_time:.2f}s")
+        print(f"   Embedding dim: {embeddings.shape[1]}")
+        print(f"   Device: {model.device}")
+        
+        return True
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+def main():
+    print("🚀 Testing Embedding Models for Vietnamese Chatbot")
+    print(f"PyTorch version: {torch.__version__}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+    
+    # Test models according to project requirements
+    models = [
+        "Qwen/Qwen2.5-7B-Instruct",  # Primary choice
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",  # Backup
+        "intfloat/multilingual-e5-base"  # Alternative
+    ]
+    
+    for model_name in models:
+        test_embedding_model(model_name)
+        print("-" * 50)
+
+if __name__ == "__main__":
+    main()
+EOF
+
+    chmod +x ~/chatbot-ai/test_models.py
+    
+    print_status "Model test script created. Run: python test_models.py"
+}
+
+# Create environment files
+create_env_files() {
+    print_header "6. CREATING ENVIRONMENT CONFIGURATION"
+    
+    # PC1 Environment (Database Hub)
+    cat > ~/chatbot-ai/PC1/.env << 'EOF'
+# =============================================================================
+# PC1 Environment - Database & Frontend Hub
+# =============================================================================
+
+# Database Configuration
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=knowledge_base_v2
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=changeme123
+
+# Vector Database
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CHROMA_COLLECTION=knowledge_base_v2
+
+# Cache Configuration
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+CACHE_TTL=3600
+
+# API Configuration
+API_V1_STR=/api/v1
+SECRET_KEY=changeme-super-secret-key
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+PROJECT_NAME=Chatbot AI - Database Hub
+
+# Frontend Configuration
+FRONTEND_PORT=3000
+STREAMLIT_PORT=8501
+ADMIN_PORT=8080
+
+# Network Configuration
+PC2_HOST=192.168.1.202
+PC2_API_PORT=8085
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/pc1.log
+EOF
+
+    # PC2 Environment (AI Engine)
+    cat > ~/chatbot-ai/PC2/.env << 'EOF'
+# =============================================================================
+# PC2 Environment - AI Processing Engine
+# =============================================================================
+
+# GPU Configuration
+DEVICE=cuda
+BATCH_SIZE=16
+MAX_GPU_MEMORY=0.8
+
+# Embedding Models
+EMBEDDING_MODEL=Qwen/Qwen2.5-7B-Instruct
+EMBEDDING_DIMENSION=1024
+MODEL_CACHE_DIR=./models
+
+# Database Connection (to PC1)
+POSTGRES_HOST=192.168.1.201
+POSTGRES_PORT=5432
+POSTGRES_DB=knowledge_base_v2
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=changeme123
+
+# Vector Database (to PC1)
+CHROMA_HOST=192.168.1.201
+CHROMA_PORT=8000
+CHROMA_COLLECTION=knowledge_base_v2
+
+# Cache (to PC1)
+REDIS_HOST=192.168.1.201
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# AI Processing Configuration
+MAX_WORKERS=4
+RETRY_ATTEMPTS=3
+PROCESSING_TIMEOUT=300
+
+# Storage Configuration
+STORAGE_PATH=/opt/chatbot-storage
+TEMP_PATH=/tmp/chatbot
+
+# API Configuration
+API_V1_STR=/api/v1
+RAG_API_PORT=8085
+PROCESSING_API_PORT=8080
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/pc2.log
+EOF
+
+    print_status "Environment files created"
+}
+
+# Create helper scripts
+create_helper_scripts() {
+    print_header "7. CREATING HELPER SCRIPTS"
+    
+    # Environment activation script
+    cat > ~/chatbot-ai/activate.sh << 'EOF'
+#!/bin/bash
+# Activate chatbot AI environment
+echo "🤖 Activating Chatbot AI Environment"
+cd ~/chatbot-ai
+source venv/bin/activate
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+echo "✅ Environment activated"
+echo "Current directory: $(pwd)"
+echo "Python version: $(python --version)"
+echo "Virtual env: $VIRTUAL_ENV"
+EOF
+
+    # System check script
+    cat > ~/chatbot-ai/check_system.sh << 'EOF'
+#!/bin/bash
+# System health check for Chatbot AI
+echo "🔍 System Health Check"
+echo "======================="
+
+# Python environment
+echo "Python version: $(python3.10 --version 2>/dev/null || echo 'Not installed')"
+echo "Pip version: $(pip3.10 --version 2>/dev/null || echo 'Not installed')"
+
+# Docker
+echo "Docker version: $(docker --version 2>/dev/null || echo 'Not installed')"
+echo "Docker Compose version: $(docker-compose --version 2>/dev/null || echo 'Not installed')"
+
+# NVIDIA (if available)
+if command -v nvidia-smi &> /dev/null; then
+    echo "NVIDIA Driver: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits)"
+    echo "CUDA Version: $(nvcc --version 2>/dev/null | grep release | awk '{print $6}' | cut -c9-)"
+else
+    echo "NVIDIA: Not available"
+fi
+
+# Network connectivity
+echo "Network status:"
+ping -c 1 8.8.8.8 &>/dev/null && echo "  ✅ Internet: Connected" || echo "  ❌ Internet: Disconnected"
+
+# Disk space
+echo "Disk usage:"
+df -h / | awk 'NR==2 {print "  Root: " $3 "/" $2 " (" $5 " used)"}'
+
+# Memory
+echo "Memory usage:"
+free -h | awk 'NR==2 {print "  RAM: " $3 "/" $2 " (" int($3/$2*100) "% used)"}'
+
+echo "======================="
+echo "✅ System check completed"
+EOF
+
+    chmod +x ~/chatbot-ai/activate.sh
+    chmod +x ~/chatbot-ai/check_system.sh
+    
+    print_status "Helper scripts created"
+}
+
+# Main execution
+main() {
+    print_header "PYTHON ENVIRONMENT SETUP"
+    
+    create_project_structure
+    setup_python_env
+    install_base_requirements
+    install_gpu_packages
+    setup_embedding_models
+    create_env_files
+    create_helper_scripts
+    
+    print_header "PYTHON ENVIRONMENT SETUP COMPLETED"
+    print_status "Next steps:"
+    echo "1. Activate environment: source ~/chatbot-ai/activate.sh"
+    echo "2. Test models: cd ~/chatbot-ai && python test_models.py"
+    echo "3. Check system: bash ~/chatbot-ai/check_system.sh"
+    echo "4. Run database setup: bash setup_databases.sh"
+    
+    echo ""
+    echo "📁 Project structure created in: ~/chatbot-ai/"
+    echo "🔧 Environment files: PC1/.env and PC2/.env"
+    echo "🧪 Test script: test_models.py"
+}
+
+main "$@"
+```
+
+### **Script 3: setup_databases.sh - Cơ sở dữ liệu**
+
+```bash
+#!/bin/bash
+
+# =============================================================================
+# Database Setup for Chatbot AI Project
+# Includes: PostgreSQL, Redis, ChromaDB
+# =============================================================================
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}============================================${NC}"
+    echo -e "${BLUE} $1${NC}"
+    echo -e "${BLUE}============================================${NC}"
+}
+
+# Setup PostgreSQL
+setup_postgresql() {
+    print_header "1. SETTING UP POSTGRESQL"
+    
+    # Create Docker Compose for databases
+    mkdir -p ~/chatbot-ai/databases
+    
+    cat > ~/chatbot-ai/databases/docker-compose.yml << 'EOF'
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: chatbot-postgres
+    environment:
+      POSTGRES_DB: knowledge_base_v2
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: changeme123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    command: postgres -c 'max_connections=200' -c 'shared_buffers=256MB' -c 'effective_cache_size=1GB'
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatbot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chatbot-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_AUTHN_CREDENTIALS=admin:changeme123
+      - CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.basic.BasicAuthenticationServerProvider
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  chromadb_data:
+
+networks:
+  default:
+    name: chatbot-network
+EOF
+
+    # Create database initialization script
+    mkdir -p ~/chatbot-ai/databases/init
+    
+    cat > ~/chatbot-ai/databases/init/01-create-extensions.sql << 'EOF'
+-- Create necessary extensions for Vietnamese text processing
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "unaccent";
+
+-- Create Vietnamese collation
+CREATE COLLATION IF NOT EXISTS vietnamese (provider = icu, locale = 'vi-VN');
+
+-- Set timezone
+SET timezone = 'Asia/Ho_Chi_Minh';
+EOF
+
+    print_status "PostgreSQL configuration created"
+}
+
+# Start database services
+start_databases() {
+    print_header "2. STARTING DATABASE SERVICES"
+    
+    cd ~/chatbot-ai/databases
+    
+    # Start services
+    docker-compose up -d
+    
+    # Wait for services to be ready
+    print_status "Waiting for databases to be ready..."
+    sleep 10
+    
+    # Check PostgreSQL
+    until docker exec chatbot-postgres pg_isready -U postgres -d knowledge_base_v2; do
+        print_warning "Waiting for PostgreSQL..."
+        sleep 2
+    done
+    
+    # Check Redis
+    until docker exec chatbot-redis redis-cli ping | grep -q PONG; do
+        print_warning "Waiting for Redis..."
+        sleep 2
+    done
+    
+    # Check ChromaDB
+    until curl -s http://localhost:8000/api/v1/heartbeat | grep -q "true"; do
+        print_warning "Waiting for ChromaDB..."
+        sleep 2
+    done
+    
+    print_status "All database services are ready"
+}
+
+# Create database schema
+create_schema() {
+    print_header "3. CREATING DATABASE SCHEMA"
+    
+    cat > ~/chatbot-ai/databases/schema.sql << 'EOF'
+-- =============================================================================
+-- Knowledge Base Database Schema v2.1
+-- Compatible with FR-01.2 requirements
+-- =============================================================================
+
+-- Document types enum
+CREATE TYPE document_type_enum AS ENUM (
+    'policy', 'procedure', 'manual', 'form', 
+    'report', 'presentation', 'spreadsheet', 'other'
+);
+
+-- Document status enum
+CREATE TYPE document_status_enum AS ENUM (
+    'active', 'draft', 'archived', 'deleted'
+);
+
+-- Department enum
+CREATE TYPE department_enum AS ENUM (
+    'HR', 'Finance', 'IT', 'Marketing', 'Operations', 'General'
+);
+
+-- Access level enum
+CREATE TYPE access_level_enum AS ENUM (
+    'public', 'internal', 'confidential', 'restricted'
+);
+
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    department department_enum NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'employee',
+    access_level access_level_enum NOT NULL DEFAULT 'internal',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Documents metadata table
+CREATE TABLE IF NOT EXISTS documents_metadata_v2 (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(500) NOT NULL,
+    content TEXT,
+    file_path VARCHAR(1000),
+    file_size BIGINT,
+    file_hash VARCHAR(64),
+    document_type document_type_enum NOT NULL,
+    department department_enum NOT NULL,
+    access_level access_level_enum NOT NULL DEFAULT 'internal',
+    status document_status_enum NOT NULL DEFAULT 'active',
+    language VARCHAR(10) DEFAULT 'vi',
+    author VARCHAR(255),
+    version VARCHAR(20) DEFAULT '1.0',
+    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at TIMESTAMP WITH TIME ZONE,
+    chunk_count INTEGER DEFAULT 0,
+    embedding_status VARCHAR(50) DEFAULT 'pending'
+);
+
+-- Document chunks table
+CREATE TABLE IF NOT EXISTS document_chunks_v2 (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES documents_metadata_v2(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    content_length INTEGER NOT NULL,
+    token_count INTEGER,
+    chunk_type VARCHAR(50) DEFAULT 'paragraph',
+    metadata JSONB,
+    embedding_vector FLOAT8[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(document_id, chunk_index)
+);
+
+-- Data ingestion jobs table
+CREATE TABLE IF NOT EXISTS data_ingestion_jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_name VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    progress INTEGER DEFAULT 0,
+    total_documents INTEGER DEFAULT 0,
+    processed_documents INTEGER DEFAULT 0,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    created_by UUID REFERENCES users(id)
+);
+
+-- System metrics table
+CREATE TABLE IF NOT EXISTS system_health_metrics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    metric_name VARCHAR(100) NOT NULL,
+    metric_value FLOAT8 NOT NULL,
+    metric_unit VARCHAR(20),
+    collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    metadata JSONB
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_documents_department ON documents_metadata_v2(department);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON documents_metadata_v2(document_type);
+CREATE INDEX IF NOT EXISTS idx_documents_status ON documents_metadata_v2(status);
+CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents_metadata_v2(created_at);
+CREATE INDEX IF NOT EXISTS idx_documents_access_level ON documents_metadata_v2(access_level);
+CREATE INDEX IF NOT EXISTS idx_documents_title_gin ON documents_metadata_v2 USING gin(to_tsvector('english', title));
+CREATE INDEX IF NOT EXISTS idx_documents_content_gin ON documents_metadata_v2 USING gin(to_tsvector('english', content));
+
+CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON document_chunks_v2(document_id);
+CREATE INDEX IF NOT EXISTS idx_chunks_content_gin ON document_chunks_v2 USING gin(to_tsvector('english', content));
+
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON data_ingestion_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON data_ingestion_jobs(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_metrics_name_time ON system_health_metrics(metric_name, collected_at);
+
+-- Create sample data
+INSERT INTO users (username, email, full_name, department, role, access_level) VALUES
+('admin', 'admin@company.com', 'System Administrator', 'IT', 'admin', 'restricted'),
+('john.doe', 'john.doe@company.com', 'John Doe', 'IT', 'manager', 'confidential'),
+('jane.smith', 'jane.smith@company.com', 'Jane Smith', 'HR', 'employee', 'internal')
+ON CONFLICT (username) DO NOTHING;
+
+-- Update timestamps trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_documents_updated_at
+    BEFORE UPDATE ON documents_metadata_v2
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+EOF
+
+    # Apply schema
+    docker exec -i chatbot-postgres psql -U postgres -d knowledge_base_v2 < ~/chatbot-ai/databases/schema.sql
+    
+    print_status "Database schema created successfully"
+}
+
+# Test database connections
+test_connections() {
+    print_header "4. TESTING DATABASE CONNECTIONS"
+    
+    # Test PostgreSQL
+    if docker exec chatbot-postgres psql -U postgres -d knowledge_base_v2 -c "SELECT COUNT(*) FROM users;" > /dev/null; then
+        print_status "✅ PostgreSQL: Connected and working"
+    else
+        print_error "❌ PostgreSQL: Connection failed"
+    fi
+    
+    # Test Redis
+    if docker exec chatbot-redis redis-cli ping | grep -q PONG; then
+        print_status "✅ Redis: Connected and working"
+    else
+        print_error "❌ Redis: Connection failed"
+    fi
+    
+    # Test ChromaDB
+    if curl -s http://localhost:8000/api/v1/heartbeat | grep -q "true"; then
+        print_status "✅ ChromaDB: Connected and working"
+        
+        # Create default collection
+        curl -X POST "http://localhost:8000/api/v1/collections" \
+             -H "Content-Type: application/json" \
+             -d '{
+                 "name": "knowledge_base_v2",
+                 "metadata": {"description": "Main knowledge base collection"}
+             }' || true
+    else
+        print_error "❌ ChromaDB: Connection failed"
+    fi
+}
+
+# Create database management scripts
+create_management_scripts() {
+    print_header "5. CREATING DATABASE MANAGEMENT SCRIPTS"
+    
+    # Database backup script
+    cat > ~/chatbot-ai/databases/backup.sh << 'EOF'
+#!/bin/bash
+# Database backup script
+BACKUP_DIR="~/chatbot-ai/backups/$(date +%Y%m%d)"
+mkdir -p $BACKUP_DIR
+
+echo "🔄 Creating database backup..."
+
+# PostgreSQL backup
+docker exec chatbot-postgres pg_dump -U postgres knowledge_base_v2 > "$BACKUP_DIR/postgres_$(date +%H%M%S).sql"
+
+# Redis backup
+docker exec chatbot-redis redis-cli --rdb - > "$BACKUP_DIR/redis_$(date +%H%M%S).rdb"
+
+echo "✅ Backup completed: $BACKUP_DIR"
+EOF
+
+    # Database restore script
+    cat > ~/chatbot-ai/databases/restore.sh << 'EOF'
+#!/bin/bash
+# Database restore script
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <backup_file>"
+    exit 1
+fi
+
+BACKUP_FILE=$1
+
+echo "🔄 Restoring database from: $BACKUP_FILE"
+
+if [[ $BACKUP_FILE == *.sql ]]; then
+    # PostgreSQL restore
+    docker exec -i chatbot-postgres psql -U postgres -d knowledge_base_v2 < "$BACKUP_FILE"
+elif [[ $BACKUP_FILE == *.rdb ]]; then
+    # Redis restore
+    docker cp "$BACKUP_FILE" chatbot-redis:/data/dump.rdb
+    docker restart chatbot-redis
+fi
+
+echo "✅ Restore completed"
+EOF
+
+    # Database status script
+    cat > ~/chatbot-ai/databases/status.sh << 'EOF'
+#!/bin/bash
+# Database status check
+echo "📊 Database Status Check"
+echo "========================"
+
+# PostgreSQL status
+echo "PostgreSQL:"
+docker exec chatbot-postgres psql -U postgres -d knowledge_base_v2 -c "
+    SELECT 
+        'Documents' as table_name, COUNT(*) as count 
+    FROM documents_metadata_v2
+    UNION ALL
+    SELECT 
+        'Chunks' as table_name, COUNT(*) as count 
+    FROM document_chunks_v2
+    UNION ALL
+    SELECT 
+        'Users' as table_name, COUNT(*) as count 
+    FROM users;
+"
+
+# Redis status
+echo -e "\nRedis:"
+docker exec chatbot-redis redis-cli info memory | grep used_memory_human
+docker exec chatbot-redis redis-cli dbsize
+
+# ChromaDB status
+echo -e "\nChromaDB:"
+curl -s http://localhost:8000/api/v1/collections | jq .
+
+echo "========================"
+EOF
+
+    chmod +x ~/chatbot-ai/databases/*.sh
+    
+    print_status "Database management scripts created"
+}
+
+# Main execution
+main() {
+    print_header "DATABASE SETUP FOR CHATBOT AI"
+    
+    setup_postgresql
+    start_databases
+    create_schema
+    test_connections
+    create_management_scripts
+    
+    print_header "DATABASE SETUP COMPLETED"
+    print_status "Database services:"
+    echo "  📄 PostgreSQL: localhost:5432 (knowledge_base_v2)"
+    echo "  🔄 Redis: localhost:6379"
+    echo "  🧠 ChromaDB: localhost:8000"
+    echo ""
+    print_status "Management commands:"
+    echo "  📊 Status: bash ~/chatbot-ai/databases/status.sh"
+    echo "  💾 Backup: bash ~/chatbot-ai/databases/backup.sh"
+    echo "  🔄 Restore: bash ~/chatbot-ai/databases/restore.sh <file>"
+    echo "  🛑 Stop: cd ~/chatbot-ai/databases && docker-compose down"
+    echo "  ▶️  Start: cd ~/chatbot-ai/databases && docker-compose up -d"
+}
+
+main "$@"
+```
+
+## 🚀 **HƯỚNG DẪN TRIỂN KHAI**
+
+### **Bước 1: Chạy script cài đặt cơ bản**
+```bash
+# Download và chạy script cài đặt cơ bản
+curl -sSL https://raw.githubusercontent.com/your-repo/setup_ubuntu_base.sh -o setup_ubuntu_base.sh
+chmod +x setup_ubuntu_base.sh
+sudo ./setup_ubuntu_base.sh
+
+# Reboot sau khi cài đặt
+sudo reboot
+```
+
+### **Bước 2: Thiết lập môi trường Python**
+```bash
+# Download và chạy script Python
+curl -sSL https://raw.githubusercontent.com/your-repo/setup_python_env.sh -o setup_python_env.sh
+chmod +x setup_python_env.sh
+./setup_python_env.sh
+```
+
+### **Bước 3: Cài đặt cơ sở dữ liệu**
+```bash
+# Download và chạy script database
+curl -sSL https://raw.githubusercontent.com/your-repo/setup_databases.sh -o setup_databases.sh
+chmod +x setup_databases.sh
+./setup_databases.sh
+```
+
+### **Bước 4: Kiểm tra hệ thống**
+```bash
+# Kích hoạt môi trường
+source ~/chatbot-ai/activate.sh
+
+# Kiểm tra hệ thống
+bash ~/chatbot-ai/check_system.sh
+
+# Test models
+cd ~/chatbot-ai && python test_models.py
+
+# Kiểm tra databases
+bash ~/chatbot-ai/databases/status.sh
+```
+
+## 📋 **CHECKLIST SAU KHI CÀI ĐẶT**
+
+- [ ] Python 3.10.11 đã được cài đặt
+- [ ] Virtual environment đã được tạo
+- [ ] Docker và Docker Compose hoạt động
+- [ ] NVIDIA drivers và CUDA (cho PC2)
+- [ ] PostgreSQL, Redis, ChromaDB đang chạy
+- [ ] Vietnamese NLP packages (pyvi, underthesea) hoạt động
+- [ ] Embedding models download thành công
+- [ ] Network configuration đúng
+- [ ] Firewall rules được cấu hình
+- [ ] SSH access hoạt động
+
+Bạn có muốn tôi tạo thêm script deployment cho từng module cụ thể (FR02, FR03, v.v.) không?
