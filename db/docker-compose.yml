@@ -1,0 +1,400 @@
+#FR01.2
+#For Ubuntu deployment
+#date 18 Sep 2025
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: fr02-postgres-v2
+    environment:
+      POSTGRES_DB: knowledge_base_v2
+      POSTGRES_USER: kb_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres.conf:/etc/postgresql/postgresql.conf
+      - ./scripts/01_init_database_V4.sql:/docker-entrypoint-initdb.d/01_init_database.sql
+      - ./scripts/02_analytics_admin_tables.sql:/docker-entrypoint-initdb.d/02_analytics_admin_tables.sql
+      # SHARED STORAGE cho file gốc
+      - chatbot_storage:/opt/chatbot-storage
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kb_admin -d knowledge_base_v2"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - fr02-network
+
+  # PgBouncer Connection Pool
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: fr02-pgbouncer
+    environment:
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 5432
+      DATABASES_USER: kb_admin
+      DATABASES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASES_DBNAME: knowledge_base_v2
+      POOL_MODE: transaction
+      SERVER_RESET_QUERY: DISCARD ALL
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 25
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 3
+      MAX_DB_CONNECTIONS: 100
+    ports:
+      - "6432:5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # ChromaDB Vector Database
+  chroma:
+    image: chromadb/chroma:1.0.0
+    container_name: fr02-chroma-v2
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+      - ./config/chroma-config.yaml:/chroma/config.yaml
+    environment:
+      - CHROMA_SERVER_HOST=localhost
+      - CHROMA_SERVER_PORT=8001
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER=chromadb.auth.token.TokenAuthCredentialsProvider
+      - CHROMA_SERVER_AUTH_CREDENTIALS=${CHROMA_AUTH_TOKEN}
+      - CHROMA_SERVER_AUTH_TOKEN_TRANSPORT_HEADER=X-Chroma-Token
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - fr02-network
+
+  # Redis Cache Cluster
+  redis-master:
+    image: redis:7-alpine
+    container_name: fr02-redis-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./config/redis-master.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fr02-network
+
+  redis-replica:
+    image: redis:7-alpine
+    container_name: fr02-redis-replica
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_replica_data:/data
+      - ./config/redis-replica.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    depends_on:
+      - redis-master
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fr02-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fr02-grafana
+    ports:
+      - "3009:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: fr02-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://kb_admin:${POSTGRES_PASSWORD}@postgres:5432/knowledge_base_v2?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: fr02-redis-exporter
+    environment:
+      REDIS_ADDR: "redis://redis-master:6379"
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis-master
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: fr02-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # Adminer Database Web Interface
+  adminer:
+    image: adminer:latest
+    container_name: fr02-adminer
+    ports:
+      - "8081:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+      - ADMINER_DESIGN=pepa-linha
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # NGINX Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: fr02-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf
+      - ./config/ssl:/etc/nginx/ssl
+    depends_on:
+      - chroma
+      - postgres
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # API Service để serve files
+  fr02-file-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: fr02-file-api
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql://kb_admin:${POSTGRES_PASSWORD}@postgres:5432/knowledge_base_v2
+      - STORAGE_BASE_PATH=/opt/chatbot-storage
+    #(Windows)
+    volumes:
+      - chatbot_storage:/opt/chatbot-storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fr02-network
+
+  # ================================
+  # FR-07 ANALYTICS SERVICES
+  # ================================
+
+  # FR-07 Analytics API Service
+  fr07-analytics-api:
+    build:
+      context: ./FR-07/analytics_module
+      dockerfile: docker/Dockerfile.analytics
+    container_name: fr07-analytics-api
+    environment:
+      DATABASE_URL: postgresql://kb_admin:${POSTGRES_PASSWORD}@postgres:5432/knowledge_base_v2
+      REDIS_URL: redis://redis-master:6379/1
+      API_HOST: 0.0.0.0
+      API_PORT: 8003
+      PROMETHEUS_MULTIPROC_DIR: /tmp
+      LOG_LEVEL: INFO
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    networks:
+      - fr02-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FR-07 Analytics Dashboard
+  fr07-analytics-dashboard:
+    build:
+      context: ./FR-07/analytics_module
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: fr07-analytics-dashboard
+    environment:
+      API_BASE_URL: http://fr07-analytics-api:8003
+      DASHBOARD_HOST: localhost
+      DASHBOARD_PORT: 8501
+    ports:
+      - "8501:8501"
+    depends_on:
+      fr07-analytics-api:
+        condition: service_healthy
+    networks:
+      - fr02-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # FR-08 ADMIN & MAINTENANCE TOOLS
+  # ================================
+
+  # FR-08 Admin Tools Service
+  fr08-admin-tools:
+    build:
+      context: ./FR-08
+      dockerfile: Dockerfile
+    container_name: fr08-admin-tools
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://kb_admin:${POSTGRES_PASSWORD}@postgres:5432/knowledge_base_v2
+      - CHROMADB_HOST=chroma:8000
+      - CHROMADB_URL=http://chroma:8000
+      - REDIS_URL=redis://redis-master:6379/2
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-integrated-fr02-fr07-fr08-secret-2025}
+      - JWT_ALGORITHM=HS256
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - GRAFANA_URL=http://grafana:3000
+      - BACKUP_DIR=/app/backups
+    volumes:
+      - ./fr08-admin:/app
+      - admin_backups:/app/backups
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker container monitoring
+    working_dir: /app
+    command: uvicorn main:app --host 0.0.0.0 --port 8005 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+    networks:
+      - fr02-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  chroma_data:
+    driver: local
+  redis_data:
+    driver: local
+  redis_replica_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  # NEW: Additional volumes for FR-07 and FR-08
+  admin_backups:
+    driver: local
+  # SHARED VOLUME cho file storage (Windows)
+  chatbot_storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/abc/chatbot-storage
+
+networks:
+  fr02-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
