@@ -304,3 +304,360 @@ Grafana Dashboard + Streamlit Reports
 7. **✅ Deployment**: Docker Compose production-ready thay vì Kubernetes concept
 
 Sơ đồ khối này phản ánh **trạng thái thực tế** của dự án sau khi hoàn thành FR01-FR08, sẵn sàng cho giai đoạn testing tích hợp và deployment production.
+
+---
+
+## 🖥️ **SƠ ĐỒ 1: KIẾN TRÚC PHẦN CỨNG (HARDWARE ARCHITECTURE)**
+
+```mermaid
+graph TB
+    subgraph "KHU VỰC NGƯỜI DÙNG - User Zone"
+        U1[💻 Desktop PC<br/>Trình duyệt Web<br/>Chrome/Firefox/Edge]
+        U2[💻 Laptop<br/>Trình duyệt Web<br/>Windows/MacOS]
+        U3[📱 Tablet/Mobile<br/>Responsive Web<br/>iOS/Android]
+    end
+    
+    subgraph "TẦNG MẠNG - Network Layer"
+        FW[🔥 Firewall<br/>Bảo mật mạng nội bộ<br/>Block external access]
+        LB[⚖️ Load Balancer<br/>Nginx/HAProxy<br/>Phân tải traffic]
+        SW[🔌 Network Switch<br/>1Gbps LAN<br/>VLAN isolation]
+    end
+    
+    subgraph "DATA CENTER NỘI BỘ - Internal Data Center"
+        subgraph "GPU SERVER - Main Application Server"
+            GPU[🎮 GPU Server<br/>━━━━━━━━━━━━━━━━<br/>CPU: Intel Xeon/AMD EPYC 16+ cores<br/>RAM: 64GB DDR4/DDR5<br/>GPU: NVIDIA RTX 3090/4090 24GB VRAM<br/>Storage: 1TB NVMe SSD<br/>OS: Ubuntu 22.04 LTS<br/>━━━━━━━━━━━━━━━━<br/>🔹 AI Model Processing<br/>🔹 RAG Pipeline Execution<br/>🔹 Vector Embedding Generation<br/>🔹 Real-time Query Processing]
+        end
+        
+        subgraph "DATABASE SERVERS - Data Storage Cluster"
+            DB1[(📊 PostgreSQL Server<br/>━━━━━━━━━━━━━━━━<br/>CPU: 8 cores<br/>RAM: 32GB<br/>Storage: 500GB SSD RAID 1<br/>━━━━━━━━━━━━━━━━<br/>🔹 User Management<br/>🔹 Document Metadata<br/>🔹 Audit Logs<br/>🔹 Session Data)]
+            
+            DB2[(🧠 Vector Database Server<br/>━━━━━━━━━━━━━━━━<br/>CPU: 8 cores<br/>RAM: 32GB<br/>Storage: 500GB NVMe SSD<br/>━━━━━━━━━━━━━━━━<br/>🔹 ChromaDB/FAISS<br/>🔹 Vector Embeddings<br/>🔹 Semantic Index<br/>🔹 Document Chunks)]
+            
+            REDIS[(⚡ Redis Server<br/>━━━━━━━━━━━━━━━━<br/>CPU: 4 cores<br/>RAM: 16GB<br/>Storage: 200GB SSD<br/>━━━━━━━━━━━━━━━━<br/>🔹 Session Cache<br/>🔹 Query Cache<br/>🔹 Rate Limiting<br/>🔹 Real-time Data)]
+        end
+        
+        subgraph "STORAGE & BACKUP - Data Protection"
+            NAS[💾 NAS Storage Server<br/>━━━━━━━━━━━━━━━━<br/>Storage: 2TB+ HDD RAID 5/6<br/>Network: 1Gbps<br/>━━━━━━━━━━━━━━━━<br/>🔹 Document Repository<br/>🔹 Backup Storage<br/>🔹 Log Archives<br/>🔹 System Snapshots]
+            
+            BACKUP[🔐 Backup System<br/>━━━━━━━━━━━━━━━━<br/>External Storage: 4TB+<br/>Encryption: AES-256<br/>━━━━━━━━━━━━━━━━<br/>🔹 Daily Auto Backup<br/>🔹 30-day Retention<br/>🔹 Disaster Recovery<br/>🔹 Offsite Copy]
+        end
+        
+        subgraph "MONITORING & MANAGEMENT"
+            MON[📈 Monitoring Server<br/>━━━━━━━━━━━━━━━━<br/>Prometheus + Grafana<br/>CPU: 4 cores, RAM: 16GB<br/>━━━━━━━━━━━━━━━━<br/>🔹 Performance Metrics<br/>🔹 Health Checks<br/>🔹 Alert Management<br/>🔹 Log Aggregation]
+        end
+    end
+    
+    subgraph "UPS & POWER - Power Backup"
+        UPS[🔋 UPS System<br/>━━━━━━━━━━━━━━━━<br/>Capacity: 3-5 KVA<br/>Runtime: 30-60 minutes<br/>━━━━━━━━━━━━━━━━<br/>🔹 Power Protection<br/>🔹 Graceful Shutdown<br/>🔹 Surge Protection]
+    end
+    
+    %% Connections
+    U1 & U2 & U3 --> SW
+    SW --> FW
+    FW --> LB
+    LB --> GPU
+    
+    GPU <--> DB1
+    GPU <--> DB2
+    GPU <--> REDIS
+    GPU <--> NAS
+    
+    DB1 & DB2 & REDIS --> BACKUP
+    GPU --> MON
+    DB1 & DB2 & REDIS --> MON
+    
+    UPS -.Cấp điện.-> GPU
+    UPS -.Cấp điện.-> DB1
+    UPS -.Cấp điện.-> DB2
+    UPS -.Cấp điện.-> REDIS
+    UPS -.Cấp điện.-> NAS
+    UPS -.Cấp điện.-> MON
+    
+    %% Styling
+    style GPU fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px
+    style DB1 fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style DB2 fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:2px
+    style REDIS fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    style NAS fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style FW fill:#FF5722,color:#fff,stroke:#D84315,stroke-width:2px
+    style LB fill:#00BCD4,color:#fff,stroke:#006064,stroke-width:2px
+    style MON fill:#607D8B,color:#fff,stroke:#37474F,stroke-width:2px
+    style UPS fill:#FFC107,color:#000,stroke:#F57F17,stroke-width:2px
+    style BACKUP fill:#795548,color:#fff,stroke:#4E342E,stroke-width:2px
+```
+
+---
+
+## 💻 **SƠ ĐỒ 2: KIẾN TRÚC PHẦN MỀM (SOFTWARE ARCHITECTURE)**
+
+```mermaid
+graph TB
+    subgraph "CLIENT TIER - Lớp Giao diện Người dùng"
+        WEB[🌐 Web Application<br/>━━━━━━━━━━━━━━━━<br/>Framework: React 18 + TypeScript<br/>State: Redux Toolkit<br/>UI Library: Material-UI<br/>━━━━━━━━━━━━━━━━<br/>📱 Responsive Design<br/>🌍 Multi-language EN/VI<br/>♿ Accessibility WCAG 2.1<br/>🎨 Modern Chat Interface]
+    end
+    
+    subgraph "PRESENTATION TIER - Lớp Trình diễn"
+        NGINX[⚡ Nginx Web Server<br/>━━━━━━━━━━━━━━━━<br/>Version: 1.24+<br/>━━━━━━━━━━━━━━━━<br/>🔹 Reverse Proxy<br/>🔹 SSL/TLS Termination<br/>🔹 Static File Serving<br/>🔹 Load Balancing<br/>🔹 Rate Limiting<br/>🔹 Gzip Compression]
+    end
+    
+    subgraph "API GATEWAY TIER - Lớp Cổng API"
+        API[🚪 API Gateway<br/>━━━━━━━━━━━━━━━━<br/>Framework: FastAPI 0.104+<br/>Python: 3.10.11<br/>━━━━━━━━━━━━━━━━<br/>🔐 JWT Authentication<br/>🔑 API Key Management<br/>🛡️ Rate Limiting<br/>📊 Request Logging<br/>⚠️ Error Handling<br/>📝 API Documentation]
+        
+        AUTH[🔐 Authentication Module<br/>FR-06<br/>━━━━━━━━━━━━━━━━<br/>🔹 User Login/Logout<br/>🔹 JWT Token Generation<br/>🔹 Session Management<br/>🔹 RBAC Authorization<br/>🔹 Password Hashing bcrypt<br/>🔹 2FA Support ready]
+    end
+    
+    subgraph "BUSINESS LOGIC TIER - Lớp Xử lý Nghiệp vụ"
+        subgraph "FR-04: RAG CORE ENGINE - Động cơ RAG"
+            RETRIEVAL[🔍 Retrieval Router<br/>FR-04.1<br/>━━━━━━━━━━━━━━━━<br/>🔹 Semantic Search<br/>🔹 Keyword Search<br/>🔹 Hybrid Search<br/>🔹 Permission Filter<br/>🔹 Re-ranking<br/>🔹 Query Optimization]
+            
+            SYNTHESIS[🧩 Synthesis Engine<br/>FR-04.2<br/>━━━━━━━━━━━━━━━━<br/>🔹 Context Building<br/>🔹 Prompt Engineering<br/>🔹 Citation Extraction<br/>🔹 Relevance Scoring<br/>🔹 Document Chunking<br/>🔹 Token Management]
+            
+            GENERATION[✨ Generation Engine<br/>FR-04.3<br/>━━━━━━━━━━━━━━━━<br/>🔹 LLM Integration<br/>🔹 Response Generation<br/>🔹 Answer Formatting<br/>🔹 Quality Assessment<br/>🔹 Hallucination Check<br/>🔹 Source Attribution]
+            
+            ENDPOINT[🔌 API Endpoints<br/>FR-04.4<br/>━━━━━━━━━━━━━━━━<br/>🔹 Query Processing<br/>🔹 Multi-turn Dialog<br/>🔹 Export Functions<br/>🔹 Feedback Collection<br/>🔹 Caching Strategy<br/>🔹 Error Recovery]
+        end
+        
+        subgraph "FR-03: CONTEXT MANAGEMENT - Quản lý Ngữ cảnh"
+            CONTEXT[📚 Context Manager<br/>FR-03.3<br/>━━━━━━━━━━━━━━━━<br/>🔹 Session Context<br/>🔹 Conversation History<br/>🔹 User Preferences<br/>🔹 Context Window Mgmt<br/>🔹 Memory Optimization]
+            
+            INGEST[📥 Data Ingestion<br/>FR-03.3<br/>━━━━━━━━━━━━━━━━<br/>🔹 Document Upload<br/>🔹 PDF/Word/Excel Parser<br/>🔹 Vietnamese NLP pyvi<br/>🔹 Text Normalization<br/>🔹 Chunk Generation<br/>🔹 Metadata Extraction]
+        end
+        
+        subgraph "FR-07: ANALYTICS & REPORTING"
+            ANALYTICS[📊 Analytics Module<br/>FR-07<br/>━━━━━━━━━━━━━━━━<br/>🔹 Usage Statistics<br/>🔹 Query Analytics<br/>🔹 Performance Metrics<br/>🔹 User Behavior<br/>🔹 Document Insights<br/>🔹 Business Reports]
+        end
+        
+        subgraph "FR-08: ADMIN & MAINTENANCE"
+            ADMIN[🛠️ Admin Tools<br/>FR-08<br/>━━━━━━━━━━━━━━━━<br/>🔹 User Management<br/>🔹 Document CRUD<br/>🔹 System Config<br/>🔹 Backup/Restore<br/>🔹 Health Monitoring<br/>🔹 Log Management]
+        end
+    end
+    
+    subgraph "AI/ML TIER - Lớp Trí tuệ Nhân tạo"
+        EMBED[🤖 Embedding Model<br/>━━━━━━━━━━━━━━━━<br/>Model: Qwen3-Embedding-0.6B<br/>Library: sentence-transformers<br/>━━━━━━━━━━━━━━━━<br/>🔹 Text → Vector (768-dim)<br/>🔹 Batch Processing<br/>🔹 GPU Acceleration<br/>🔹 Vietnamese Optimized<br/>🔹 Inference: <500ms]
+        
+        LLM[🧠 Large Language Model<br/>━━━━━━━━━━━━━━━━<br/>Model: [Local LLM]<br/>Framework: Transformers/vLLM<br/>━━━━━━━━━━━━━━━━<br/>🔹 Text Generation<br/>🔹 Context Understanding<br/>🔹 Vietnamese Support<br/>🔹 Response Streaming<br/>🔹 Temperature Control<br/>🔹 Max Tokens: 4096]
+        
+        NLP[📝 Vietnamese NLP<br/>━━━━━━━━━━━━━━━━<br/>Libraries: underthesea, pyvi<br/>━━━━━━━━━━━━━━━━<br/>🔹 Tokenization<br/>🔹 POS Tagging<br/>🔹 NER extraction<br/>🔹 Stopwords Removal<br/>🔹 Tone Normalization]
+    end
+    
+    subgraph "DATA TIER - Lớp Dữ liệu"
+        POSTGRES[(🗄️ PostgreSQL 13+<br/>━━━━━━━━━━━━━━━━<br/>ORM: SQLAlchemy async<br/>Connection Pool: 20-50<br/>━━━━━━━━━━━━━━━━<br/>📊 users table<br/>📊 documents_metadata<br/>📊 conversations<br/>📊 audit_logs<br/>📊 access_control_matrix<br/>📊 sessions<br/>📊 analytics_events)]
+        
+        CHROMA[(🧠 ChromaDB/FAISS<br/>━━━━━━━━━━━━━━━━<br/>Vector Dimension: 768<br/>Distance: Cosine Similarity<br/>━━━━━━━━━━━━━━━━<br/>🔹 document_embeddings<br/>🔹 query_embeddings<br/>🔹 semantic_index<br/>🔹 metadata_filter<br/>Index: HNSW/IVF)]
+        
+        REDIS[(⚡ Redis 6+<br/>━━━━━━━━━━━━━━━━<br/>Mode: Standalone/Sentinel<br/>Persistence: RDB + AOF<br/>━━━━━━━━━━━━━━━━<br/>🔹 session:* hashes<br/>🔹 cache:query:*<br/>🔹 cache:embeddings:*<br/>🔹 ratelimit:* counters<br/>🔹 user:token:* sets<br/>TTL: 1h-24h)]
+    end
+    
+    subgraph "INFRASTRUCTURE TIER - Lớp Hạ tầng"
+        DOCKER[🐳 Docker Containers<br/>━━━━━━━━━━━━━━━━<br/>Orchestration: Docker Compose<br/>━━━━━━━━━━━━━━━━<br/>📦 frontend-service<br/>📦 backend-api<br/>📦 rag-engine<br/>📦 postgres<br/>📦 chromadb<br/>📦 redis<br/>📦 nginx<br/>📦 prometheus<br/>📦 grafana]
+        
+        MONITOR[📈 Monitoring Stack<br/>━━━━━━━━━━━━━━━━<br/>Prometheus + Grafana<br/>AlertManager<br/>━━━━━━━━━━━━━━━━<br/>📊 System Metrics<br/>📊 Application Metrics<br/>📊 Business Metrics<br/>📊 Custom Alerts<br/>📊 Dashboards]
+        
+        LOGS[📋 Logging System<br/>━━━━━━━━━━━━━━━━<br/>Python: structlog<br/>Format: JSON<br/>━━━━━━━━━━━━━━━━<br/>🔹 Application Logs<br/>🔹 Access Logs<br/>🔹 Error Logs<br/>🔹 Audit Logs<br/>Retention: 30-90 days]
+    end
+    
+    %% Connections - User Flow
+    WEB -->|HTTPS/WSS| NGINX
+    NGINX -->|HTTP| API
+    API --> AUTH
+    AUTH --> ENDPOINT
+    
+    %% RAG Pipeline Flow
+    ENDPOINT --> RETRIEVAL
+    RETRIEVAL --> SYNTHESIS
+    SYNTHESIS --> GENERATION
+    GENERATION --> ENDPOINT
+    
+    %% Context Management
+    ENDPOINT <--> CONTEXT
+    CONTEXT --> INGEST
+    
+    %% Analytics & Admin
+    ENDPOINT --> ANALYTICS
+    API --> ADMIN
+    
+    %% AI/ML Integration
+    RETRIEVAL <--> EMBED
+    SYNTHESIS <--> EMBED
+    GENERATION <--> LLM
+    INGEST --> NLP
+    NLP --> EMBED
+    
+    %% Data Layer Access
+    AUTH <--> POSTGRES
+    CONTEXT <--> POSTGRES
+    RETRIEVAL <--> CHROMA
+    RETRIEVAL <--> POSTGRES
+    INGEST <--> POSTGRES
+    INGEST <--> CHROMA
+    ANALYTICS <--> POSTGRES
+    ADMIN <--> POSTGRES
+    ADMIN <--> CHROMA
+    
+    %% Caching Layer
+    API <--> REDIS
+    AUTH <--> REDIS
+    RETRIEVAL <--> REDIS
+    CONTEXT <--> REDIS
+    
+    %% Infrastructure
+    API -.logs.-> LOGS
+    ENDPOINT -.logs.-> LOGS
+    RETRIEVAL -.logs.-> LOGS
+    
+    API -.metrics.-> MONITOR
+    POSTGRES -.metrics.-> MONITOR
+    CHROMA -.metrics.-> MONITOR
+    REDIS -.metrics.-> MONITOR
+    
+    DOCKER -.orchestrates.-> API
+    DOCKER -.orchestrates.-> POSTGRES
+    DOCKER -.orchestrates.-> CHROMA
+    DOCKER -.orchestrates.-> REDIS
+    
+    %% Styling
+    style WEB fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px
+    style API fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style AUTH fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:2px
+    
+    style RETRIEVAL fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style SYNTHESIS fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style GENERATION fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style ENDPOINT fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    
+    style EMBED fill:#FF5722,color:#fff,stroke:#D84315,stroke-width:2px
+    style LLM fill:#FF5722,color:#fff,stroke:#D84315,stroke-width:2px
+    style NLP fill:#FF5722,color:#fff,stroke:#D84315,stroke-width:2px
+    
+    style POSTGRES fill:#00BCD4,color:#fff,stroke:#006064,stroke-width:2px
+    style CHROMA fill:#FFC107,color:#000,stroke:#F57F17,stroke-width:2px
+    style REDIS fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    
+    style MONITOR fill:#607D8B,color:#fff,stroke:#37474F,stroke-width:2px
+    style DOCKER fill:#00ACC1,color:#fff,stroke:#00838F,stroke-width:2px
+```
+
+---
+
+## 📊 **BẢNG SO SÁNH & THÔNG SỐ KỸ THUẬT**
+
+### **Phần Cứng - Hardware Specifications**
+
+| Thành phần | Cấu hình | Mục đích | Chi phí ước tính |
+|------------|----------|----------|------------------|
+| **GPU Server** | Xeon 16-core, 64GB RAM, RTX 4090 24GB, 1TB NVMe | Xử lý AI, RAG Engine | 150-200 triệu VNĐ |
+| **Database Servers** | 3 servers x (8-core, 32GB, 500GB SSD RAID) | PostgreSQL, ChromaDB, Redis | 90-120 triệu VNĐ |
+| **NAS Storage** | 2TB RAID 5/6, 1Gbps | Backup, Document storage | 30-50 triệu VNĐ |
+| **Network Equipment** | Firewall, Load Balancer, Switch | Bảo mật, phân tải | 40-60 triệu VNĐ |
+| **UPS System** | 3-5 KVA, 30-60min runtime | Dự phòng điện | 20-30 triệu VNĐ |
+| **Monitoring Server** | 4-core, 16GB, 200GB SSD | Prometheus, Grafana | 15-20 triệu VNĐ |
+
+### **Phần Mềm - Software Stack**
+
+| Layer | Technology | Version | License | Purpose |
+|-------|-----------|---------|---------|---------|
+| **Frontend** | React + TypeScript | 18.x | MIT | User Interface |
+| **Web Server** | Nginx | 1.24+ | BSD | Reverse Proxy |
+| **Backend API** | FastAPI | 0.104+ | MIT | REST API |
+| **Language** | Python | 3.10.11 | PSF | Programming |
+| **AI Embedding** | Qwen3-Embedding-0.6B | Latest | Apache 2.0 | Vector Generation |
+| **LLM** | [Local Model] | - | [Check] | Text Generation |
+| **NLP Vietnamese** | underthesea, pyvi | Latest | MIT | Text Processing |
+| **Database** | PostgreSQL | 13+ | PostgreSQL | Relational DB |
+| **Vector DB** | ChromaDB/FAISS | Latest | Apache 2.0 | Vector Storage |
+| **Cache** | Redis | 6+ | BSD | Caching |
+| **Container** | Docker + Compose | Latest | Apache 2.0 | Orchestration |
+| **Monitoring** | Prometheus + Grafana | Latest | Apache 2.0 | Observability |
+
+---
+
+## 🔄 **LUỒNG XỬ LÝ HOÀN CHỈNH (END-TO-END FLOW)**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as 👤 Người dùng
+    participant Web as 🌐 Web App
+    participant Nginx as ⚡ Nginx
+    participant API as 🚪 API Gateway
+    participant Auth as 🔐 Auth Module
+    participant Redis as ⚡ Redis Cache
+    participant RAG as 🤖 RAG Engine
+    participant Embed as 🧠 Embedding Model
+    participant Vector as 🗄️ Vector DB
+    participant LLM as 🤖 LLM Model
+    participant PG as 📊 PostgreSQL
+    participant Monitor as 📈 Monitoring
+    
+    User->>Web: Nhập câu hỏi: "Quy trình phê duyệt dự án?"
+    Web->>Nginx: HTTPS Request
+    Nginx->>API: Forward to API Gateway
+    API->>Auth: Verify JWT Token
+    Auth->>Redis: Check session
+    Redis-->>Auth: Session valid
+    Auth->>PG: Check user permissions
+    PG-->>Auth: Role: Manager, Department: Investment
+    Auth-->>API: ✅ Authorized
+    
+    API->>Monitor: Log request metrics
+    API->>Redis: Check cache for query
+    Redis-->>API: ❌ Cache miss
+    
+    API->>RAG: Process query
+    RAG->>Embed: Generate query embedding
+    Embed-->>RAG: Vector[768-dim]
+    
+    RAG->>Vector: Semantic search with filters<br/>(Permission: Manager, Dept: Investment)
+    Vector-->>RAG: Top 5 relevant chunks
+    
+    RAG->>PG: Get metadata for chunks
+    PG-->>RAG: Document info, citations
+    
+    RAG->>LLM: Generate answer with context
+    Note over RAG,LLM: Prompt: System + Context + Query
+    LLM-->>RAG: Generated answer + citations
+    
+    RAG->>PG: Log conversation
+    RAG->>Redis: Cache response (TTL: 1h)
+    RAG-->>API: Final response
+    
+    API->>Monitor: Log response time, success
+    API-->>Nginx: JSON response
+    Nginx-->>Web: HTTPS Response
+    Web-->>User: Hiển thị câu trả lời + Tài liệu tham khảo
+    
+    User->>Web: 👍 Đánh giá hữu ích
+    Web->>API: POST /feedback
+    API->>PG: Store feedback
+    API->>Monitor: Update quality metrics
+```
+
+---
+
+## 💡 **CHÚ THÍCH QUAN TRỌNG**
+
+### **Phần Cứng:**
+- ✅ **Có thể mở rộng:** Thêm GPU/RAM khi số người dùng tăng
+- ✅ **High Availability:** Setup Master-Slave cho databases
+- ✅ **Disaster Recovery:** NAS + External backup
+- ✅ **Network Security:** Firewall + VLAN isolation
+
+### **Phần Mềm:**
+- ✅ **Microservices:** Dễ bảo trì và scale từng module
+- ✅ **Async Processing:** Tối ưu hiệu năng với Python async/await
+- ✅ **Caching Strategy:** 3-tier cache (Redis, In-memory, CDN)
+- ✅ **Observability:** Metrics, Logs, Traces đầy đủ
+
+### **Bảo mật:**
+- 🔒 **Zero Trust:** Xác thực mọi request
+- 🔒 **Data Encryption:** At-rest và in-transit
+- 🔒 **RBAC:** 5-tier permission matrix
+- 🔒 **Audit Trail:** Log đầy đủ mọi thao tác
+
+---
+
+Bạn có cần tôi:
+1. ✏️ Chỉnh sửa/đơn giản hóa sơ đồ?
+2. 📊 Thêm sơ đồ deployment flow?
+3. 🔄 Vẽ sơ đồ data flow chi tiết hơn?
+4. 📐 Xuất sang định dạng khác (PNG, SVG)?
