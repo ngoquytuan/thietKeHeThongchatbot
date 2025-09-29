@@ -661,3 +661,130 @@ Bạn có cần tôi:
 2. 📊 Thêm sơ đồ deployment flow?
 3. 🔄 Vẽ sơ đồ data flow chi tiết hơn?
 4. 📐 Xuất sang định dạng khác (PNG, SVG)?
+
+
+## 🖥️ **SƠ ĐỒ 1: KIẾN TRÚC PHẦN CỨNG (HARDWARE ARCHITECTURE)**
+
+```mermaid
+graph TB
+    subgraph "NGƯỜI DÙNG NỘI BỘ"
+        U[💻 Desktop/Laptop/Mobile<br/>50-100 người dùng<br/>Truy cập qua Web Browser]
+    end
+    
+    subgraph "MẠNG NỘI BỘ"
+        NET[🔌 Network Switch<br/>1Gbps LAN<br/>Kết nối các máy chủ]
+    end
+    
+    subgraph "DATA CENTER NỘI BỘ CÔNG TY"
+        subgraph "Máy chủ Ứng dụng & Giám sát"
+            APP[🎮 GPU Application Server<br/>━━━━━━━━━━━━━━━━━━━━<br/>CPU: 16+ cores<br/>RAM: 64GB<br/>GPU: RTX 4090 24GB VRAM<br/>Storage: 1TB NVMe SSD<br/>━━━━━━━━━━━━━━━━━━━━<br/>• Chạy AI Models & RAG Engine<br/>• Web Server & API Gateway<br/>• Monitoring & Logging System]
+        end
+        
+        subgraph "Cụm Dữ liệu & Lưu trữ"
+            DB[💾 Database & Storage Cluster<br/>━━━━━━━━━━━━━━━━━━━━<br/>3 servers x 32GB RAM<br/>Storage: 500GB SSD + 2TB HDD RAID<br/>Backup: 4TB External Storage<br/>━━━━━━━━━━━━━━━━━━━━<br/>• PostgreSQL - User & Metadata<br/>• ChromaDB - Vector Embeddings<br/>• Redis - Cache & Sessions<br/>• NAS - Documents & Backups]
+        end
+    end
+    
+    %% Connections
+    U --> NET
+    NET --> APP
+    APP <--> DB
+    
+    %% Styling - No colors, simple boxes
+    style U stroke:#000,stroke-width:2px
+    style NET stroke:#000,stroke-width:2px
+    style APP stroke:#000,stroke-width:3px
+    style DB stroke:#000,stroke-width:3px
+```
+
+---
+
+## 💻 **SƠ ĐỒ 2: KIẾN TRÚC PHẦN MỀM (SOFTWARE ARCHITECTURE)**
+
+```mermaid
+graph TB
+    subgraph "FRONTEND LAYER - Giao diện Người dùng"
+        UI[🌐 Web Application<br/>━━━━━━━━━━━━━━━━<br/>React + TypeScript<br/>━━━━━━━━━━━━━━━━<br/>✅ Chat Interface<br/>✅ Multi-language VI/EN<br/>✅ Mobile Responsive<br/>✅ Export PDF/JSON]
+    end
+    
+    subgraph "API LAYER - Lớp API & Xác thực"
+        API[🚪 API Gateway<br/>━━━━━━━━━━━━━━━━<br/>FastAPI + Python 3.10<br/>━━━━━━━━━━━━━━━━<br/>🔐 Authentication JWT<br/>🔑 Authorization RBAC<br/>📊 Rate Limiting<br/>📝 API Documentation]
+    end
+    
+    subgraph "APPLICATION LAYER - Lớp Ứng dụng"
+        RAG[🤖 RAG Engine<br/>━━━━━━━━━━━━━━━━<br/>Core Processing<br/>━━━━━━━━━━━━━━━━<br/>🔍 Document Retrieval<br/>🧩 Context Synthesis<br/>✨ Answer Generation<br/>📚 Multi-turn Dialog]
+        
+        SERVICES[⚙️ Business Services<br/>━━━━━━━━━━━━━━━━<br/>Supporting Modules<br/>━━━━━━━━━━━━━━━━<br/>📥 Document Management<br/>📊 Analytics & Reports<br/>🛠️ Admin Tools<br/>📈 Monitoring]
+    end
+    
+    subgraph "AI/ML LAYER - Lớp Trí tuệ Nhân tạo"
+        AI[🧠 AI Models<br/>━━━━━━━━━━━━━━━━<br/>GPU Accelerated<br/>━━━━━━━━━━━━━━━━<br/>📌 Qwen3-Embedding-0.6B<br/>📌 Large Language Model<br/>📌 Vietnamese NLP<br/>underthesea + pyvi]
+    end
+    
+    subgraph "DATA LAYER - Lớp Dữ liệu"
+        DB[💾 Data Storage<br/>━━━━━━━━━━━━━━━━<br/>Multi-Database System<br/>━━━━━━━━━━━━━━━━<br/>🗄️ PostgreSQL<br/>Metadata & Users<br/><br/>🧠 ChromaDB/FAISS<br/>Vector Embeddings<br/><br/>⚡ Redis<br/>Cache & Sessions]
+    end
+    
+    subgraph "INFRASTRUCTURE LAYER - Lớp Hạ tầng"
+        INFRA[🐳 Infrastructure<br/>━━━━━━━━━━━━━━━━<br/>Deployment & Ops<br/>━━━━━━━━━━━━━━━━<br/>📦 Docker Containers<br/>⚡ Nginx Web Server<br/>📊 Prometheus + Grafana<br/>🔐 Backup Automation]
+    end
+    
+    %% Connections
+    UI -->|HTTPS| API
+    API --> RAG
+    API --> SERVICES
+    
+    RAG <--> AI
+    SERVICES <--> AI
+    
+    RAG <--> DB
+    SERVICES <--> DB
+    API <--> DB
+    
+    API -.runs on.-> INFRA
+    RAG -.runs on.-> INFRA
+    SERVICES -.runs on.-> INFRA
+    AI -.runs on.-> INFRA
+    DB -.runs on.-> INFRA
+    
+    %% Styling - No colors
+    style UI stroke:#000,stroke-width:3px
+    style API stroke:#000,stroke-width:2px
+    style RAG stroke:#000,stroke-width:3px
+    style AI stroke:#000,stroke-width:3px
+    style DB stroke:#000,stroke-width:2px
+    style INFRA stroke:#000,stroke-width:2px
+    style SERVICES stroke:#000,stroke-width:2px
+```
+
+---
+
+## 📋 **TỔNG QUAN HỆ THỐNG**
+
+### **Phần Cứng - 3 Thành phần Chính**
+
+| Thành phần | Cấu hình | Chi phí ước tính |
+|------------|----------|------------------|
+| **👤 Người dùng** | Desktop/Laptop/Mobile với trình duyệt web | - |
+| **🎮 Máy chủ Ứng dụng** | 16-core CPU, 64GB RAM, RTX 4090 GPU, 1TB SSD | 150-200 triệu VNĐ |
+| **💾 Cụm Dữ liệu** | 3 servers x 32GB RAM + Storage 2-4TB | 120-180 triệu VNĐ |
+| **🔌 Mạng nội bộ** | Switch, cabling | 20-30 triệu VNĐ |
+| **TỔNG** | | **~300-420 triệu VNĐ** |
+
+### **Phần Mềm - 6 Tầng Kiến trúc**
+
+| Tầng | Công nghệ | Chức năng |
+|------|-----------|-----------|
+| **Frontend** | React + TypeScript | Giao diện người dùng |
+| **API** | FastAPI + Python | Xác thực & Phân quyền |
+| **RAG Engine** | Custom AI Pipeline | Xử lý câu hỏi & Trả lời |
+| **Business Services** | Python Modules | Quản lý & Phân tích |
+| **AI Models** | Qwen3 + LLM | Xử lý ngôn ngữ AI |
+| **Data Storage** | PostgreSQL + ChromaDB + Redis | Lưu trữ dữ liệu |
+| **Infrastructure** | Docker + Nginx + Monitoring | Triển khai & Giám sát |
+
+**Toàn bộ: Open Source - Không phí license**
+
+---
+
+**✅ Sơ đồ đã được đơn giản hóa tối đa, tập trung vào 3 khối chính: Người dùng → Máy chủ Ứng dụng → Cụm Dữ liệu**
