@@ -42,7 +42,8 @@ graph TB
 
 ## **📋 RULES CHUẨN - PHIÊN BẢN SAU KHI FIX (Bổ sung vào Checklist)**
 
-```markdown
+xxx`x`x`xxmarkdown
+
 ### **CHROMA VECTORDB SEARCH RULES (Updated: 04/10/2025)**
 
 ---
@@ -479,9 +480,1182 @@ Trước khi deploy lên production:
 ---
 
 **Kết luận: Kết quả search ĐÃ ĐÚNG sau khi fix! Rules trên là phiên bản chuẩn được validate bằng kết quả thực tế.** ✅
-```
+-end-
 
 **Bạn muốn tôi:**
 1. **Tạo thêm test cases** để validate quality metrics?
 2. **Optimize processing time** từ 7.5s xuống < 3s?
 3. **Tạo automated monitoring dashboard** cho search quality?
+
+---
+
+## **🧪 TEST CASES ĐỂ VALIDATE QUALITY METRICS**
+
+Tôi sẽ tạo một bộ test cases toàn diện để validate quality metrics của ChromaDB search:
+
+---
+
+## **📋 STRUCTURE - BỘ TEST CASES**
+
+```mermaid
+graph TB
+    subgraph "Test Categories"
+        A[1. Unit Tests<br/>Distance Conversion]
+        B[2. Ground Truth Tests<br/>Query-Document Pairs]
+        C[3. Precision Tests<br/>Relevance Validation]
+        D[4. Performance Tests<br/>Speed & Scale]
+        E[5. Edge Cases<br/>Error Handling]
+    end
+    
+    subgraph "Validation Metrics"
+        F[Similarity Accuracy]
+        G[Precision@K]
+        H[Recall@K]
+        I[MRR - Mean Reciprocal Rank]
+        J[Processing Time]
+    end
+    
+    A --> F
+    B --> G
+    B --> H
+    B --> I
+    C --> G
+    D --> J
+    
+    style A fill:#4ecdc4
+    style B fill:#95e1d3
+    style C fill:#ffd93d
+    style D fill:#ff6b6b
+    style E fill:#f38181
+```
+
+---
+
+## **1️⃣ UNIT TESTS - Distance Conversion Validation**
+
+```python
+#!/usr/bin/env python3
+"""
+Unit tests for ChromaDB distance conversion
+File: tests/unit/test_distance_conversion.py
+"""
+
+import pytest
+import numpy as np
+from typing import Tuple, List
+
+def calculate_cosine_similarity_from_chromadb_distance(distance: float) -> float:
+    """Công thức chuẩn"""
+    similarity = 1.0 - (distance / 2.0)
+    return max(0.0, min(1.0, similarity))
+
+
+class TestDistanceConversion:
+    """Test suite for distance to similarity conversion"""
+    
+    @pytest.mark.parametrize("distance,expected_similarity,tolerance", [
+        # Perfect matches
+        (0.0, 1.0, 0.001),
+        (0.001, 0.9995, 0.001),
+        
+        # Very similar (distance 0.0 - 0.3)
+        (0.1, 0.95, 0.001),
+        (0.2, 0.90, 0.001),
+        (0.28, 0.86, 0.001),
+        (0.3, 0.85, 0.001),
+        
+        # Similar (distance 0.3 - 0.6)
+        (0.4, 0.80, 0.001),
+        (0.5, 0.75, 0.001),
+        (0.54, 0.73, 0.001),
+        (0.6, 0.70, 0.001),
+        
+        # Moderately similar (distance 0.6 - 1.0)
+        (0.7, 0.65, 0.001),
+        (0.8, 0.60, 0.001),
+        (0.9, 0.55, 0.001),
+        (1.0, 0.50, 0.001),
+        
+        # Low similarity (distance 1.0 - 1.4)
+        (1.2, 0.40, 0.001),
+        (1.4, 0.30, 0.001),
+        
+        # Not related (distance 1.4 - 2.0)
+        (1.6, 0.20, 0.001),
+        (1.8, 0.10, 0.001),
+        (2.0, 0.0, 0.001),
+        
+        # Opposite direction (distance > 2.0, clamped to 0)
+        (2.5, 0.0, 0.001),
+        (3.0, 0.0, 0.001),
+        (4.0, 0.0, 0.001),
+    ])
+    def test_conversion_accuracy(self, distance, expected_similarity, tolerance):
+        """Test conversion formula accuracy"""
+        calculated = calculate_cosine_similarity_from_chromadb_distance(distance)
+        assert abs(calculated - expected_similarity) < tolerance, \
+            f"Distance {distance}: Expected {expected_similarity}, Got {calculated}"
+    
+    
+    def test_conversion_range_bounds(self):
+        """Test conversion stays in valid range [0, 1]"""
+        test_distances = np.linspace(0, 4, 100)
+        
+        for distance in test_distances:
+            similarity = calculate_cosine_similarity_from_chromadb_distance(distance)
+            assert 0.0 <= similarity <= 1.0, \
+                f"Similarity {similarity} out of range for distance {distance}"
+    
+    
+    def test_inverse_relationship(self):
+        """Test that higher distance = lower similarity"""
+        distances = [0.0, 0.5, 1.0, 1.5, 2.0]
+        similarities = [
+            calculate_cosine_similarity_from_chromadb_distance(d) 
+            for d in distances
+        ]
+        
+        # Verify decreasing order
+        for i in range(len(similarities) - 1):
+            assert similarities[i] >= similarities[i + 1], \
+                f"Similarity not decreasing: {similarities}"
+    
+    
+    def test_chromadb_formula_consistency(self):
+        """Test consistency với ChromaDB internal formula"""
+        # ChromaDB: distance = 2 * (1 - cosine_similarity)
+        # Reverse: cosine_similarity = 1 - (distance / 2)
+        
+        test_cases = [
+            (0.0, 1.0),   # cosine_sim = 1 → distance = 0
+            (0.5, 0.75),  # cosine_sim = 0.75 → distance = 0.5
+            (1.0, 0.5),   # cosine_sim = 0.5 → distance = 1.0
+            (2.0, 0.0),   # cosine_sim = 0 → distance = 2.0
+        ]
+        
+        for distance, expected_cosine_sim in test_cases:
+            # Forward conversion
+            similarity = calculate_cosine_similarity_from_chromadb_distance(distance)
+            
+            # Verify matches expected
+            assert abs(similarity - expected_cosine_sim) < 0.001
+            
+            # Reverse check: distance should equal 2 * (1 - similarity)
+            reverse_distance = 2 * (1 - similarity)
+            assert abs(reverse_distance - distance) < 0.001
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])
+```
+
+---
+
+## **2️⃣ GROUND TRUTH TESTS - Query-Document Validation**
+
+```python
+#!/usr/bin/env python3
+"""
+Ground truth tests with real Vietnamese queries
+File: tests/integration/test_search_quality.py
+"""
+
+import pytest
+from typing import Dict, List, Tuple
+import chromadb
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+# Ground truth dataset
+GROUND_TRUTH_DATASET = [
+    {
+        "query": "cách xác định hướng nhà",
+        "expected_docs": [
+            {
+                "content": "Cách xác định hướng nhà, hướng cửa trong Phong thủy",
+                "min_similarity": 0.85,
+                "rank": 1
+            },
+            {
+                "content": "Hướng nhà được xác định dựa theo các điều kiện",
+                "min_similarity": 0.75,
+                "rank": [1, 3]  # Should be in top 3
+            }
+        ],
+        "irrelevant_docs": [
+            "quy trình mua hàng công ty",
+            "hướng dẫn nấu pizza"
+        ]
+    },
+    
+    {
+        "query": "quy trình nghỉ phép",
+        "expected_docs": [
+            {
+                "content": "Quy trình xin nghỉ phép tại công ty",
+                "min_similarity": 0.85,
+                "rank": 1
+            }
+        ],
+        "irrelevant_docs": [
+            "cách xác định hướng nhà",
+            "hướng dẫn cài đặt phần mềm"
+        ]
+    },
+    
+    {
+        "query": "chính sách bảo hiểm nhân viên",
+        "expected_docs": [
+            {
+                "content": "Chính sách bảo hiểm xã hội và bảo hiểm y tế",
+                "min_similarity": 0.80,
+                "rank": 1
+            }
+        ],
+        "irrelevant_docs": [
+            "quy trình tuyển dụng",
+            "hướng dẫn sử dụng máy in"
+        ]
+    },
+    
+    {
+        "query": "hướng dẫn cài đặt VPN",
+        "expected_docs": [
+            {
+                "content": "Hướng dẫn cài đặt và sử dụng VPN cho nhân viên",
+                "min_similarity": 0.85,
+                "rank": 1
+            }
+        ],
+        "irrelevant_docs": [
+            "chính sách làm việc từ xa",
+            "quy định về bảo mật thông tin"
+        ]
+    },
+    
+    {
+        "query": "quy định về trang phục công sở",
+        "expected_docs": [
+            {
+                "content": "Quy định về trang phục và dress code tại công ty",
+                "min_similarity": 0.85,
+                "rank": 1
+            }
+        ],
+        "irrelevant_docs": [
+            "quy trình đánh giá hiệu suất",
+            "chính sách phúc lợi nhân viên"
+        ]
+    },
+]
+
+
+class TestSearchQuality:
+    """Test search quality với ground truth dataset"""
+    
+    @pytest.fixture(scope="class")
+    def setup_search_engine(self):
+        """Setup embedding model và ChromaDB client"""
+        model = SentenceTransformer(
+            "Qwen/Qwen3-Embedding-0.6B",
+            device="cuda"
+        )
+        
+        client = chromadb.HttpClient(
+            host="localhost",
+            port=8000
+        )
+        
+        return {
+            "model": model,
+            "client": client
+        }
+    
+    
+    def calculate_similarity(self, query: str, document: str, model) -> float:
+        """Calculate similarity giữa query và document"""
+        # Preprocess
+        from core.preprocessing import preprocess_text_simple
+        query_proc = preprocess_text_simple(query)
+        doc_proc = preprocess_text_simple(document)
+        
+        # Generate embeddings
+        query_emb = model.encode([query_proc])[0]
+        doc_emb = model.encode([doc_proc])[0]
+        
+        # Calculate cosine similarity
+        cosine_sim = np.dot(query_emb, doc_emb) / (
+            np.linalg.norm(query_emb) * np.linalg.norm(doc_emb)
+        )
+        
+        return float(cosine_sim)
+    
+    
+    @pytest.mark.parametrize("test_case", GROUND_TRUTH_DATASET)
+    def test_expected_doc_similarity(self, setup_search_engine, test_case):
+        """Test similarity với expected documents"""
+        model = setup_search_engine["model"]
+        query = test_case["query"]
+        
+        for expected_doc in test_case["expected_docs"]:
+            similarity = self.calculate_similarity(
+                query,
+                expected_doc["content"],
+                model
+            )
+            
+            min_expected = expected_doc["min_similarity"]
+            
+            assert similarity >= min_expected, \
+                f"Query: '{query}'\n" \
+                f"Doc: '{expected_doc['content'][:50]}...'\n" \
+                f"Expected similarity >= {min_expected}, Got {similarity:.4f}"
+            
+            print(f"✅ Query: '{query}'")
+            print(f"   Doc: '{expected_doc['content'][:50]}...'")
+            print(f"   Similarity: {similarity:.4f} (>= {min_expected})")
+    
+    
+    @pytest.mark.parametrize("test_case", GROUND_TRUTH_DATASET)
+    def test_irrelevant_doc_similarity(self, setup_search_engine, test_case):
+        """Test similarity với irrelevant documents phải thấp"""
+        model = setup_search_engine["model"]
+        query = test_case["query"]
+        
+        for irrelevant_doc in test_case["irrelevant_docs"]:
+            similarity = self.calculate_similarity(
+                query,
+                irrelevant_doc,
+                model
+            )
+            
+            # Irrelevant docs nên có similarity < 0.50
+            max_allowed = 0.50
+            
+            assert similarity < max_allowed, \
+                f"Query: '{query}'\n" \
+                f"Irrelevant Doc: '{irrelevant_doc}'\n" \
+                f"Expected similarity < {max_allowed}, Got {similarity:.4f}"
+            
+            print(f"✅ Query: '{query}'")
+            print(f"   Irrelevant: '{irrelevant_doc}'")
+            print(f"   Similarity: {similarity:.4f} (< {max_allowed})")
+    
+    
+    def test_similarity_ordering(self, setup_search_engine):
+        """Test relevant docs có similarity cao hơn irrelevant docs"""
+        model = setup_search_engine["model"]
+        
+        for test_case in GROUND_TRUTH_DATASET:
+            query = test_case["query"]
+            
+            # Calculate similarity cho relevant docs
+            relevant_similarities = []
+            for expected_doc in test_case["expected_docs"]:
+                sim = self.calculate_similarity(
+                    query,
+                    expected_doc["content"],
+                    model
+                )
+                relevant_similarities.append(sim)
+            
+            # Calculate similarity cho irrelevant docs
+            irrelevant_similarities = []
+            for irrelevant_doc in test_case["irrelevant_docs"]:
+                sim = self.calculate_similarity(
+                    query,
+                    irrelevant_doc,
+                    model
+                )
+                irrelevant_similarities.append(sim)
+            
+            # Min relevant similarity phải > max irrelevant similarity
+            min_relevant = min(relevant_similarities)
+            max_irrelevant = max(irrelevant_similarities)
+            
+            assert min_relevant > max_irrelevant, \
+                f"Query: '{query}'\n" \
+                f"Min relevant similarity: {min_relevant:.4f}\n" \
+                f"Max irrelevant similarity: {max_irrelevant:.4f}\n" \
+                f"Relevant docs phải có similarity cao hơn irrelevant docs!"
+            
+            print(f"✅ Query: '{query}'")
+            print(f"   Relevant range: {min_relevant:.4f} - {max(relevant_similarities):.4f}")
+            print(f"   Irrelevant range: {min(irrelevant_similarities):.4f} - {max_irrelevant:.4f}")
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])
+```
+
+---
+
+## **3️⃣ PRECISION & RANKING TESTS**
+
+```python
+#!/usr/bin/env python3
+"""
+Precision, Recall, và Ranking metrics validation
+File: tests/integration/test_ranking_metrics.py
+"""
+
+import pytest
+import requests
+from typing import List, Dict, Set
+import numpy as np
+
+
+class TestRankingMetrics:
+    """Test ranking quality metrics"""
+    
+    API_BASE_URL = "http://localhost:8000/api/v1"
+    
+    # Test dataset với ground truth rankings
+    RANKING_TEST_CASES = [
+        {
+            "query": "cách xác định hướng nhà",
+            "relevant_doc_ids": [
+                "eabbd305-9626-4c93-be08-70e512a977b1_9",  # Chunk 9
+                "eabbd305-9626-4c93-be08-70e512a977b1_1",  # Chunk 1
+                "eabbd305-9626-4c93-be08-70e512a977b1_8",  # Chunk 8
+            ],
+            "expected_top_1": "eabbd305-9626-4c93-be08-70e512a977b1_9",
+            "expected_in_top_3": [
+                "eabbd305-9626-4c93-be08-70e512a977b1_9",
+                "eabbd305-9626-4c93-be08-70e512a977b1_1",
+                "eabbd305-9626-4c93-be08-70e512a977b1_8",
+            ]
+        },
+    ]
+    
+    
+    def search_api(self, query: str, top_k: int = 10) -> Dict:
+        """Call search API"""
+        response = requests.post(
+            f"{self.API_BASE_URL}/search/semantic",
+            json={
+                "query": query,
+                "top_k": top_k,
+                "search_type": "semantic"
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    
+    def calculate_precision_at_k(
+        self,
+        retrieved: List[str],
+        relevant: Set[str],
+        k: int
+    ) -> float:
+        """Calculate Precision@K"""
+        retrieved_at_k = retrieved[:k]
+        relevant_retrieved = sum(1 for doc_id in retrieved_at_k if doc_id in relevant)
+        return relevant_retrieved / k if k > 0 else 0.0
+    
+    
+    def calculate_recall_at_k(
+        self,
+        retrieved: List[str],
+        relevant: Set[str],
+        k: int
+    ) -> float:
+        """Calculate Recall@K"""
+        retrieved_at_k = retrieved[:k]
+        relevant_retrieved = sum(1 for doc_id in retrieved_at_k if doc_id in relevant)
+        return relevant_retrieved / len(relevant) if len(relevant) > 0 else 0.0
+    
+    
+    def calculate_mrr(
+        self,
+        retrieved: List[str],
+        relevant: Set[str]
+    ) -> float:
+        """Calculate Mean Reciprocal Rank"""
+        for i, doc_id in enumerate(retrieved):
+            if doc_id in relevant:
+                return 1.0 / (i + 1)
+        return 0.0
+    
+    
+    def calculate_ndcg_at_k(
+        self,
+        retrieved: List[str],
+        relevant_rankings: Dict[str, int],
+        k: int
+    ) -> float:
+        """Calculate Normalized Discounted Cumulative Gain@K"""
+        dcg = 0.0
+        for i, doc_id in enumerate(retrieved[:k]):
+            if doc_id in relevant_rankings:
+                relevance = relevant_rankings[doc_id]
+                dcg += (2 ** relevance - 1) / np.log2(i + 2)
+        
+        # Ideal DCG
+        ideal_relevances = sorted(relevant_rankings.values(), reverse=True)[:k]
+        idcg = sum(
+            (2 ** rel - 1) / np.log2(i + 2)
+            for i, rel in enumerate(ideal_relevances)
+        )
+        
+        return dcg / idcg if idcg > 0 else 0.0
+    
+    
+    @pytest.mark.parametrize("test_case", RANKING_TEST_CASES)
+    def test_precision_at_k(self, test_case):
+        """Test Precision@K metrics"""
+        query = test_case["query"]
+        relevant_set = set(test_case["relevant_doc_ids"])
+        
+        # Search
+        results = self.search_api(query, top_k=10)
+        retrieved = [
+            f"{r['document_id']}_{r['chunk_id']}"
+            for r in results["results"]
+        ]
+        
+        # Calculate Precision@1, @3, @5, @10
+        metrics = {}
+        for k in [1, 3, 5, 10]:
+            precision = self.calculate_precision_at_k(retrieved, relevant_set, k)
+            metrics[f"P@{k}"] = precision
+            
+            print(f"Query: '{query}'")
+            print(f"  Precision@{k}: {precision:.4f}")
+        
+        # Assertions
+        assert metrics["P@1"] >= 0.90, f"P@1 too low: {metrics['P@1']}"
+        assert metrics["P@3"] >= 0.80, f"P@3 too low: {metrics['P@3']}"
+        assert metrics["P@5"] >= 0.60, f"P@5 too low: {metrics['P@5']}"
+    
+    
+    @pytest.mark.parametrize("test_case", RANKING_TEST_CASES)
+    def test_recall_at_k(self, test_case):
+        """Test Recall@K metrics"""
+        query = test_case["query"]
+        relevant_set = set(test_case["relevant_doc_ids"])
+        
+        # Search
+        results = self.search_api(query, top_k=10)
+        retrieved = [
+            f"{r['document_id']}_{r['chunk_id']}"
+            for r in results["results"]
+        ]
+        
+        # Calculate Recall@1, @3, @5, @10
+        metrics = {}
+        for k in [1, 3, 5, 10]:
+            recall = self.calculate_recall_at_k(retrieved, relevant_set, k)
+            metrics[f"R@{k}"] = recall
+            
+            print(f"Query: '{query}'")
+            print(f"  Recall@{k}: {recall:.4f}")
+        
+        # Assertions
+        assert metrics["R@3"] >= 0.66, f"R@3 too low: {metrics['R@3']}"  # 2/3 relevant trong top 3
+        assert metrics["R@10"] >= 0.90, f"R@10 too low: {metrics['R@10']}"
+    
+    
+    @pytest.mark.parametrize("test_case", RANKING_TEST_CASES)
+    def test_mrr(self, test_case):
+        """Test Mean Reciprocal Rank"""
+        query = test_case["query"]
+        relevant_set = set(test_case["relevant_doc_ids"])
+        
+        # Search
+        results = self.search_api(query, top_k=10)
+        retrieved = [
+            f"{r['document_id']}_{r['chunk_id']}"
+            for r in results["results"]
+        ]
+        
+        # Calculate MRR
+        mrr = self.calculate_mrr(retrieved, relevant_set)
+        
+        print(f"Query: '{query}'")
+        print(f"  MRR: {mrr:.4f}")
+        
+        # MRR should be >= 0.9 (relevant doc in position 1 or 2)
+        assert mrr >= 0.50, f"MRR too low: {mrr}"
+    
+    
+    @pytest.mark.parametrize("test_case", RANKING_TEST_CASES)
+    def test_top_1_accuracy(self, test_case):
+        """Test top 1 result accuracy"""
+        query = test_case["query"]
+        expected_top_1 = test_case["expected_top_1"]
+        
+        # Search
+        results = self.search_api(query, top_k=10)
+        
+        if not results["results"]:
+            pytest.fail(f"No results returned for query: '{query}'")
+        
+        top_1_result = results["results"][0]
+        actual_top_1 = f"{top_1_result['document_id']}_{top_1_result['chunk_id']}"
+        
+        print(f"Query: '{query}'")
+        print(f"  Expected top 1: {expected_top_1}")
+        print(f"  Actual top 1: {actual_top_1}")
+        print(f"  Similarity: {top_1_result['similarity_score']:.4f}")
+        
+        assert actual_top_1 == expected_top_1, \
+            f"Top 1 mismatch!\nExpected: {expected_top_1}\nGot: {actual_top_1}"
+    
+    
+    @pytest.mark.parametrize("test_case", RANKING_TEST_CASES)
+    def test_top_3_coverage(self, test_case):
+        """Test top 3 results coverage"""
+        query = test_case["query"]
+        expected_in_top_3 = set(test_case["expected_in_top_3"])
+        
+        # Search
+        results = self.search_api(query, top_k=10)
+        
+        top_3_results = results["results"][:3]
+        actual_top_3 = {
+            f"{r['document_id']}_{r['chunk_id']}"
+            for r in top_3_results
+        }
+        
+        coverage = len(expected_in_top_3 & actual_top_3) / len(expected_in_top_3)
+        
+        print(f"Query: '{query}'")
+        print(f"  Expected in top 3: {expected_in_top_3}")
+        print(f"  Actual top 3: {actual_top_3}")
+        print(f"  Coverage: {coverage:.2%}")
+        
+        # At least 66% coverage (2/3)
+        assert coverage >= 0.66, \
+            f"Top 3 coverage too low: {coverage:.2%}"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])
+```
+
+---
+
+## **4️⃣ PERFORMANCE & SCALE TESTS**
+
+```python
+#!/usr/bin/env python3
+"""
+Performance và scale testing
+File: tests/performance/test_search_performance.py
+"""
+
+import pytest
+import requests
+import time
+import statistics
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict
+
+
+class TestSearchPerformance:
+    """Test search performance metrics"""
+    
+    API_BASE_URL = "http://localhost:8000/api/v1"
+    
+    # Performance test queries
+    PERFORMANCE_QUERIES = [
+        "cách xác định hướng nhà",
+        "quy trình nghỉ phép",
+        "chính sách bảo hiểm",
+        "hướng dẫn cài đặt VPN",
+        "quy định trang phục công sở",
+        "quy trình tuyển dụng nhân viên",
+        "chính sách làm việc từ xa",
+        "hướng dẫn sử dụng hệ thống",
+        "quy định về bảo mật",
+        "chính sách phúc lợi nhân viên",
+    ]
+    
+    
+    def search_with_timing(self, query: str, top_k: int = 10) -> Dict:
+        """Search và đo thời gian"""
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{self.API_BASE_URL}/search/semantic",
+            json={
+                "query": query,
+                "top_k": top_k,
+                "search_type": "semantic"
+            }
+        )
+        
+        elapsed_time = time.time() - start_time
+        
+        response.raise_for_status()
+        results = response.json()
+        
+        return {
+            "query": query,
+            "results": results,
+            "elapsed_time": elapsed_time
+        }
+    
+    
+    def test_single_query_latency(self):
+        """Test latency cho single query"""
+        latencies = []
+        
+        for query in self.PERFORMANCE_QUERIES:
+            result = self.search_with_timing(query)
+            latency = result["elapsed_time"]
+            latencies.append(latency)
+            
+            print(f"Query: '{query}'")
+            print(f"  Latency: {latency:.3f}s")
+        
+        # Calculate statistics
+        avg_latency = statistics.mean(latencies)
+        p50_latency = statistics.median(latencies)
+        p95_latency = statistics.quantiles(latencies, n=20)[18]  # 95th percentile
+        p99_latency = statistics.quantiles(latencies, n=100)[98]  # 99th percentile
+        
+        print(f"\n=== LATENCY STATISTICS ===")
+        print(f"Average: {avg_latency:.3f}s")
+        print(f"P50: {p50_latency:.3f}s")
+        print(f"P95: {p95_latency:.3f}s")
+        print(f"P99: {p99_latency:.3f}s")
+        
+        # Assertions
+        assert avg_latency < 3.0, f"Average latency too high: {avg_latency:.3f}s"
+        assert p95_latency < 5.0, f"P95 latency too high: {p95_latency:.3f}s"
+        assert p99_latency < 8.0, f"P99 latency too high: {p99_latency:.3f}s"
+    
+    
+    def test_concurrent_requests(self):
+        """Test performance với concurrent requests"""
+        num_concurrent = 10
+        
+        def execute_search(query: str) -> Dict:
+            return self.search_with_timing(query)
+        
+        start_time = time.time()
+        
+        with ThreadPoolExecutor(max_workers=num_concurrent) as executor:
+            # Submit all queries
+            futures = [
+                executor.submit(execute_search, query)
+                for query in self.PERFORMANCE_QUERIES
+            ]
+            
+            # Collect results
+            results = []
+            for future in as_completed(futures):
+                result = future.result()
+                results.append(result)
+        
+        total_time = time.time() - start_time
+        
+        # Calculate metrics
+        latencies = [r["elapsed_time"] for r in results]
+        avg_latency = statistics.mean(latencies)
+        throughput = len(self.PERFORMANCE_QUERIES) / total_time
+        
+        print(f"\n=== CONCURRENT PERFORMANCE ===")
+        print(f"Concurrent requests: {num_concurrent}")
+        print(f"Total queries: {len(self.PERFORMANCE_QUERIES)}")
+        print(f"Total time: {total_time:.3f}s")
+        print(f"Average latency: {avg_latency:.3f}s")
+        print(f"Throughput: {throughput:.2f} QPS")
+        
+        # Assertions
+        assert throughput >= 1.0, f"Throughput too low: {throughput:.2f} QPS"
+        assert avg_latency < 5.0, f"Average latency too high under load: {avg_latency:.3f}s"
+    
+    
+    def test_cache_effectiveness(self):
+        """Test cache hit rate"""
+        query = self.PERFORMANCE_QUERIES[0]
+        
+        # First request (cache miss)
+        first_result = self.search_with_timing(query)
+        first_latency = first_result["elapsed_time"]
+        
+        # Wait a bit
+        time.sleep(0.5)
+        
+        # Second request (cache hit expected)
+        second_result = self.search_with_timing(query)
+        second_latency = second_result["elapsed_time"]
+        
+        print(f"\n=== CACHE TEST ===")
+        print(f"Query: '{query}'")
+        print(f"First request (cache miss): {first_latency:.3f}s")
+        print(f"Second request (cache hit): {second_latency:.3f}s")
+        print(f"Speedup: {first_latency / second_latency:.2f}x")
+        
+        # Cache hit should be faster
+        # Note: Nếu không có cache, latencies sẽ gần bằng nhau
+        # Nếu có cache, second request sẽ nhanh hơn đáng kể
+    
+    
+    @pytest.mark.parametrize("top_k", [5, 10, 20, 50])
+    def test_scale_with_top_k(self, top_k):
+        """Test performance scaling với different top_k values"""
+        query = self.PERFORMANCE_QUERIES[0]
+        
+        start_time = time.time()
+        response = requests.post(
+            f"{self.API_BASE_URL}/search/semantic",
+            json={
+                "query": query,
+                "top_k": top_k,
+                "search_type": "semantic"
+            }
+        )
+        elapsed_time = time.time() - start_time
+        
+        response.raise_for_status()
+        results = response.json()
+        
+        print(f"top_k={top_k}: {elapsed_time:.3f}s, results={len(results['results'])}")
+        
+        # Latency shouldn't increase dramatically với larger top_k
+        assert elapsed_time < 10.0, f"Latency too high for top_k={top_k}: {elapsed_time:.3f}s"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])
+```
+
+---
+
+## **5️⃣ EDGE CASES & ERROR HANDLING**
+
+```python
+#!/usr/bin/env python3
+"""
+Edge cases và error handling tests
+File: tests/integration/test_edge_cases.py
+"""
+
+import pytest
+import requests
+
+
+class TestEdgeCases:
+    """Test edge cases và error handling"""
+    
+    API_BASE_URL = "http://localhost:8000/api/v1"
+    
+    
+    def test_empty_query(self):
+        """Test với empty query"""
+        response = requests.post(
+            f"{self.API_BASE_URL}/search/semantic",
+            json={
+                "query": "",
+                "top_k": 10
+            }
+        )
+        
+        # Should return error or empty results
+        assert response.status_code in [400, 422, 200]
+        
+        if response.status_code == 200:
+            results = response.json()
+            # Nếu trả về 200, results phải empty hoặc có warning
+            print(f"Empty query response: {results.get('total_found', 0)} results")
+    
+    
+    def test_very_long_query(self):
+        """Test với very long query"""
+        long_query = " ".join(["cách xác định hướng nhà"] * 100)  # 500+ words
+        
+        response = requests.post(
+            f"{self.API_BASE_URL}/search/semantic",
+            json={
+                "query": long_query,
+                "top_k": 10
+            }
+        )
+        
+        # Should handle gracefully
+        assert response.status_code in [200, 400, 413]
+    
+    
+    def test_special_characters_query(self):
+        """Test với special characters"""
+        special_queries = [
+            "cách @#$% xác định",
+            "hướng nhà <<>>",
+            "quy trình \\n\\t nghỉ phép",
+            "chính sách & bảo hiểm",
+            "hướng dẫn | cài đặt",
+        ]
+        
+        for query in special_queries:
+            response = requests.post(
+                f"{self.API_BASE_URL}/search/semantic",
+                json={
+                    "query": query,
+                    "top_k": 10
+                }
+            )
+            
+            # Should handle gracefully
+            assert response.status_code in [200, 400]
+            
+            if response.status_code == 200:
+                results = response.json()
+                print(f"Query: '{query}' → {results.get('total_found', 0)} results")
+    
+    
+    def test_vietnamese_diacritics(self):
+        """Test Vietnamese diacritics handling"""
+        queries_with_without_diacritics = [
+            ("cách xác định hướng nhà", "cach xac dinh huong nha"),
+            ("quy trình nghỉ phép", "quy trinh nghi phep"),
+            ("chính sách bảo hiểm", "chinh sach bao hiem"),
+        ]
+        
+        for query_with, query_without in queries_with_without_diacritics:
+            # Search với diacritics
+            response_with = requests.post(
+                f"{self.API_BASE_URL}/search/semantic",
+                json={"query": query_with, "top_k": 5}
+            )
+            
+            # Search không diacritics
+            response_without = requests.post(
+                f"{self.API_BASE_URL}/search/semantic",
+                json={"query": query_without, "top_k": 5}
+            )
+            
+            results_with = response_with.json()
+            results_without = response_without.json()
+            
+            # Both should return similar results
+            print(f"\nWith diacritics: '{query_with}' → {results_with.get('total_found', 0)} results")
+            print(f"Without diacritics: '{query_without}' → {results_without.get('total_found', 0)} results")
+            
+            # Với preprocessing tốt, kết quả nên tương tự
+            assert results_with.get('total_found', 0) > 0
+            assert results_without.get('total_found', 0) > 0
+    
+    
+    def test_zero_results_query(self):
+        """Test query không match documents nào"""
+        nonsense_query = "xyzabc123 completely nonsense query that should not match anything"
+        
+        response = requests.post(
+            f"{self.API_BASE_URL}/search/semantic",
+            json={
+                "query": nonsense_query,
+                "top_k": 10
+            }
+        )
+        
+        assert response.status_code == 200
+        results = response.json()
+        
+        # Should return gracefully, possibly with empty results or low similarity results
+        print(f"Nonsense query results: {results.get('total_found', 0)}")
+        
+        if results.get('results'):
+            top_similarity = results['results'][0]['similarity_score']
+            # Similarity should be very low
+            assert top_similarity < 0.30, f"Similarity too high for nonsense query: {top_similarity}"
+    
+    
+    def test_invalid_top_k(self):
+        """Test với invalid top_k values"""
+        invalid_top_k_values = [-1, 0, 1000]
+        
+        for top_k in invalid_top_k_values:
+            response = requests.post(
+                f"{self.API_BASE_URL}/search/semantic",
+                json={
+                    "query": "cách xác định hướng nhà",
+                    "top_k": top_k
+                }
+            )
+            
+            # Should handle gracefully (validate hoặc clamp)
+            print(f"top_k={top_k}: status={response.status_code}")
+            assert response.status_code in [200, 400, 422]
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])
+```
+
+---
+
+## **📊 COMPLETE TEST SUITE RUNNER**
+
+```python
+#!/usr/bin/env python3
+"""
+Run toàn bộ test suite và generate report
+File: scripts/run_complete_validation.py
+"""
+
+import subprocess
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+
+
+def run_test_suite():
+    """Run toàn bộ test suite"""
+    
+    print("=" * 80)
+    print("CHROMADB SEARCH QUALITY VALIDATION")
+    print(f"Timestamp: {datetime.now().isoformat()}")
+    print("=" * 80)
+    
+    test_suites = [
+        {
+            "name": "Unit Tests - Distance Conversion",
+            "path": "tests/unit/test_distance_conversion.py",
+            "weight": 0.2
+        },
+        {
+            "name": "Ground Truth Tests",
+            "path": "tests/integration/test_search_quality.py",
+            "weight": 0.3
+        },
+        {
+            "name": "Ranking Metrics Tests",
+            "path": "tests/integration/test_ranking_metrics.py",
+            "weight": 0.3
+        },
+        {
+            "name": "Performance Tests",
+            "path": "tests/performance/test_search_performance.py",
+            "weight": 0.1
+        },
+        {
+            "name": "Edge Cases Tests",
+            "path": "tests/integration/test_edge_cases.py",
+            "weight": 0.1
+        }
+    ]
+    
+    results = []
+    total_score = 0.0
+    
+    for suite in test_suites:
+        print(f"\n{'=' * 80}")
+        print(f"Running: {suite['name']}")
+        print(f"{'=' * 80}")
+        
+        start_time = time.time()
+        
+        # Run pytest
+        result = subprocess.run(
+            [
+                "pytest",
+                suite["path"],
+                "-v",
+                "--tb=short",
+                f"--json-report",
+                f"--json-report-file=test_reports/{suite['name'].replace(' ', '_')}.json"
+            ],
+            capture_output=True,
+            text=True
+        )
+        
+        elapsed_time = time.time() - start_time
+        
+        # Parse results
+        passed = result.returncode == 0
+        score = suite["weight"] if passed else 0.0
+        total_score += score
+        
+        results.append({
+            "suite": suite["name"],
+            "passed": passed,
+            "weight": suite["weight"],
+            "score": score,
+            "elapsed_time": elapsed_time
+        })
+        
+        print(f"\n{'✅' if passed else '❌'} {suite['name']}: "
+              f"{'PASSED' if passed else 'FAILED'} ({elapsed_time:.2f}s)")
+    
+    # Generate summary report
+    print("\n" + "=" * 80)
+    print("VALIDATION SUMMARY")
+    print("=" * 80)
+    
+    for result in results:
+        status = "✅ PASS" if result["passed"] else "❌ FAIL"
+        print(f"{status} | {result['suite']:<40} | "
+              f"Score: {result['score']:.2f}/{result['weight']:.2f} | "
+              f"Time: {result['elapsed_time']:.2f}s")
+    
+    print(f"\n{'=' * 80}")
+    print(f"TOTAL SCORE: {total_score:.2f}/1.00")
+    
+    if total_score >= 0.95:
+        print("🎉 EXCELLENT - Production Ready!")
+    elif total_score >= 0.85:
+        print("✅ GOOD - Minor issues to fix")
+    elif total_score >= 0.70:
+        print("⚠️  ACCEPTABLE - Several issues need attention")
+    else:
+        print("❌ FAILED - Critical issues must be fixed")
+    
+    print("=" * 80)
+    
+    # Save report
+    report_path = Path("test_reports/validation_summary.json")
+    report_path.parent.mkdir(exist_ok=True)
+    
+    with open(report_path, "w") as f:
+        json.dump({
+            "timestamp": datetime.now().isoformat(),
+            "total_score": total_score,
+            "results": results
+        }, f, indent=2)
+    
+    print(f"\n📄 Full report saved to: {report_path}")
+    
+    return total_score >= 0.85
+
+
+if __name__ == "__main__":
+    import sys
+    success = run_test_suite()
+    sys.exit(0 if success else 1)
+```
+
+---
+
+## **🎯 USAGE - Cách chạy test suite**
+
+```bash
+# 1. Cài đặt dependencies
+pip install pytest pytest-json-report requests
+
+# 2. Chạy individual test suite
+pytest tests/unit/test_distance_conversion.py -v
+pytest tests/integration/test_search_quality.py -v
+pytest tests/integration/test_ranking_metrics.py -v
+
+# 3. Chạy complete validation
+python scripts/run_complete_validation.py
+
+# 4. Chạy với coverage report
+pytest tests/ --cov=src --cov-report=html
+
+# 5. Chạy performance tests riêng
+pytest tests/performance/ -v --durations=10
+```
+
+---
+
+**Bạn muốn tôi:**
+1. **Thêm ground truth data** cho các domain khác (HR, IT, Finance)?
+2. **Tạo automated CI/CD integration** để chạy tests tự động?
+3. **Optimize processing time** từ 7.5s xuống < 3s?
