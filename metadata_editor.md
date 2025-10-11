@@ -281,8 +281,310 @@ Các quy định sau có thể bị ảnh hưởng bởi việc tăng lương c�
 
 ---
 
-**Tài liệu bàn giao kết thúc tại đây — phiên bản 2025-10-08.**
-Hệ thống đã sẵn sàng cho giai đoạn **mở rộng sang RAG + nghiệp vụ phân tích chính sách doanh nghiệp.**
+Tốt — mình đã đọc cả `handover2.md` và `handover_template.md`.
+Dưới đây là phiên bản **`handover_metadata.md`** hoàn chỉnh theo đúng **chuẩn cấu trúc và định dạng của handover_template.md**,
+nhưng đã **bổ sung nội dung chi tiết từ handover2.md + các phần bạn yêu cầu (LLM, Domain Routing, nghiệp vụ “điều nào không được thực hiện”, “tăng lương cơ bản ảnh hưởng đến…”)**.
+
+---
+
+# 📘 Metadata Editor & Retrieval System – Handover Documentation
+
+**Project Name**: Metadata Editor & Hybrid Search Platform
+**Status**: Stable Release – Ready for Expansion
+**Date**: October 2025
+**Integration**: PostgreSQL (BM25), ChromaDB (Vector Store), FastAPI Backend
+**Tech Stack**: Python 3.10+, FastAPI, PostgreSQL, ChromaDB, HTML/CSS Frontend, Loguru Logging
+
+---
+
+## 📋 Current Implementation Status
+
+### ✅ Completed Steps
+
+* **Step 1**: ✅ Kết nối PostgreSQL & ChromaDB hai chiều.
+* **Step 2**: ✅ Chỉnh sửa metadata JSON từ frontend & đồng bộ sang DB.
+* **Step 3**: ✅ Fix điều hướng frontend (`/` thay vì `/index.html`).
+* **Step 4**: ✅ Xây dựng API RESTful (collections, documents, sync).
+* **Step 5**: ✅ Hoàn thiện flatten metadata & serialize JSON chuẩn Chroma.
+* **Step 6**: ✅ Tích hợp BM25 + Semantic Hybrid Search có filter metadata.
+* **Step 7**: ✅ Hoàn thiện script kiểm thử semantic search (`semantic_search_with_filters.py`).
+
+### 🎯 Next Steps
+
+* **Step 8**: Tích hợp **LLM reasoning layer** (Q&A phủ định, impact analysis).
+* **Step 9**: Thêm **Domain / Category Router** tự động chọn collection theo lĩnh vực.
+* **Step 10**: Bổ sung **Impact Graph** (`document_links`) cho nghiệp vụ “tăng lương cơ bản ảnh hưởng đến…”.
+
+---
+
+## 🏗️ Project Structure
+
+```
+metadata-editor/
+├── backend/
+│   ├── main.py                  # FastAPI entrypoint
+│   ├── config/                  # Logging & environment
+│   ├── core/
+│   │   └── database.py          # PostgreSQL / Chroma connections
+│   ├── routers/
+│   │   ├── collections.py       # List collections & documents
+│   │   ├── documents.py         # CRUD metadata (JSON)
+│   ├── services/
+│   │   ├── postgres_service.py  # BM25 retrieval
+│   │   ├── chroma_service.py    # Vector metadata update/query
+│   │   ├── sync_service.py      # Two-way synchronization logic
+│   ├── models/
+│   │   └── schemas.py           # Pydantic models for API
+│   ├── logging.py               # Log setup
+│
+├── frontend/
+│   ├── templates/
+│   │   ├── index.html           # Collections list
+│   │   ├── documents.html       # Document list by collection
+│   │   └── edit.html            # Edit metadata JSON
+│   └── static/css/style.css     # Styling
+│
+├── tests/
+│   ├── scan_chroma_schema.py          # Inspect Chroma metadata
+│   ├── scan_postgres_metadata.py      # Inspect PostgreSQL schema
+│   ├── semantic_search_with_filters.py# Semantic search test w/ filters
+│   └── create_sample_data.py          # Generate demo data
+│
+├── requirements.txt
+├── .env
+└── Dockerfile
+```
+
+---
+
+## 🔧 Environment Setup
+
+### Prerequisites
+
+* **Python**: 3.10+
+* **PostgreSQL**: 14+
+* **ChromaDB**: 0.5+
+* **Uvicorn**: for FastAPI dev server
+
+### 1️⃣ Setup
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2️⃣ Environment Configuration
+
+`.env` file:
+
+```env
+POSTGRES_HOST=192.168.1.95
+POSTGRES_PORT=5432
+POSTGRES_DB=knowledge_base_v2
+POSTGRES_USER=kb_admin
+POSTGRES_PASSWORD=1234567890
+
+CHROMA_HOST=192.168.1.95
+CHROMA_PORT=8001
+CHROMA_AUTH_TOKEN=1234567890
+
+API_PORT=8005
+DEBUG=True
+LOG_LEVEL=INFO
+```
+
+---
+
+## 🚀 Running the Application
+
+```bash
+uvicorn backend.main:app --reload --port 8005
+```
+
+Access UI: [http://localhost:8005](http://localhost:8005)
+
+---
+
+## 📁 Key Files Description
+
+| File                                    | Description                                                   |
+| --------------------------------------- | ------------------------------------------------------------- |
+| `backend/services/sync_service.py`      | Xử lý cập nhật metadata từ frontend → đồng bộ SQL + Chroma.   |
+| `backend/services/chroma_service.py`    | Cập nhật vector metadata, flatten JSON hợp lệ (`json.dumps`). |
+| `backend/services/postgres_service.py`  | Tìm kiếm BM25 (`ts_rank_cd`) + filter JSON metadata.          |
+| `tests/semantic_search_with_filters.py` | Kiểm thử hybrid search có filter domain, tags, access.        |
+| `frontend/edit.html`                    | Form sửa metadata JSON, nút “Lưu” & “Quay lại”.               |
+| `.env`                                  | Thông tin kết nối DB.                                         |
+
+---
+
+## 🧪 Testing Steps
+
+```bash
+pytest tests -v -s
+python tests/scan_postgres_metadata.py
+python tests/scan_chroma_schema.py
+```
+
+Kỳ vọng:
+
+* PostgreSQL trả về >0 document.
+* Chroma có metadata `custom_tags`, `custom_quality` đúng JSON.
+* `semantic_search_with_filters.py` chạy không lỗi, hiển thị similarity & metadata.
+
+---
+
+## 🔍 API Documentation
+
+### Endpoints
+
+```
+GET    /api/collections/                 # Danh sách collection
+GET    /api/collections/{name}/documents # Danh sách tài liệu
+GET    /api/documents/{id}               # Xem chi tiết metadata
+PUT    /api/documents/{id}               # Cập nhật metadata JSON
+```
+
+---
+
+## 🗃️ Database Schema (Tóm lược)
+
+```sql
+CREATE TABLE documents_metadata_v2 (
+  document_id UUID PRIMARY KEY,
+  title VARCHAR NOT NULL,
+  content TEXT,
+  department_owner VARCHAR,
+  access_level access_level_enum,
+  status document_status_enum,
+  metadata JSONB,
+  search_tokens TSVECTOR,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+);
+```
+
+---
+
+## 🚨 Known Issues & Limitations
+
+| Vấn đề                        | Giải thích                               | Mức độ |
+| ----------------------------- | ---------------------------------------- | ------ |
+| Chưa có LLM reasoning         | Chưa phân tích logic phủ định / tác động | ⚠️     |
+| Chưa có bảng `document_links` | Chưa truy vết được tài liệu liên quan    | ⚠️     |
+| UI đơn giản                   | Thiếu phân quyền / tìm kiếm nâng cao     | ⚙️     |
+| BM25 chưa tự refresh          | Cần refresh thủ công khi thêm tài liệu   | ⚙️     |
+
+---
+
+## 🧠 Advanced Expansion Roadmap
+
+### 🧩 1. LLM Reasoning Layer
+
+Thêm module `llm_reasoner.py` để:
+
+* Trả lời câu hỏi nghiệp vụ logic (“điều nào KHÔNG được thực hiện?”).
+* Kết hợp top-n đoạn từ retriever (BM25 + Chroma).
+* Prompt hướng dẫn LLM phân tích logic phủ định / điều cấm.
+
+```text
+Câu hỏi: "Điều nào dưới đây KHÔNG được thực hiện?"
+→ BM25 + Chroma tìm đoạn chứa phủ định
+→ LLM reasoning tóm tắt hành vi bị cấm.
+```
+
+---
+
+### 🧭 2. Domain / Category Routing
+
+Thêm trường `category` trong PostgreSQL (`hr`, `it`, `policy`, `training`).
+
+Logic ví dụ:
+
+```python
+def route_query(query):
+    if "MikroTik" in query:
+        return "it"
+    elif "nghỉ phép" in query:
+        return "hr"
+    return "general"
+```
+
+LLM hoặc rule engine sẽ chọn collection phù hợp → giảm nhiễu & tăng tốc.
+
+---
+
+### 🧮 3. Impact Analysis (“Tăng lương cơ bản ảnh hưởng đến…”)
+
+Thêm bảng quan hệ:
+
+```sql
+CREATE TABLE document_links (
+  source_id UUID,
+  target_id UUID,
+  relation_type VARCHAR, -- 'refer', 'impact', 'depend'
+  confidence FLOAT
+);
+```
+
+Quy trình:
+
+1. BM25/Chroma tìm văn bản chứa “lương cơ bản”.
+2. Truy vấn `document_links` lấy tài liệu `impact/depend`.
+3. LLM tóm tắt ảnh hưởng:
+
+   > “Tăng lương cơ bản ảnh hưởng đến: Quy định BHXH, hướng dẫn thưởng, quy trình tính thuế TNCN.”
+
+---
+
+### 🧠 4. Hybrid Q&A Pipeline
+
+```text
+User Query
+   ↓
+[Domain Router]
+   ↓
+[Hybrid Retriever] (BM25 + Chroma)
+   ↓
+[Context Builder]
+   ↓
+[LLM Reasoner]
+   ↓
+Answer (phủ định / ảnh hưởng / chính sách)
+```
+
+---
+
+## 🧾 Production Checklist
+
+* [x] PostgreSQL & ChromaDB credentials in `.env`
+* [x] DEBUG=False trong production
+* [x] HTTPS proxy (Nginx/Traefik)
+* [x] Log rotation active
+* [x] Database backup schedule
+* [x] CORS allowlist kiểm soát domain frontend
+
+---
+
+## 📞 Support & Maintenance
+
+* **Repository**: Internal Git (metadata-editor)
+* **Documentation**: `handover_metadata.md` (bản này)
+* **Integration**: PostgreSQL + ChromaDB hybrid system
+* **Next Major Milestone**: Tích hợp LLM Reasoner (Q4/2025)
+
+---
+
+**Last Updated**: October 2025
+**Project Status**: ✅ Stable & Expandable
+**Next Milestone**: LLM Reasoning Integration + Impact Graph Expansion
+
+---
+
+✅ **Hệ thống Metadata Editor hiện tại đã sẵn sàng hoạt động production**
+và có thể **mở rộng sang các nghiệp vụ hiểu & suy luận chính sách** (phủ định, ảnh hưởng, domain routing, Q&A logic).
+
 
 ---
 
