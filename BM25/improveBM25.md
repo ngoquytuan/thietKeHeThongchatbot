@@ -706,3 +706,174 @@ if __name__ == "__main__":
 ---
 
 Bạn muốn tôi tạo **pull request ready code** với tất cả changes trên không? Tôi có thể gen ra các file patch ngay.
+
+
+---
+
+Bạn hoàn toàn đúng! Tôi xin lỗi vì đã nhầm lẫn. 
+
+Khi tôi xem lại document bạn gửi (document index 3), tôi thấy stopwords **đã được encode đúng UTF-8**:
+
+```python
+self.vietnamese_stop_words = {
+    'và', 'của', 'là', 'có', 'được', 'một', 'các', 'này', 'đó', 'để',
+    'trong', 'với', 'từ', 'khi', 'như', 'theo', 'về', 'cho', 'bởi',
+    'mà', 'những', 'người', 'việc', 'tại', 'đã', 'sẽ', 'bị', 'hay',
+    'không', 'còn', 'nếu', 'thì', 'hoặc', 'nhưng', 'mỗi', 'vào'
+}
+```
+
+Lỗi UTF-8 tôi nhắc đến (`'vÃ '`, `'cá»§a'`) **không tồn tại trong code thực tế của bạn**. Đó là lỗi của tôi khi đọc nhầm hoặc tưởng tượng ra vấn đề không có thật.
+
+---
+
+## ✅ **Vậy vấn đề thực sự là gì?**
+
+Sau khi review lại kỹ, đây là **các vấn đề thực sự** cần fix:
+
+### **🔴 Vấn đề 1: Thiếu stopwords quan trọng**
+
+Stopwords hiện tại **thiếu các từ gây nhiễu** trong query của bạn:
+
+```python
+# Query: "Tôi muốn làm việc ở nhà thì cần trang bị gì?"
+# Stopwords THIẾU:
+- 'tôi'   ← gây noise
+- 'muốn'  ← không discriminative
+- 'ở'     ← preposition
+- 'gì'    ← question word (CRITICAL!)
+- 'cần'   ← xuất hiện ở nhiều docs
+```
+
+**Giải pháp:**
+
+```python
+self.vietnamese_stop_words = {
+    # Existing stopwords
+    'và', 'của', 'là', 'có', 'được', 'một', 'các', 'này', 'đó', 'để',
+    'trong', 'với', 'từ', 'khi', 'như', 'theo', 'về', 'cho', 'bởi',
+    'mà', 'những', 'người', 'việc', 'tại', 'đã', 'sẽ', 'bị', 'hay',
+    'không', 'còn', 'nếu', 'thì', 'hoặc', 'nhưng', 'mỗi', 'vào',
+    
+    # THÊM: Question words
+    'gì', 'nào', 'đâu', 'sao', 'ai', 'bao', 'giờ', 'lúc', 'nào',
+    
+    # THÊM: Pronouns
+    'tôi', 'bạn', 'anh', 'chị', 'em', 'nó', 'họ', 'mình',
+    
+    # THÊM: Common verbs/prepositions
+    'ở', 'lên', 'xuống', 'ra', 'vô', 'qua',
+    
+    # THÊM: Auxiliary verbs (OPTIONAL - test trước!)
+    # 'cần', 'muốn', 'phải', 'nên'  
+    # ← CẨN THẬN: Có thể loại bỏ context quan trọng
+}
+```
+
+**Lưu ý về 'cần'**: 
+- Nếu thêm 'cần' vào stopwords → query "cần trang bị gì" chỉ còn "trang bị"
+- Nhưng 'cần' xuất hiện ở **nhiều document không liên quan** (MikroTik: "cần bật", "cần cấu hình")
+- **Khuyến nghị**: Test cả 2 cases
+
+---
+
+### **🔴 Vấn đề 2: Compound words không được xử lý**
+
+Code hiện tại:
+
+```python
+# vietnamese_text_analyzer.py
+def normalize_for_bm25(self, text: str, remove_stopwords: bool = False) -> str:
+    normalized = self.normalize_for_search(text)
+    if remove_stopwords:
+        tokens = normalized.split()
+        tokens = [t for t in tokens if t not in self.vietnamese_stop_words]
+    return normalized
+```
+
+**Vấn đề**: 
+- "làm việc" → tokenize thành ["lam", "viec"] (2 terms riêng lẻ)
+- "trang bị" → tokenize thành ["trang", "bi"]
+- Document về "làm router" hoặc "việc khác" cũng match!
+
+**Giải pháp**: Thêm compound word merging (đã đề xuất ở trên)
+
+---
+
+### **🔴 Vấn đề 3: remove_stopwords=False**
+
+```python
+# simple_import_processor.py line 603
+normalized_text = self.vietnamese_analyzer.normalize_for_bm25(
+    chunk['chunk_content'],
+    remove_stopwords=False  # ← VẤN ĐỀ: Không remove stopwords
+)
+```
+
+**Hậu quả**: Stopwords vẫn được index → gây nhiễu → IDF thấp
+
+**Giải pháp**: Đổi thành `remove_stopwords=True`
+
+---
+
+### **🔴 Vấn đề 4: Parameters k1, b chưa tune**
+
+Mặc dù không phải lỗi code, nhưng **default values không tối ưu cho tiếng Việt**:
+
+```python
+def __init__(self, k1: float = 1.5, b: float = 0.75):
+```
+
+**Khuyến nghị**: Test với `k1=1.2, b=0.5`
+
+---
+
+## 📝 **Prioritized Action Items (không có lỗi UTF-8)**
+
+### **Priority 1: Bổ sung stopwords** ⭐⭐⭐
+```python
+# bm25_indexer.py - THÊM vào existing stopwords
+'gì', 'nào', 'đâu', 'tôi', 'muốn', 'ở'
+```
+
+### **Priority 2: Enable remove_stopwords** ⭐⭐⭐
+```python
+# simple_import_processor.py line 603
+remove_stopwords=True  # Đổi từ False
+```
+
+### **Priority 3: Compound words merging** ⭐⭐
+(Code đã đề xuất ở response trước)
+
+### **Priority 4: Tune k1, b** ⭐⭐
+```python
+def __init__(self, k1: float = 1.2, b: float = 0.5):
+```
+
+### **Priority 5: Query expansion** ⭐
+(Optional, nhưng hiệu quả cao)
+
+---
+
+## 🧪 **Test nhanh để verify**
+
+Chạy query này trong Python console:
+
+```python
+from src.core.analysis.vietnamese_text_analyzer import VietnameseTextAnalyzer
+
+analyzer = VietnameseTextAnalyzer()
+
+# Test current behavior
+query = "Tôi muốn làm việc ở nhà thì cần trang bị gì?"
+normalized = analyzer.normalize_for_bm25(query, remove_stopwords=True)
+print(f"Normalized: '{normalized}'")
+
+# Expected output (BEFORE compound words):
+# "muon lam viec nha can trang bi"  ← 7 terms, có noise
+
+# Expected output (AFTER compound words + more stopwords):
+# "lam_viec nha trang_bi"  ← 3 terms, chất lượng cao
+```
+
+Bạn thử chạy đoạn code trên xem output ra gì? Điều đó sẽ giúp tôi chẩn đoán chính xác hơn vấn đề thực sự.
