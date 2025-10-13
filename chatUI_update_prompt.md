@@ -638,9 +638,9 @@ Tài liệu: "Gọi API endpoint /api/v1/users với method GET để lấy danh
 Câu hỏi: "Làm sao để lấy danh sách users?"
 Trả lời tốt: "Để lấy danh sách users, gọi API endpoint `/api/v1/users` với method GET [Nguồn 1]:
 
-```bash
+[bash]
 curl -X GET https://api.company.com/v1/users
-```
+[end of bash]
 
 Trả lời SAI: "Có thể dùng endpoint /api/users hoặc /users để lấy danh sách." (thông tin không chính xác)
 
