@@ -1729,16 +1729,16 @@ Hệ thống đã được tối ưu cho tài liệu tiếng Việt nội bộ v
 
 ### Using V2 Prompts
 
-```python
+[python]
 from app.prompts.prompt_templates_vi_optimized import SystemPromptVietnamese
 
 # Get optimized prompt
 prompt = SystemPromptVietnamese.BALANCED
-```
+[end of python]
 
 ### A/B Testing
 
-```bash
+[bash]
 # Start test
 curl -X POST "http://localhost:9000/api/v1/prompts/ab-test/start" \
   -H "Content-Type: application/json" \
@@ -1752,11 +1752,11 @@ curl -X POST "http://localhost:9000/api/v1/prompts/ab-test/start" \
 
 # Check results
 curl "http://localhost:9000/api/v1/prompts/ab-test/balanced_v1_vs_v2/analyze"
-```
+[end of bash]
 
 ### Quality Evaluation
 
-```python
+[python]
 from app.prompts.prompt_evaluator import PromptEvaluator
 
 evaluator = PromptEvaluator()
@@ -1764,7 +1764,7 @@ score = evaluator.evaluate_response(query, answer, context)
 
 print(f"Quality: {evaluator.get_quality_label(score.total_score)}")
 print(f"Score: {score.total_score}/100")
-```
+[end of python]
 
 ## Best Practices
 
