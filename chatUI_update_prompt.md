@@ -109,12 +109,12 @@ YÊU CẦU KỸ THUẬT:
 VÍ DỤ TRẢ LỜI TECHNICAL:
 ✅ "Để gọi API authentication, sử dụng endpoint `/api/v1/auth/login` [Nguồn 1]:
 
-```python
+[python]
 response = requests.post(
     'https://api.company.com/v1/auth/login',
     json={'username': 'user', 'password': 'pass'}
 )
-```
+[end of python]
 
 API trả về token có thời hạn 24 giờ [Nguồn 1]. Lưu ý: Phải gửi header `Content-Type: application/json` [Nguồn 2]."
 
