@@ -258,3 +258,201 @@ LIMIT 50;
 ---
 
 Nếu bạn muốn “tối thiểu hơn nữa” để insert nhanh: với `AMENDS`/`SUPERSEDES` bạn chỉ cần `effective_date` + `scope` + (`amends[]` hoặc `supersedes{}`) là đủ. Phần `source` là để bạn debug sướng hơn khi test manual.
+
+Có — với hệ “tờ trình / quyết định / báo cáo / công văn / phụ lục” thì chỉ 3 nhãn `BASED_ON/AMENDS/SUPERSEDES` thường **không đủ**. Bạn nên có thêm một nhóm nhãn “liên quan nhưng không mang ngữ nghĩa pháp lý mạnh”, để GraphRAG vẫn traverse được mà không làm sai logic hiệu lực.
+
+Dưới đây là bộ nhãn mình hay khuyến nghị (chia nhóm rõ để bạn dễ kiểm soát ranking và tránh suy luận sai):
+
+## 1) Nhóm “tham chiếu / liên quan” (an toàn, dùng nhiều nhất)
+
+### `REFERENCES`
+
+Dùng khi A **nhắc tới** B (trích dẫn, dẫn số hiệu, dẫn đoạn) nhưng chưa chắc “là căn cứ”.
+
+* Ví dụ: báo cáo có đoạn “theo Quyết định …” (nhưng không phải căn cứ pháp lý chính thức).
+
+**metadata tối thiểu gợi ý**
+
+* `ref_type`: `"citation|mention"`
+* `ref_text`: đoạn trích ngắn hoặc vị trí
+
+---
+
+### `RELATED_TO`
+
+Quan hệ “có liên quan” chung chung để nối graph (dùng khi bạn chưa phân loại được).
+
+* Ví dụ: nhiều tài liệu trong cùng một case/hồ sơ dự án.
+
+**Lưu ý**: nhãn này nên để `confidence` thấp hơn và thường `verified=false` nếu auto.
+
+---
+
+### `SAME_CASE` / `SAME_DOSSIER`
+
+Cùng hồ sơ/cùng vụ việc/cùng mã dự án.
+
+* Rất hợp với “tờ trình–báo cáo–quyết định–phụ lục” cùng một hồ sơ.
+
+**metadata tối thiểu**
+
+* `case_id` hoặc `dossier_id`
+
+---
+
+## 2) Nhóm “quy trình văn bản” (workflow / hành chính)
+
+### `PROPOSES`
+
+Tờ trình / đề xuất **đề nghị ban hành** quyết định/đề án.
+
+* Hướng khuyến nghị: `Tờ trình -> Quyết định/Dự thảo`
+
+**metadata**
+
+* `proposal_type`: `"submission|draft|recommendation"`
+
+---
+
+### `APPROVES`
+
+Quyết định **phê duyệt** một tờ trình/đề án/kế hoạch.
+
+* Hướng: `Quyết định -> Đề án/Kế hoạch/Tờ trình`
+
+---
+
+### `ATTACHES` / `HAS_ATTACHMENT`
+
+Tài liệu A **đính kèm** tài liệu B (phụ lục, danh mục, bảng biểu).
+
+* Hướng: `Tài liệu chính -> Phụ lục`
+
+**metadata**
+
+* `attachment_kind`: `"appendix|annex|table|map"`
+
+---
+
+### `RESPONDS_TO`
+
+Công văn trả lời / phản hồi văn bản trước đó.
+
+* Hướng: `Văn bản trả lời -> Văn bản được hỏi/được yêu cầu`
+
+---
+
+### `REQUESTS`
+
+Văn bản A yêu cầu văn bản B hoặc yêu cầu thực hiện/giải trình.
+
+* Hướng: `Văn bản yêu cầu -> Văn bản phản hồi (hoặc task)`
+
+---
+
+## 3) Nhóm “phiên bản / biến thể” (không hẳn sửa đổi pháp lý)
+
+### `REVISES`
+
+Bản dự thảo v2/v3 **chỉnh sửa** bản dự thảo trước (không nhất thiết là “AMENDS” theo hiệu lực pháp lý).
+
+* Hướng: `v2 -> v1`
+
+### `DERIVED_FROM`
+
+Báo cáo/tổng hợp được lập **từ dữ liệu** hoặc **từ báo cáo khác**.
+
+* Hướng: `Bản tổng hợp -> Nguồn`
+
+---
+
+## 4) Nhóm “đối tượng / phạm vi áp dụng”
+
+### `IMPLEMENTS`
+
+Văn bản A **triển khai** văn bản B (kế hoạch triển khai, hướng dẫn thực hiện).
+
+* Hướng: `Kế hoạch/Hướng dẫn -> Quyết định/Chủ trương`
+
+### `EVALUATES`
+
+Báo cáo A **đánh giá** quyết định/kế hoạch B.
+
+* Hướng: `Báo cáo -> Quyết định/Kế hoạch`
+
+---
+
+# Bộ nhãn tối thiểu mình khuyên dùng cho project kiểu “hồ sơ dự án”
+
+Nếu bạn muốn gọn mà vẫn đủ bao phủ:
+
+* Nhóm pháp lý mạnh: `BASED_ON`, `AMENDS`, `SUPERSEDES`
+* Nhóm liên quan an toàn: `REFERENCES`, `RELATED_TO`, `SAME_DOSSIER`
+* Nhóm workflow: `PROPOSES`, `APPROVES`, `ATTACHES`, `RESPONDS_TO`
+* Nhóm phiên bản: `REVISES` (dự thảo)
+
+=> Tổng ~10 nhãn là đã rất “đã tay” để test GraphRAG.
+
+---
+
+## Gợi ý quan trọng để GraphRAG “không trả lời sai”
+
+* Chỉ coi **hiệu lực** khi relation_type nằm trong: `AMENDS`, `SUPERSEDES` (và có `effective_date`)
+* Các nhãn mềm (`RELATED_TO`, `SAME_DOSSIER`, `REFERENCES`) dùng để **mở rộng ngữ cảnh** và **gợi ý nguồn** chứ không dùng để “kết luận pháp lý”
+* Khi build ranking: ưu tiên đường đi qua `BASED_ON/AMENDS/SUPERSEDES` hơn `RELATED_TO`
+
+---
+
+Nếu bạn cho mình danh sách **loại tài liệu** bạn có (ví dụ: tờ trình, quyết định, báo cáo, công văn, kế hoạch, phụ lục, biên bản…) mình sẽ map ra một **bảng “loại A → loại B dùng nhãn gì”** + SQL insert mẫu cho 3–4 nhãn bạn dùng nhiều nhất (PROPOSES/APPROVES/ATTACHES/REFERENCES) để bạn chạy manual test luôn.
+
+
+Câu hỏi của bạn rất thực tế. Trong một hệ thống quản lý hồ sơ dự án hoặc doanh nghiệp, mối quan hệ giữa các tài liệu thường phong phú hơn nhiều so với logic "cha-con" của văn bản pháp luật.
+
+Dựa trên các loại tài liệu bạn nêu (Tờ trình, Quyết định, Báo cáo), tôi gợi ý bạn bổ sung các nhãn `relation_type` sau để GraphRAG có thể truy xuất ngữ cảnh chính xác hơn:
+
+### 1. Nhóm Quan hệ Tiến trình (Workflow/Sequence)
+
+Nhóm này giúp AI hiểu được tài liệu nào "đẻ" ra tài liệu nào trong một quy trình:
+
+* **`PROPOSED_BY` (Được đề xuất bởi):** Dùng cho Quyết định nối ngược về Tờ trình. (Ví dụ: *Quyết định A được ban hành dựa trên nội dung Tờ trình B*).
+* **`RESULTED_IN` (Dẫn đến):** Ngược lại với nhãn trên, dùng từ Tờ trình trỏ đến Quyết định.
+* **`REPORTED_IN` (Được báo cáo tại):** Dùng để nối các dữ liệu, sự kiện hoặc các Quyết định vào một Báo cáo tổng hợp/Báo cáo định kỳ.
+
+### 2. Nhóm Quan hệ Thực thi & Chi tiết (Implementation)
+
+Nhóm này giúp AI đào sâu vào chi tiết:
+
+* **`IMPLEMENTS` (Thực hiện):** Dùng cho Kế hoạch hoặc Báo cáo thực hiện trỏ về Quyết định chủ trương.
+* **`DETAILED_BY` (Được chi tiết hóa bởi):** Dùng từ một văn bản khung (Quy chế) trỏ đến các hướng dẫn cụ thể.
+* **`ATTACHED_TO` (Đính kèm):** Dùng cho các phụ lục, bảng biểu đi kèm một báo cáo hoặc tờ trình chính.
+
+### 3. Nhóm Quan hệ Tham chiếu Ngang (Associative)
+
+Dùng cho các tài liệu cùng thuộc một thực thể nhưng không có quan hệ thứ bậc:
+
+* **`CO-REFERENCED` (Tham chiếu chéo):** Hai tài liệu nhắc đến nhau hoặc cùng nhắc đến một sự kiện/dự án mà không cái nào là cha của cái nào.
+* **`PART_OF_PROJECT` (Thuộc dự án):** Nhãn quan trọng nhất để gom nhóm tất cả Tờ trình, Báo cáo, Quyết định vào một "cụm" (Project Cluster).
+* **`EVIDENCE_FOR` (Bằng chứng cho):** Dùng cho các Báo cáo, Biên bản nghiệm thu trỏ về một xác nhận hoặc kết luận nào đó.
+
+---
+
+### Bảng tổng hợp gợi ý cho hệ thống của bạn:
+
+| Relation Type | Source (Doc A) | Target (Doc B) | Ý nghĩa cho RAG |
+| --- | --- | --- | --- |
+| **`PROPOSED_BY`** | Quyết định | Tờ trình | Tìm lý do tại sao Quyết định này ra đời. |
+| **`REPORTED_IN`** | Quyết định/Sự kiện | Báo cáo | Tìm xem kết quả của Quyết định này được ghi nhận ở đâu. |
+| **`PART_OF`** | Tờ trình/Báo cáo | Dự án/Hồ sơ lớn | Gom tất cả tài liệu liên quan đến một dự án để trả lời câu hỏi tổng quát. |
+| **`VERSION_OF`** | Báo cáo (V2) | Báo cáo (V1) | Tránh lấy nhầm dữ liệu cũ, AI sẽ biết đâu là bản mới nhất. |
+
+---
+
+### Cách "Hardlink" thủ công các nhãn này hiệu quả:
+
+Nếu bạn nhập tay, hãy đưa thêm trường **`context_snippet`** vào bảng `graph_edges`.
+
+* *Ví dụ:* Nếu chọn nhãn `PROPOSED_BY`, hãy copy dòng chữ trong Quyết định: *"Xét Tờ trình số 123/TT-ABC ngày..."* vào cột này.
+* **Lợi ích:** Khi RAG hoạt động, nó không chỉ biết A nối với B, mà còn biết **tại sao** chúng nối với nhau, giúp câu trả lời của AI cực kỳ thuyết phục.
+
+**Gợi ý bước tiếp theo:** Bạn có muốn tôi bổ sung các nhãn này vào bảng `graph_templates` để khi bạn verify metadata, hệ thống sẽ tự động gợi ý nhãn phù hợp dựa trên `document_type` không?
+
