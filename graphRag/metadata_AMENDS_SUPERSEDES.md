@@ -359,6 +359,87 @@ LIMIT 50;
 
 ---
 
+Cấu trúc `edge_metadata` bạn đưa ra **rất ổn** và chuyên nghiệp. Nó biến một "đường kẻ" vô hồn giữa hai tài liệu thành một "kết nối có tri thức".
+
+Trong GraphRAG, cột `metadata` này cực kỳ quan trọng vì AI sẽ sử dụng nó để giải thích **tại sao** hai tài liệu lại liên quan đến nhau. Tuy nhiên, để tối ưu cho việc truy vấn bằng SQL (JSONB) và xử lý ngôn ngữ tự nhiên (RAG), tôi có một vài góp ý điều chỉnh như sau:
+
+---
+
+### 1. Phân tích cấu trúc bạn đưa ra
+
+* **`effective_date`**: Rất cần thiết. Giúp AI biết link này có còn giá trị tại thời điểm người dùng hỏi hay không.
+* **`scope`**: Tốt. Phân biệt giữa "toàn bộ văn bản" hay chỉ "một phần".
+* **`amends` (Mảng đối tượng)**: Đây là phần "đắt giá" nhất. Nó cho phép bạn thực hiện **Granular RAG** (RAG đến cấp độ điều khoản). Việc lưu `target_ref` và `action` giúp AI trả lời được câu hỏi: *"Điều 3 của quy chế cũ đã bị thay đổi như thế nào?"*.
+* **`source`**: Bạn nên cân nhắc chuyển `source` ra các cột chính (như `extraction_method`, `extraction_context` mà chúng ta đã thảo luận ở bảng trước) để tạo Index tốt hơn. Nếu vẫn để trong JSONB, hãy giữ nó gọn nhẹ.
+
+### 2. Gợi ý bổ sung để "hoàn hảo" hơn
+
+Để biến `edge_metadata` thành "vũ khí" lợi hại cho hệ thống RAG, bạn nên cân nhắc thêm 2 trường này:
+
+1. **`semantic_reason` (Text)**: Một câu tóm tắt bằng ngôn ngữ tự nhiên về quan hệ này.
+* *VD: "Tờ trình này đề xuất chi tiết phương án tài chính cho mục 4 của Quyết định."*
+* *Lý do:* Khi RAG tìm thấy cạnh này, nó có thể đọc thẳng câu này vào Prompt của LLM.
+
+
+2. **`strength_score` (0-1)**: Độ mạnh của mối quan hệ trong ngữ cảnh cụ thể.
+3. **`dependency_type`**: `hard` (Bắt buộc phải có A mới hiểu được B) hoặc `soft` (Chỉ là thông tin tham khảo thêm).
+
+### 3. Ví dụ cấu trúc "Expert" đề xuất
+
+```json
+{
+  "effective_date": "2025-01-01",
+  "expiry_date": null, 
+  "scope": "partial",
+  "granularity": {
+    "level": "article",
+    "value": "Điều 5"
+  },
+  "amendments": [
+    {
+      "target_section": "Khoản 1 Điều 5",
+      "action": "replace",
+      "reason": "Cập nhật đơn giá mới theo thị trường"
+    }
+  ],
+  "tags": ["tài chính", "định mức", "năm 2025"],
+  "ai_summary": "Quyết định này thay thế đơn giá tại Khoản 1 Điều 5 của quy chế cũ do biến động giá thị trường."
+}
+
+```
+
+---
+
+### 4. Cách khai thác `edge_metadata` trong RAG
+
+Khi bạn truy vấn, bạn có thể lọc trực tiếp bằng SQL JSONB để tăng độ chính xác:
+
+* **Lọc theo hiệu lực:**
+```sql
+SELECT * FROM graph_edges 
+WHERE edge_metadata->>'effective_date' <= '2025-01-08'
+AND (edge_metadata->>'expiry_date' IS NULL OR edge_metadata->>'expiry_date' > '2025-01-08');
+
+```
+
+
+* **Lọc theo hành động cụ thể:**
+```sql
+-- Tìm tất cả các link liên quan đến việc "Xóa bỏ" (delete) nội dung
+SELECT * FROM graph_edges 
+WHERE edge_metadata @> '{"amends": [{"action": "delete"}]}';
+
+```
+
+
+
+### Một lưu ý nhỏ:
+
+Nếu bạn dự định có hàng triệu `edges`, hãy tránh để `edge_metadata` quá lớn (vượt quá vài KB). Nếu dữ liệu quá lớn, hãy tách phần "nội dung chi tiết" sang một bảng khác và chỉ để lại các "flag" (cờ hiệu) quan trọng trong JSONB để tối ưu tốc độ scan của PostgreSQL.
+
+**Bạn đã có dữ liệu mẫu cho các trường `amends` này chưa, hay cần tôi gợi ý một Prompt để AI tự động trích xuất thông tin này từ văn bản gốc?**
+
+
 Nếu bạn muốn “tối thiểu hơn nữa” để insert nhanh: với `AMENDS`/`SUPERSEDES` bạn chỉ cần `effective_date` + `scope` + (`amends[]` hoặc `supersedes{}`) là đủ. Phần `source` là để bạn debug sướng hơn khi test manual.
 
 Có — với hệ “tờ trình / quyết định / báo cáo / công văn / phụ lục” thì chỉ 3 nhãn `BASED_ON/AMENDS/SUPERSEDES` thường **không đủ**. Bạn nên có thêm một nhóm nhãn “liên quan nhưng không mang ngữ nghĩa pháp lý mạnh”, để GraphRAG vẫn traverse được mà không làm sai logic hiệu lực.
