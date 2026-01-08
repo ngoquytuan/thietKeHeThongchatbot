@@ -1,3 +1,74 @@
+Đây là cấu trúc bảng `graph_edges` cực kỳ đầy đủ và chuyên nghiệp dành cho hệ thống **Enterprise GraphRAG**. Với cấu trúc này, bạn không chỉ làm RAG thông thường mà còn có thể quản lý được cả vòng đời dữ liệu (Data Governance) và độ tin cậy của tri thức.
+
+### 1. Phân nhóm và Giải thích các trường dữ liệu
+
+Tôi sẽ chia các cột của bạn thành 5 nhóm chức năng chính để dễ quản lý:
+
+#### Nhóm 1: Định danh và Kết nối (Core Identity)
+
+* **`edge_id`**: Khóa chính duy nhất cho mỗi quan hệ.
+* **`source_graph_doc_id` & `target_graph_doc_id**`: ID nội bộ của 2 node trong bảng `graph_documents`.
+* **`source_law_id` & `target_law_id**`: Số hiệu văn bản (Ví dụ: `265/2025/NĐ-CP`). Dùng để đối chiếu nhanh mà không cần JOIN sang bảng document.
+* **`source_task_code` & `target_task_code**`: Mã công việc/dự án (Ví dụ: `ĐTCT.2024.05`). Dùng để tạo quan hệ giữa các tài liệu cùng thuộc một dự án như bạn đã đề cập ở câu hỏi trước.
+
+#### Nhóm 2: Logic Đồ thị (Graph Logic & Hierarchy)
+
+* **`relation_type`**: Loại quan hệ chính (BASED_ON, PROPOSED_BY...).
+* **`relation_subtype`**: Chi tiết hơn (Ví dụ: `relation_type` là `AMENDS` thì `subtype` có thể là `REPLACE_ARTICLE` - Thay thế điều khoản).
+* **`source_level` & `target_level**`: Cấp bậc của 2 tài liệu (0: Luật, 1: Nghị định...).
+* **`level_diff`**: Độ chênh lệch cấp bậc. Giúp truy vấn nhanh các quan hệ "vượt cấp" (Ví dụ: Từ Quyết định nhảy thẳng lên Luật).
+* **`edge_weight`**: Trọng số liên kết (0.0 - 1.0). AI sẽ ưu tiên đi theo các link có weight cao khi tìm kiếm context.
+
+#### Nhóm 3: Nguồn gốc và Trích xuất (Provenance & Extraction)
+
+* **`extraction_method`**: Cách tạo link (`manual`, `ai_regex`, `llm_extraction`).
+* **`extraction_context`**: **Cực kỳ quan trọng**. Chứa đoạn văn bản gốc chứng minh cho sự liên kết này (Ví dụ: "Xét tờ trình số...").
+* **`page_number` & `paragraph_number**`: Vị trí chính xác trong file PDF/Docx nơi tìm thấy liên kết.
+* **`confidence`**: Độ tin cậy của AI khi bóc tách link này.
+
+#### Nhóm 4: Kiểm soát và Xác thực (Governance & Verification)
+
+* **`verified`**: `true` nếu con người đã check, `false` nếu AI mới tự tạo.
+* **`verified_by` & `verified_at**`: Ai là người duyệt link này và vào lúc nào.
+* **`is_suggested`**: Nếu AI thấy có khả năng liên quan nhưng chưa chắc chắn, nó sẽ đánh dấu là `true` để chờ bạn duyệt.
+* **`is_active`**: Dùng để "xóa mềm". Khi văn bản hết hiệu lực, bạn set `false` thay vì xóa để giữ lịch sử.
+
+#### Nhóm 5: Metadata và Audit
+
+* **`edge_metadata`**: Lưu trữ các trường linh hoạt phát sinh thêm dưới dạng JSONB.
+* **`created_by` & `updated_by**`: Hệ thống hoặc User thực hiện thao tác.
+
+---
+
+### 2. Ví dụ một dòng dữ liệu (Sample Data)
+
+Giả sử bạn có **Quyết định 456** được ban hành dựa trên **Tờ trình 123**:
+
+| Cột | Giá trị | Giải thích |
+| --- | --- | --- |
+| **source_law_id** | 456/QĐ-UBND | Văn bản nguồn (đi trích dẫn) |
+| **target_law_id** | 123/TTr-VP | Văn bản đích (được trích dẫn) |
+| **relation_type** | `PROPOSED_BY` | Quyết định được đề xuất bởi Tờ trình |
+| **source_level** | 3 | Cấp Quyết định |
+| **target_level** | 4 | Cấp Tờ trình (thấp hơn) |
+| **extraction_method** | `manual` | Bạn tự nhập tay |
+| **extraction_context** | "Căn cứ Tờ trình số 123/TTr-VP ngày 01/01/2024 của Văn phòng..." | Ngữ cảnh trích dẫn |
+| **verified** | `true` | Đã xác thực |
+| **edge_weight** | 1.0000 | Liên kết tuyệt đối |
+
+---
+
+### 3. Tại sao các Index bạn nêu lại quan trọng?
+
+Hệ thống Index này được thiết kế để phục vụ các kiểu truy vấn "khó" của GraphRAG:
+
+1. **`INDEX source_graph_doc_id, target_graph_doc_id, relation_type WHERE is_active = true`**: Đây là index quan trọng nhất. Nó giúp tìm kiếm nhanh các quan hệ đang còn hiệu lực giữa 2 tài liệu bất kỳ.
+2. **`INDEX level_diff`**: Dùng khi bạn muốn hỏi AI: "Tìm tất cả các văn bản dưới cấp của Luật này mà đang vi phạm quy định".
+3. **`INDEX source_task_code, target_task_code WHERE is_active = true AND verified = true`**: Giúp gom nhóm toàn bộ tài liệu theo dự án cực nhanh cho các câu hỏi dạng: "Tóm tắt toàn bộ hồ sơ dự án ĐTCT.2024.05".
+4. **`INDEX edge_weight WHERE edge_weight > 0.5`**: Khi hệ thống có hàng triệu link, AI chỉ nên "đi bộ" trên những link có trọng số cao để tránh bị nhiễu thông tin (Noise).
+
+**Lời khuyên:** Với bảng này, khi làm **Hardlink manual**, bạn hãy cố gắng điền ít nhất là `relation_type`, `extraction_context` và `verified = true`. Những trường này sẽ giúp câu trả lời của RAG đạt chất lượng "Expert" (Chuyên gia).
+
 Dưới đây là **metadata tối thiểu (đủ dùng, dễ mở rộng)** cho `AMENDS` và `SUPERSEDES` (để bạn hardlink manual mà vẫn “đúng logic”, nhất là khi sau này bạn muốn hỏi “hiện hành/đang áp dụng”).
 
 Mình giả định `graph_edges.metadata` là `jsonb` (đúng kiểu hay dùng), và bạn đang insert theo pattern `WITH s,t ... INSERT ...`.
