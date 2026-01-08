@@ -69,6 +69,37 @@ Hệ thống Index này được thiết kế để phục vụ các kiểu truy
 
 **Lời khuyên:** Với bảng này, khi làm **Hardlink manual**, bạn hãy cố gắng điền ít nhất là `relation_type`, `extraction_context` và `verified = true`. Những trường này sẽ giúp câu trả lời của RAG đạt chất lượng "Expert" (Chuyên gia).
 
+Để xây dựng một GraphRAG linh hoạt cho các dự án chứa nhiều loại tài liệu như tờ trình, báo cáo, và quyết định, bạn cần mở rộng bộ nhãn `relation_type` trong bảng `graph_edges`. Việc chỉ sử dụng các nhãn pháp lý thuần túy (như `BASED_ON`) sẽ làm mất đi ngữ cảnh vận hành của dự án,.
+
+Dưới đây là các nhãn gợi ý để bạn phân loại chính xác mối quan hệ giữa các tài liệu trong một dự án:
+
+### 1. Nhãn cho quy trình nghiệp vụ (Functional Relations)
+Các nhãn này giúp LLM hiểu được luồng công việc (workflow) từ khi đề xuất đến khi kết thúc:
+*   **`PROPOSES` (Trình/Đề xuất cho):** Dùng cho các **Tờ trình**. Tờ trình A `PROPOSES` Quyết định B. Đây là quan hệ tiền đề nhưng không phải là "căn cứ pháp lý",.
+*   **`IMPLEMENTS` (Thực hiện/Triển khai):** Dùng khi một văn bản cụ thể hóa việc thực hiện một kế hoạch hoặc quyết định trước đó,. Ví dụ: Quyết định triển khai dự án `IMPLEMENTS` Kế hoạch năm.
+*   **`REPORTS_ON` (Báo cáo về):** Dùng cho các **Báo cáo**. Báo cáo tình hình tháng 5 `REPORTS_ON` tiến độ của Quyết định dự án X. Nhãn này giúp hệ thống truy xuất được kết quả thực hiện của một nút (node) cụ thể.
+
+### 2. Nhãn cho mối quan hệ ngang hàng và liên kết (Horizontal Relations)
+Trong một dự án, nhiều tài liệu có cùng **`task_code`** hoặc **`project_code`** nhưng không có quan hệ cha-con trực tiếp:
+*   **`RELATED_TO` (Liên quan đến):** Nhãn chung nhất cho các tài liệu cùng thuộc một mã nhiệm vụ hoặc dự án nhưng không xác định được hướng tác động cụ thể.
+*   **`REFERENCES` (Tham chiếu):** Sử dụng khi một tài liệu nhắc đến một tài liệu khác để cung cấp thông tin bổ sung, không mang tính bắt buộc hoặc căn cứ.
+*   **`ATTACHED_TO` (Đính kèm cùng):** Dùng cho các phụ lục, danh mục hoặc tài liệu đi kèm không thể tách rời của một văn bản chính.
+
+### 3. Nhãn cho logic thời gian và phiên bản
+*   **`FOLLOWS` (Tiếp nối):** Dùng khi một tài liệu ra đời sau tài liệu khác trong cùng một chuỗi sự kiện mà không sửa đổi tài liệu trước đó.
+*   **`SUPPLEMENTS` (Bổ sung cho):** Khác với `AMENDS` (sửa đổi nội dung cũ), nhãn này dùng khi tài liệu mới bổ sung thêm các điều khoản hoặc nội dung mà tài liệu cũ chưa có.
+
+### Cách tối ưu hóa việc gắn nhãn
+Để không làm phức tạp bảng `graph_edges`, bạn có thể kết hợp sử dụng cột **`edge_metadata`** (JSONB) mà bạn đã thiết kế sẵn,:
+*   **Dùng nhãn chính:** Giữ `relation_type` ở mức khái quát (ví dụ: `PROCESS_FLOW`).
+*   **Dùng nhãn chi tiết trong metadata:** Lưu thông tin cụ thể như `{"sub_type": "proposal_to_decision", "step": 1}` vào cột `edge_metadata`.
+
+**Gợi ý áp dụng:** Khi thực hiện **Strategy 1 (Hard Linking)** dựa trên mã dự án (`project_code`), nếu hệ thống thấy hai tài liệu có chung mã nhưng không có từ khóa "Căn cứ", nó nên tự động gán nhãn `RELATED_TO` với độ tin cậy (`confidence`) khoảng 0.9,. Việc này giúp bạn bao phủ được 95% tài liệu hiện đang thiếu metadata chặt chẽ mà vẫn duy trì được mạng lưới liên kết trong dự án,.
+
+***
+
+**Ví von để dễ hình dung:** Nếu coi các tài liệu trong dự án là các thành viên trong một đội bóng, thì `BASED_ON` giống như quan hệ giữa Huấn luyện viên và Cầu thủ (mệnh lệnh - thực thi), còn `RELATED_TO` hay `REPORTS_ON` giống như quan hệ giữa các cầu thủ trên sân; họ không ra lệnh cho nhau nhưng mọi hành động của người này đều liên quan trực tiếp đến vị trí và kết quả của người kia.
+
 Dưới đây là **metadata tối thiểu (đủ dùng, dễ mở rộng)** cho `AMENDS` và `SUPERSEDES` (để bạn hardlink manual mà vẫn “đúng logic”, nhất là khi sau này bạn muốn hỏi “hiện hành/đang áp dụng”).
 
 Mình giả định `graph_edges.metadata` là `jsonb` (đúng kiểu hay dùng), và bạn đang insert theo pattern `WITH s,t ... INSERT ...`.
