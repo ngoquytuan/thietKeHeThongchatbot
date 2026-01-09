@@ -99,3 +99,9 @@ Nếu bạn paste giúp mình:
 2. `SELECT * FROM documents_metadata_v2 LIMIT 5;` (để xem cột nào là key)
 
 mình sẽ chỉ ra chính xác vì sao “Expected 40” nhưng ra 43 (duplicate do join hay do data thật sự).
+
+
+
+
+SELECT sync_document_to_graph('ID_CỦA_TÀI_LIỆU_GỐC');
+
