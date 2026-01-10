@@ -66,6 +66,93 @@ SELECT sync_document_to_graph('ID_CỦA_TÀI_LIỆU_GỐC');
 * **`relation_type`**: Đặt là `'BASED_ON'` (Căn cứ vào), `'AMENDS'` (Sửa đổi) hoặc `'SUPERSEDES'` (Thay thế).
 * **`extraction_method`**: Đặt là `'manual'` để phân biệt với link tự động bằng AI/Regex.
 * **`verified`**: Đặt là `true` vì bạn đang làm thủ công, độ tin cậy tuyệt đối.
+* 
+LUAT_KHCN_2013 (Rank 0) ━━━━━━━━━━━━━━━━━┓
+│                                        ┃
+│                                        ▼
+└─→ 654/TT-BKH (Rank 1)                 governing_laws
+    │                                    
+    └─→ QC-HDQLQ (Rank 2)               
+        │
+        ├─→ 654/QĐ-CTCT (Rank 3) ━━━━━━┳━━━ task_code: DTCT.2024.05
+        │   │                          ┃
+        │   └─→ QT-DTCT (Rank 4) ━━━━━━┫
+        │       │                      ┃
+        │       └─→ DA-DTCT-2024-05 ━━━┫
+        │           │           (Rank 5)┃
+        │           └─→ BC-DTCT-Q1 ━━━━┛
+        │               (Rank 6)
+        │
+        └─→ 888/QĐ-KTQLB (Rank 3) ━━━━┳━━━ task_code: GPS-2025
+            │                         ┃
+            └─→ QT-NCPT (Rank 4) ━━━━┫
+                │                     ┃
+                └─→ DA-GPS-2025 ━━━━━┫
+                    │         (Rank 5)┃
+                    └─→ BC-GPS-TEST ━┛
+                        (Rank 6)
+theo sơ đồ này thì link phải có sẽ là QC-HDQLQ(source_graph_doc_id) base_on 654/TT-BKH(target_graph_doc_id), và 654/TT-BKH base_on LUAT_KHCN_2013 đúng không? các tài liệu còn lại cũng tương tự, dưới base_on trên, có đúng không? trả lời ngắn gọn trong chat
+**Đúng 100%!** 
+
+Đây chính xác là cấu trúc GraphRAG relationships:
+
+### **1. Vertical Hierarchy (base_on):**
+```
+QC-HDQLQ.base_on → 654/TT-BKH
+654/TT-BKH.base_on → LUAT_KHCN_2013
+654/QĐ-CTCT.base_on → QC-HDQLQ
+...
+BC-DTCT-Q1.base_on → DA-DTCT-2024-05
+```
+
+**Rule:** `child.base_on = parent_id` (từ dưới lên trên)
+
+---
+
+### **2. Legal Governance (governing_laws):**
+```
+Tất cả docs Rank 3-6 → governing_laws = ["LUAT_KHCN_2013"]
+```
+**Rule:** Documents cấp thấp luôn reference về luật gốc (nét đứt trong sơ đồ)
+
+---
+
+### **3. Project Clustering (task_code):**
+```
+654/QĐ-CTCT, QT-DTCT, DA-DTCT-2024-05, BC-DTCT-Q1
+→ Cùng task_code: "DTCT.2024.05"
+```
+**Rule:** Nhóm documents thuộc cùng dự án/nhiệm vụ
+
+---
+
+### **Metadata Implementation:**
+
+```json
+// BC-DTCT-Q1 (Rank 6)
+"hierarchy": {
+  "parent_id": "DA-DTCT-2024-05",      // base_on relationship
+  "root_id": "LUAT_KHCN_2013",         // trace to top
+  "path": "0/1/2/3/5/6"
+}
+
+"governance": {
+  "governing_laws": ["LUAT_KHCN_2013"], // Legal reference
+  "implements": "DA-DTCT-2024-05"       // Direct parent
+}
+
+"graph_context": {
+  "related_projects": ["DTCT.2024.05"], // Project cluster
+  "related_documents": [                // Siblings
+    "654/QĐ-CTCT",
+    "QT-DTCT", 
+    "DA-DTCT-2024-05"
+  ]
+}
+```
+
+**Bạn hiểu hoàn toàn đúng cấu trúc!** 👍
+
 
 #### Bước 3: Cập nhật Level trong `graph_documents` (Quan trọng)
 
