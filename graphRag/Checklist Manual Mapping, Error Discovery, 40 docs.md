@@ -18,11 +18,17 @@ FROM documents_metadata_v2;
 
 -- Check distribution by rank
 SELECT 
-    metadata->'hierarchy'->>'rank_level' as rank,
-    COUNT(*) as count
+    metadata->'hierarchy'->>'rank_level' AS rank,
+    COUNT(*) AS count
 FROM documents_metadata_v2
 GROUP BY 1
-ORDER BY 1::int;
+ORDER BY
+  CASE 
+    WHEN (metadata->'hierarchy'->>'rank_level') ~ '^\d+$'
+    THEN (metadata->'hierarchy'->>'rank_level')::int
+    ELSE 999999
+  END;
+
 
 -- Expected:
 -- 0: 2 documents
