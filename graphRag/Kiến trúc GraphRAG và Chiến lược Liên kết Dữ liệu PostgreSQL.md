@@ -66,7 +66,8 @@ SELECT sync_document_to_graph('ID_CỦA_TÀI_LIỆU_GỐC');
 * **`relation_type`**: Đặt là `'BASED_ON'` (Căn cứ vào), `'AMENDS'` (Sửa đổi) hoặc `'SUPERSEDES'` (Thay thế).
 * **`extraction_method`**: Đặt là `'manual'` để phân biệt với link tự động bằng AI/Regex.
 * **`verified`**: Đặt là `true` vì bạn đang làm thủ công, độ tin cậy tuyệt đối.
-* 
+
+```bash
 LUAT_KHCN_2013 (Rank 0) ━━━━━━━━━━━━━━━━━┓
 │                                        ┃
 │                                        ▼
@@ -91,6 +92,8 @@ LUAT_KHCN_2013 (Rank 0) ━━━━━━━━━━━━━━━━━┓
                     │         (Rank 5)┃
                     └─→ BC-GPS-TEST ━┛
                         (Rank 6)
+```
+
 theo sơ đồ này thì link phải có sẽ là QC-HDQLQ(source_graph_doc_id) base_on 654/TT-BKH(target_graph_doc_id), và 654/TT-BKH base_on LUAT_KHCN_2013 đúng không? các tài liệu còn lại cũng tương tự, dưới base_on trên, có đúng không? trả lời ngắn gọn trong chat
 **Đúng 100%!** 
 
