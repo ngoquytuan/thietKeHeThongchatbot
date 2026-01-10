@@ -21,8 +21,9 @@ SELECT
     metadata->'hierarchy'->>'rank_level' as rank,
     COUNT(*) as count
 FROM documents_metadata_v2
-GROUP BY rank
-ORDER BY rank::int;
+GROUP BY 1
+ORDER BY 1::int;
+
 -- Expected:
 -- 0: 2 documents
 -- 1: 4 documents
