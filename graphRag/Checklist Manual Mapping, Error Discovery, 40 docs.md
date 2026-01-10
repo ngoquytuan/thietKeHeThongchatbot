@@ -1,3 +1,555 @@
+# Graph RAG Linking Validation Checklist
+
+## Overview
+
+This checklist helps you verify that all 40 documents are correctly linked in your PostgreSQL database. Expected results: **68 relationships** across 3 linking strategies.
+
+---
+
+## 🔍 Pre-Check: Database Setup
+
+### 1. Verify Document Import
+
+```sql
+-- Check total documents
+SELECT COUNT(*) as total_documents 
+FROM documents_metadata_v2;
+-- Expected: 40
+
+-- Check distribution by rank
+SELECT 
+    metadata->'hierarchy'->>'rank_level' as rank,
+    COUNT(*) as count
+FROM documents_metadata_v2
+GROUP BY rank
+ORDER BY rank::int;
+-- Expected:
+-- 0: 2 documents
+-- 1: 4 documents
+-- 2: 4 documents
+-- 3: 6 documents
+-- 4: 8 documents
+-- 5: 8 documents
+-- 6: 8 documents
+```
+
+### 2. Verify Metadata Completeness
+
+```sql
+-- Check for NULL parent_id (should only be Rank 0-1 and some independent docs)
+SELECT 
+    document_id,
+    metadata->>'title' as title,
+    metadata->'hierarchy'->>'rank_level' as rank,
+    metadata->'hierarchy'->>'parent_id' as parent_id
+FROM documents_metadata_v2
+WHERE metadata->'hierarchy'->>'parent_id' IS NULL
+ORDER BY (metadata->'hierarchy'->>'rank_level')::int;
+-- Expected: ~8 documents (2 laws + 2 independent circulars + 2 isolated decisions)
+```
+
+---
+
+## ✅ PART 1: HARD LINKING (47 Expected Edges)
+
+### Test 1.1: Parent-Child Relationships (34 edges)
+
+**Check all parent_id references are valid:**
+
+```sql
+-- Find documents with invalid parent_id
+SELECT 
+    d1.document_id,
+    d1.metadata->>'title' as title,
+    d1.metadata->'hierarchy'->>'parent_id' as parent_id,
+    CASE 
+        WHEN d2.document_id IS NULL THEN '❌ INVALID'
+        ELSE '✅ VALID'
+    END as status
+FROM documents_metadata_v2 d1
+LEFT JOIN documents_metadata_v2 d2 
+    ON d2.document_id = d1.metadata->'hierarchy'->>'parent_id'
+WHERE d1.metadata->'hierarchy'->>'parent_id' IS NOT NULL
+    AND d2.document_id IS NULL;
+-- Expected: 0 rows (all parent_ids should be valid)
+```
+
+**Count valid parent-child links:**
+
+```sql
+-- Total parent-child relationships
+SELECT COUNT(*) as parent_child_links
+FROM documents_metadata_v2
+WHERE metadata->'hierarchy'->>'parent_id' IS NOT NULL;
+-- Expected: 32-34 links
+```
+
+**Verify specific chains:**
+
+```sql
+-- KHCN Chain: BC_DTCT_Q1 → DA_DTCT → QT_DTCT → 654/QD-CTCT
+WITH RECURSIVE hierarchy AS (
+    SELECT 
+        document_id,
+        metadata->>'title' as title,
+        metadata->'hierarchy'->>'rank_level' as rank,
+        metadata->'hierarchy'->>'parent_id' as parent_id,
+        1 as depth
+    FROM documents_metadata_v2
+    WHERE metadata->'identification'->>'document_number' = 'BC-DTCT-Q1-2025'
+    
+    UNION ALL
+    
+    SELECT 
+        d.document_id,
+        d.metadata->>'title',
+        d.metadata->'hierarchy'->>'rank_level',
+        d.metadata->'hierarchy'->>'parent_id',
+        h.depth + 1
+    FROM documents_metadata_v2 d
+    JOIN hierarchy h ON d.document_id = h.parent_id
+)
+SELECT depth, rank, title FROM hierarchy ORDER BY depth;
+-- Expected: 7 rows (Rank 6→5→4→3→2→1→0)
+```
+
+---
+
+### Test 1.2: Task Code Groups (8 edges in 2 groups)
+
+**Group 1: DTCT.2024.05 (4 documents)**
+
+```sql
+-- Find all documents with task_code = 'DTCT.2024.05'
+SELECT 
+    metadata->>'title' as title,
+    metadata->'hierarchy'->>'rank_level' as rank,
+    metadata->'identification'->>'task_code' as task_code
+FROM documents_metadata_v2
+WHERE 
+    metadata->'identification'->>'task_code' = 'DTCT.2024.05'
+    OR metadata->'custom_fields'->>'project_code' = 'DTCT.2024.05'
+ORDER BY (metadata->'hierarchy'->>'rank_level')::int;
+-- Expected: 4 documents (Rank 3, 4, 5, 6)
+```
+
+**Group 2: GPS-2025 (4 documents)**
+
+```sql
+-- Find all documents with task_code = 'GPS-2025'
+SELECT 
+    metadata->>'title' as title,
+    metadata->'hierarchy'->>'rank_level' as rank,
+    metadata->'identification'->>'task_code' as task_code
+FROM documents_metadata_v2
+WHERE 
+    metadata->'identification'->>'task_code' = 'GPS-2025'
+    OR metadata->'custom_fields'->>'project_code' = 'GPS-2025'
+ORDER BY (metadata->'hierarchy'->>'rank_level')::int;
+-- Expected: 4 documents (Rank 3, 4, 5, 6)
+```
+
+**Validation:**
+
+```sql
+-- Count all task_code matches
+SELECT 
+    COALESCE(
+        metadata->'identification'->>'task_code',
+        metadata->'custom_fields'->>'project_code'
+    ) as task_code,
+    COUNT(*) as document_count
+FROM documents_metadata_v2
+WHERE 
+    metadata->'identification'->>'task_code' IS NOT NULL
+    OR metadata->'custom_fields'->>'project_code' IS NOT NULL
+GROUP BY task_code
+HAVING COUNT(*) > 1;
+-- Expected: 2 groups (DTCT.2024.05: 4 docs, GPS-2025: 4 docs)
+```
+
+---
+
+### Test 1.3: Governing Laws (11 references)
+
+**Check all KHCN documents reference root law:**
+
+```sql
+-- Find documents that should reference LUAT_KHCN_2013
+SELECT 
+    metadata->>'title' as title,
+    metadata->'hierarchy'->>'rank_level' as rank,
+    metadata->'governance'->'governing_laws' as governing_laws,
+    CASE 
+        WHEN metadata->'governance'->'governing_laws' @> '["LUAT_KHCN_2013"]'::jsonb 
+        THEN '✅ VALID'
+        ELSE '❌ MISSING'
+    END as status
+FROM documents_metadata_v2
+WHERE metadata->'domain'->>'category' = 'khoa_hoc_cong_nghe'
+    AND metadata->'hierarchy'->>'rank_level'::int > 0;
+-- Expected: All KHCN documents (except Rank 0) should reference LUAT_KHCN_2013
+```
+
+**Count all governing_laws references:**
+
+```sql
+-- Total governing_laws entries
+SELECT COUNT(*) as docs_with_governing_laws
+FROM documents_metadata_v2
+WHERE jsonb_array_length(metadata->'governance'->'governing_laws') > 0;
+-- Expected: ~30 documents
+```
+
+**Verify no invalid references:**
+
+```sql
+-- Check for references to non-existent laws
+SELECT DISTINCT
+    jsonb_array_elements_text(metadata->'governance'->'governing_laws') as law_reference,
+    COUNT(*) as reference_count
+FROM documents_metadata_v2
+WHERE jsonb_array_length(metadata->'governance'->'governing_laws') > 0
+GROUP BY law_reference
+ORDER BY reference_count DESC;
+-- Expected: All references should be valid document_numbers
+-- Common: LUAT_KHCN_2013, LUAT_LD_2019, 654/TT-BKH, 47/TT-BNV, etc.
+```
+
+---
+
+## ✅ PART 2: SEMANTIC LINKING (11 Expected Edges)
+
+### Test 2.1: Related Projects Overlap (2 pairs)
+
+**Find documents with related_projects overlap:**
+
+```sql
+-- Documents mentioning multiple projects
+SELECT 
+    metadata->>'title' as title,
+    metadata->'graph_context'->'related_projects' as related_projects
+FROM documents_metadata_v2
+WHERE jsonb_array_length(metadata->'graph_context'->'related_projects') > 1;
+-- Expected: 2-4 documents (DA_DTCT mentions GPS, DA_GPS mentions DTCT, etc.)
+```
+
+**Cross-reference check:**
+
+```sql
+-- Find DA_DTCT and DA_GPS cross-references
+SELECT 
+    d1.metadata->>'title' as doc1,
+    d2.metadata->>'title' as doc2,
+    d1.metadata->'graph_context'->'related_projects' as doc1_projects,
+    d2.metadata->'graph_context'->'related_projects' as doc2_projects
+FROM documents_metadata_v2 d1
+JOIN documents_metadata_v2 d2 
+    ON d1.document_id < d2.document_id
+WHERE 
+    d1.metadata->'graph_context'->'related_projects' @> d2.metadata->'identification'->>'task_code'::jsonb
+    OR d2.metadata->'graph_context'->'related_projects' @> d1.metadata->'identification'->>'task_code'::jsonb;
+-- Expected: 1-2 pairs with mutual references
+```
+
+---
+
+### Test 2.2: Keyword Overlap (6-8 clusters)
+
+**Find keyword similarity between GPS-related documents:**
+
+```sql
+-- Documents with 'GPS' keyword
+SELECT 
+    metadata->>'title' as title,
+    metadata->'domain'->'keywords' as keywords
+FROM documents_metadata_v2
+WHERE metadata->'domain'->'keywords' @> '["GPS"]'::jsonb
+    OR metadata->'domain'->'keywords'::text ILIKE '%GPS%'
+    OR metadata->'domain'->'keywords'::text ILIKE '%GNSS%';
+-- Expected: 8-10 documents
+```
+
+**Calculate keyword overlap (Jaccard similarity):**
+
+```sql
+-- Find document pairs with high keyword overlap
+WITH doc_keywords AS (
+    SELECT 
+        document_id,
+        metadata->>'title' as title,
+        metadata->'domain'->'keywords' as keywords
+    FROM documents_metadata_v2
+)
+SELECT 
+    d1.title as doc1,
+    d2.title as doc2,
+    (
+        SELECT COUNT(DISTINCT v)
+        FROM jsonb_array_elements_text(d1.keywords) v
+        WHERE d2.keywords @> to_jsonb(v)
+    )::float / (
+        SELECT COUNT(DISTINCT v)
+        FROM (
+            SELECT jsonb_array_elements_text(d1.keywords) as v
+            UNION
+            SELECT jsonb_array_elements_text(d2.keywords)
+        ) combined
+    ) as jaccard_similarity
+FROM doc_keywords d1
+JOIN doc_keywords d2 ON d1.document_id < d2.document_id
+WHERE (
+    SELECT COUNT(DISTINCT v)
+    FROM jsonb_array_elements_text(d1.keywords) v
+    WHERE d2.keywords @> to_jsonb(v)
+) >= 2
+ORDER BY jaccard_similarity DESC
+LIMIT 10;
+-- Expected: 10+ pairs with Jaccard > 0.3
+```
+
+---
+
+### Test 2.3: Technology Clusters (3 groups)
+
+**GPS/Navigation cluster:**
+
+```sql
+-- Documents with GPS/navigation technologies
+SELECT 
+    metadata->>'title' as title,
+    metadata->'graph_context'->'related_technologies' as technologies
+FROM documents_metadata_v2
+WHERE 
+    metadata->'graph_context'->'related_technologies'::text ILIKE '%GPS%'
+    OR metadata->'graph_context'->'related_technologies'::text ILIKE '%GNSS%'
+    OR metadata->'graph_context'->'related_technologies'::text ILIKE '%Navigation%';
+-- Expected: 8 documents
+```
+
+---
+
+## ✅ PART 3: INFERRED LINKING (10 Expected Edges)
+
+### Test 3.1: Chronological Sequences (5 chains)
+
+**Find same-department temporal sequences:**
+
+```sql
+-- Finance documents in chronological order
+SELECT 
+    metadata->>'title' as title,
+    metadata->'identification'->>'issue_date' as issue_date,
+    metadata->'authority'->>'department' as department
+FROM documents_metadata_v2
+WHERE metadata->'domain'->>'category' = 'tai_chinh'
+ORDER BY metadata->'identification'->>'issue_date';
+-- Expected: 9 documents showing clear temporal progression
+```
+
+**Check for Q1 2025 reports cluster:**
+
+```sql
+-- Documents from Q1 2025
+SELECT 
+    metadata->>'title' as title,
+    metadata->'identification'->>'issue_date' as issue_date,
+    metadata->>'custom_fields'->>'report_period' as period
+FROM documents_metadata_v2
+WHERE 
+    metadata->'identification'->>'issue_date' >= '2025-01-01'
+    AND metadata->'identification'->>'issue_date' < '2025-04-01'
+ORDER BY metadata->'identification'->>'issue_date';
+-- Expected: 5-7 documents (reports and projects from Q1)
+```
+
+---
+
+### Test 3.2: Entity Co-occurrence (2 pairs)
+
+**Find documents mentioning same partners:**
+
+```sql
+-- Documents mentioning Solace or ST Engineering
+SELECT 
+    metadata->>'title' as title,
+    metadata->'custom_fields'->'partner_organizations' as partners
+FROM documents_metadata_v2
+WHERE 
+    metadata->'custom_fields'->'partner_organizations'::text ILIKE '%Solace%'
+    OR metadata->'custom_fields'->'partner_organizations'::text ILIKE '%ST Engineering%';
+-- Expected: 2-3 documents (DA_DTCT mentions both)
+```
+
+---
+
+### Test 3.3: Same Department Documents
+
+**Find department clusters:**
+
+```sql
+-- Count documents by department
+SELECT 
+    metadata->'authority'->>'department' as department,
+    COUNT(*) as doc_count
+FROM documents_metadata_v2
+GROUP BY department
+ORDER BY doc_count DESC;
+-- Expected: 
+-- Nghiên Cứu Phát Triển: 11 docs
+-- Nhân sự: 10 docs
+-- Tài chính: 9 docs
+-- Hành chính: 6 docs
+-- Công nghệ thông tin: 4 docs
+```
+
+---
+
+## 📊 COMPREHENSIVE VALIDATION SUMMARY
+
+### Run this final check to get overall statistics:
+
+```sql
+-- Comprehensive relationship summary
+WITH relationship_stats AS (
+    -- Parent-child links
+    SELECT 
+        'Parent-Child' as link_type,
+        COUNT(*) as count,
+        'Hard' as strategy
+    FROM documents_metadata_v2
+    WHERE metadata->'hierarchy'->>'parent_id' IS NOT NULL
+    
+    UNION ALL
+    
+    -- Task code groups
+    SELECT 
+        'Task Code Groups' as link_type,
+        COUNT(*) as count,
+        'Hard' as strategy
+    FROM documents_metadata_v2
+    WHERE metadata->'identification'->>'task_code' IS NOT NULL
+    
+    UNION ALL
+    
+    -- Governing laws references
+    SELECT 
+        'Governing Laws' as link_type,
+        COUNT(*) as count,
+        'Hard' as strategy
+    FROM documents_metadata_v2
+    WHERE jsonb_array_length(metadata->'governance'->'governing_laws') > 0
+    
+    UNION ALL
+    
+    -- Related projects
+    SELECT 
+        'Related Projects' as link_type,
+        COUNT(*) as count,
+        'Semantic' as strategy
+    FROM documents_metadata_v2
+    WHERE jsonb_array_length(metadata->'graph_context'->'related_projects') > 1
+)
+SELECT 
+    strategy,
+    link_type,
+    count
+FROM relationship_stats
+ORDER BY strategy, count DESC;
+```
+
+---
+
+## ✅ SUCCESS CRITERIA CHECKLIST
+
+### Hard Linking (Confidence 0.9-1.0)
+- [ ] **34+ parent-child links** detected
+- [ ] **All parent_ids valid** (0 orphaned references)
+- [ ] **2 task_code groups** (DTCT.2024.05: 4 docs, GPS-2025: 4 docs)
+- [ ] **11 KHCN documents** reference LUAT_KHCN_2013
+- [ ] **0 invalid governing_laws** references
+
+### Semantic Linking (Confidence 0.6-0.89)
+- [ ] **2+ document pairs** with related_projects overlap
+- [ ] **6+ keyword clusters** with Jaccard > 0.3
+- [ ] **3 technology groups** identified (GPS, Finance, HR)
+
+### Inferred Linking (Confidence 0.4-0.7)
+- [ ] **5 chronological sequences** (same dept, temporal order)
+- [ ] **2 entity co-occurrence** patterns (Solace, ST Engineering)
+- [ ] **5 department clusters** with 4+ documents each
+
+### Overall
+- [ ] **Total documents: 40**
+- [ ] **Total expected relationships: 68**
+- [ ] **Zero orphaned documents** (all connected)
+- [ ] **Metadata completeness: 100%**
+
+---
+
+## 🔧 TROUBLESHOOTING COMMON ISSUES
+
+### Issue 1: Parent ID Not Found
+
+```sql
+-- Find orphaned documents
+SELECT 
+    metadata->>'title',
+    metadata->'hierarchy'->>'parent_id' as orphan_parent
+FROM documents_metadata_v2
+WHERE metadata->'hierarchy'->>'parent_id' IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM documents_metadata_v2 d2
+        WHERE d2.document_id = metadata->'hierarchy'->>'parent_id'
+    );
+```
+
+### Issue 2: Empty Governing Laws
+
+```sql
+-- Find documents that should have governing_laws but don't
+SELECT 
+    metadata->>'title',
+    metadata->'hierarchy'->>'rank_level' as rank
+FROM documents_metadata_v2
+WHERE metadata->'hierarchy'->>'rank_level'::int > 0
+    AND metadata->'governance'->>'is_derived' = 'true'
+    AND jsonb_array_length(metadata->'governance'->'governing_laws') = 0;
+```
+
+### Issue 3: Missing Task Codes
+
+```sql
+-- Find projects/reports without task_code
+SELECT 
+    metadata->>'title',
+    metadata->'hierarchy'->>'rank_level' as rank
+FROM documents_metadata_v2
+WHERE metadata->'hierarchy'->>'rank_level'::int >= 4
+    AND metadata->'identification'->>'task_code' IS NULL
+    AND metadata->'custom_fields'->>'project_code' IS NULL;
+```
+
+---
+
+## 📞 Quick Reference
+
+**Total Expected Relationships: 68**
+- Hard: 47 edges (parent-child + task code + governing laws)
+- Semantic: 11 edges (projects + keywords + tech)
+- Inferred: 10 edges (chronological + co-occurrence)
+
+**Key Test Queries:**
+1. Parent-child validation
+2. Task code groups (DTCT.2024.05, GPS-2025)
+3. Governing laws references
+4. Keyword overlap analysis
+5. Chronological sequences
+
+**Contact:** ngoquytuan@gmail.com
+
+
+
 # Checklist Manual Mapping & Error Discovery
 
 ## 📋 Mục tiêu
