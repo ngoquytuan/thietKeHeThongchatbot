@@ -509,3 +509,143 @@ Nếu bạn paste (hoặc upload) nội dung `quick_graph_test.py`, mình sẽ:
 
 * đề xuất response JSON schema chuẩn
 * chỉ ra chỗ cần thêm `both directions` + `path info` để dùng cho RAG/trace ngay, mà không phá logic hiện tại.
+
+Bạn đang đi đúng hướng cho **prototype**. Với mục tiêu “get graph context from seed / graph-only traversal + ranking”, vẫn còn vài thứ **rất đáng làm thêm** (nhanh, ít công) để prototype **dễ dùng, ổn định, và giải thích được**. Chưa cần chuyển hướng.
+
+Dưới đây là “phần còn lại” xoay quanh đúng bài toán này — mình sắp theo mức độ ưu tiên.
+
+---
+
+## 1) Prototype cần 3 chế độ output (để khỏi “không ý nghĩa”)
+
+Hiện bạn đang trả **một list đã rank**. Prototype nên có thêm 2 chế độ nữa:
+
+1. **neighbors (depth=1)**
+   Trả `incoming/outgoing/both` + nhóm `parents/children/lateral`
+   → dùng để debug nhanh “seed có nối gì không?”
+
+2. **context (depth=2..N)** *(cái bạn đang có)*
+   Trả top-K theo rank formula.
+
+3. **paths (explain)**
+   Với mỗi doc được trả về, kèm **1 đường đi ngắn nhất** từ seed tới doc (edge sequence).
+   → đây là “lineage attach mini” cho graph-only, cực hữu dụng khi nhìn kết quả.
+
+Không có “paths”, bạn sẽ luôn cảm giác “kết quả không ý nghĩa” vì không biết nó tới từ đâu.
+
+---
+
+## 2) Ranking nên “có policy”, không chỉ decay theo hop
+
+Decay theo hop là nền tốt. Nhưng prototype GraphRAG thường cần thêm **2 policy nhỏ** để giảm nhiễu cực mạnh:
+
+### A) Trọng số theo quan hệ (relation prior)
+
+Ví dụ:
+
+* `BASED_ON`: 1.0
+* `IMPLEMENTS`: 0.85
+* `REFERENCES`: 0.6
+
+Score gợi ý:
+`score = (decay ** dist) * confidence * relation_weight`
+
+Khi bạn seed là Luật L0, chain pháp lý sẽ luôn nổi lên, còn references ngang bị hạ bậc.
+
+### B) Cap theo quan hệ (quota)
+
+Đặt quota kiểu:
+
+* tối đa 6 `BASED_ON`
+* tối đa 3 `REFERENCES`
+* tối đa 3 `IMPLEMENTS`
+
+Prototype sẽ “gọn” và ít nhiễu mà không cần dữ liệu sạch hơn.
+
+---
+
+## 3) Traversal cần “guardrails” để không bùng nổ khi graph lớn
+
+Prototype mà thiếu guardrails là sớm muộn “nổ”.
+
+* `max_nodes_total` (ví dụ 200)
+* `max_edges_total` (ví dụ 1000)
+* `visited set` chống cycle
+* `expand_per_doc` theo **tầng** (layer-wise), không theo “toàn bộ frontier” một cách vô hạn
+* deterministic ordering (để chạy lại ra cùng kết quả)
+
+Bạn đã có một phần (max_hops, expand_per_doc). Thêm visited + cap total là đủ.
+
+---
+
+## 4) Upstream/Downstream: chọn định nghĩa nhất quán (cực quan trọng)
+
+Bạn đang có `direction=downstream` và nhìn kết quả “đúng”. Giờ bạn nên chốt 1 trong 2 định nghĩa:
+
+### Option 1 (khuyên cho prototype): **direction theo edge direction**
+
+* downstream = đi theo `source → target`
+* upstream = đi theo `target → source`
+
+Ưu: đơn giản, đúng dữ liệu thật.
+Nhược: không đảm bảo đúng “cấp bậc” nếu edge không phản ánh hierarchy.
+
+### Option 2: **direction theo hierarchy_level**
+
+* downstream = neighbor có level lớn hơn (L1→L2→…)
+* upstream = neighbor có level nhỏ hơn
+
+Ưu: nhìn giống cây cấp bậc.
+Nhược: sai khi REFERENCES/IMPLEMENT không tuân level.
+
+👉 Với dữ liệu bạn hiện tại (REFERENCES có thể L5↔L4…), **Option 1 an toàn hơn**.
+Nếu muốn “cấp bậc”, hãy thêm filter: `only_monotonic_levels=true` (optional).
+
+---
+
+## 5) “Graph-only context” nên có 2 profile dùng sẵn
+
+Để prototype dùng được ngay cho nhiều case, bạn tạo 2 preset:
+
+1. **legal_profile**
+
+* relations: `BASED_ON` ưu tiên
+* references quota thấp
+* hops: 5-6
+
+2. **project_profile**
+
+* relations: `REFERENCES` + `IMPLEMENTS` ưu tiên
+* based_on quota thấp
+* hops: 2-3
+
+Chỉ cần 2 profile là user/dev hiểu ngay API dùng thế nào.
+
+---
+
+## 6) Vậy có cần chuyển sang hướng khai thác khác không?
+
+Chưa cần. Chỉ khi bạn gặp 1 trong các tình huống này thì mới nên đổi hướng:
+
+* Graph-only context **luôn** ra “rác” dù đã có relation weights + quotas + paths
+  ⇒ lúc đó mới cần quay lại cải thiện **data quality / edge typing**.
+
+* Bạn cần trả lời câu hỏi dạng “tìm tài liệu theo chủ đề”
+  ⇒ lúc đó cần semantic search, graph-only không đủ.
+
+Nhưng hiện tại, bạn đang xây “graph context service”, nó vẫn đúng mục tiêu prototype.
+
+---
+
+## Đề xuất bước tiếp theo (rất cụ thể)
+
+Bạn làm thêm đúng 2 thứ là prototype sẽ “đã” hẳn:
+
+1. **Thêm `paths` vào output** (mỗi doc 1 đường đi ngắn nhất từ seed)
+2. **Thêm relation weights + quotas** vào ranking
+
+Nếu bạn paste output format hiện tại của `quick_graph_test.py` (hoặc dán code), mình sẽ viết cho bạn patch minimal để:
+
+* giữ nguyên logic traversal
+* thêm `paths` + `relation_weight/quota`
+  mà không làm rối script.
