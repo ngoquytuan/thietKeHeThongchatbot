@@ -20,3 +20,151 @@ Giả sử người dùng hỏi: "Tại sao dự án GPS được gia hạn?"
 Kết luận: Cách tiếp cận này giúp hệ thống của bạn không chỉ là một máy tìm kiếm đơn thuần mà trở thành một hệ thống lập luận pháp lý (Legal Reasoning System).
 --------------------------------------------------------------------------------
 Ví dụ ví von: Hãy tưởng tượng việc tra cứu này giống như việc bạn đi tìm tung tích của một người. Bước 1 là tìm thấy người đó (tài liệu trực tiếp). Bước 2 là tìm bố mẹ họ để hiểu về gia cảnh và truyền thống (tài liệu mẹ - căn cứ). Bước 3 là tìm anh chị em của họ để biết thêm các thông tin chi tiết về môi trường sống xung quanh (tài liệu con/liên quan). Kết hợp cả ba, bạn sẽ có một bức tranh toàn diện và chính xác nhất về nhân vật đó.
+
+
+Có — với hệ “tờ trình / quyết định / báo cáo / công văn / phụ lục” thì chỉ 3 nhãn `BASED_ON/AMENDS/SUPERSEDES` thường **không đủ**. Bạn nên có thêm một nhóm nhãn “liên quan nhưng không mang ngữ nghĩa pháp lý mạnh”, để GraphRAG vẫn traverse được mà không làm sai logic hiệu lực.
+
+Dưới đây là bộ nhãn mình hay khuyến nghị (chia nhóm rõ để bạn dễ kiểm soát ranking và tránh suy luận sai):
+
+## 1) Nhóm “tham chiếu / liên quan” (an toàn, dùng nhiều nhất)
+
+### `REFERENCES`
+
+Dùng khi A **nhắc tới** B (trích dẫn, dẫn số hiệu, dẫn đoạn) nhưng chưa chắc “là căn cứ”.
+
+* Ví dụ: báo cáo có đoạn “theo Quyết định …” (nhưng không phải căn cứ pháp lý chính thức).
+
+**metadata tối thiểu gợi ý**
+
+* `ref_type`: `"citation|mention"`
+* `ref_text`: đoạn trích ngắn hoặc vị trí
+
+---
+
+### `RELATED_TO`
+
+Quan hệ “có liên quan” chung chung để nối graph (dùng khi bạn chưa phân loại được).
+
+* Ví dụ: nhiều tài liệu trong cùng một case/hồ sơ dự án.
+
+**Lưu ý**: nhãn này nên để `confidence` thấp hơn và thường `verified=false` nếu auto.
+
+---
+
+### `SAME_CASE` / `SAME_DOSSIER`
+
+Cùng hồ sơ/cùng vụ việc/cùng mã dự án.
+
+* Rất hợp với “tờ trình–báo cáo–quyết định–phụ lục” cùng một hồ sơ.
+
+**metadata tối thiểu**
+
+* `case_id` hoặc `dossier_id`
+
+---
+
+## 2) Nhóm “quy trình văn bản” (workflow / hành chính)
+
+### `PROPOSES`
+
+Tờ trình / đề xuất **đề nghị ban hành** quyết định/đề án.
+
+* Hướng khuyến nghị: `Tờ trình -> Quyết định/Dự thảo`
+
+**metadata**
+
+* `proposal_type`: `"submission|draft|recommendation"`
+
+---
+
+### `APPROVES`
+
+Quyết định **phê duyệt** một tờ trình/đề án/kế hoạch.
+
+* Hướng: `Quyết định -> Đề án/Kế hoạch/Tờ trình`
+
+---
+
+### `ATTACHES` / `HAS_ATTACHMENT`
+
+Tài liệu A **đính kèm** tài liệu B (phụ lục, danh mục, bảng biểu).
+
+* Hướng: `Tài liệu chính -> Phụ lục`
+
+**metadata**
+
+* `attachment_kind`: `"appendix|annex|table|map"`
+
+---
+
+### `RESPONDS_TO`
+
+Công văn trả lời / phản hồi văn bản trước đó.
+
+* Hướng: `Văn bản trả lời -> Văn bản được hỏi/được yêu cầu`
+
+---
+
+### `REQUESTS`
+
+Văn bản A yêu cầu văn bản B hoặc yêu cầu thực hiện/giải trình.
+
+* Hướng: `Văn bản yêu cầu -> Văn bản phản hồi (hoặc task)`
+
+---
+
+## 3) Nhóm “phiên bản / biến thể” (không hẳn sửa đổi pháp lý)
+
+### `REVISES`
+
+Bản dự thảo v2/v3 **chỉnh sửa** bản dự thảo trước (không nhất thiết là “AMENDS” theo hiệu lực pháp lý).
+
+* Hướng: `v2 -> v1`
+
+### `DERIVED_FROM`
+
+Báo cáo/tổng hợp được lập **từ dữ liệu** hoặc **từ báo cáo khác**.
+
+* Hướng: `Bản tổng hợp -> Nguồn`
+
+---
+
+## 4) Nhóm “đối tượng / phạm vi áp dụng”
+
+### `IMPLEMENTS`
+
+Văn bản A **triển khai** văn bản B (kế hoạch triển khai, hướng dẫn thực hiện).
+
+* Hướng: `Kế hoạch/Hướng dẫn -> Quyết định/Chủ trương`
+
+### `EVALUATES`
+
+Báo cáo A **đánh giá** quyết định/kế hoạch B.
+
+* Hướng: `Báo cáo -> Quyết định/Kế hoạch`
+
+---
+
+# Bộ nhãn tối thiểu mình khuyên dùng cho project kiểu “hồ sơ dự án”
+
+Nếu bạn muốn gọn mà vẫn đủ bao phủ:
+
+* Nhóm pháp lý mạnh: `BASED_ON`, `AMENDS`, `SUPERSEDES`
+* Nhóm liên quan an toàn: `REFERENCES`, `RELATED_TO`, `SAME_DOSSIER`
+* Nhóm workflow: `PROPOSES`, `APPROVES`, `ATTACHES`, `RESPONDS_TO`
+* Nhóm phiên bản: `REVISES` (dự thảo)
+
+=> Tổng ~10 nhãn là đã rất “đã tay” để test GraphRAG.
+
+---
+
+## Gợi ý quan trọng để GraphRAG “không trả lời sai”
+
+* Chỉ coi **hiệu lực** khi relation_type nằm trong: `AMENDS`, `SUPERSEDES` (và có `effective_date`)
+* Các nhãn mềm (`RELATED_TO`, `SAME_DOSSIER`, `REFERENCES`) dùng để **mở rộng ngữ cảnh** và **gợi ý nguồn** chứ không dùng để “kết luận pháp lý”
+* Khi build ranking: ưu tiên đường đi qua `BASED_ON/AMENDS/SUPERSEDES` hơn `RELATED_TO`
+
+---
+
+Nếu bạn cho mình danh sách **loại tài liệu** bạn có (ví dụ: tờ trình, quyết định, báo cáo, công văn, kế hoạch, phụ lục, biên bản…) mình sẽ map ra một **bảng “loại A → loại B dùng nhãn gì”** + SQL insert mẫu cho 3–4 nhãn bạn dùng nhiều nhất (PROPOSES/APPROVES/ATTACHES/REFERENCES) để bạn chạy manual test luôn.
+
