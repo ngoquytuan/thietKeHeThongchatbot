@@ -433,3 +433,79 @@ Vì bạn đang dùng downstream như khái niệm theo level, nên debug sẽ d
 * ➕ Bước tiếp theo nên làm: **neighbors 1-hop both directions** + **bucket theo relation** + **weight theo relation** (để giảm “REFERENCES noise”).
 
 Nếu bạn paste thêm 1 lần chạy `direction=upstream` cho seed L5 hoặc L4 (DTCT), mình sẽ giúp bạn kiểm tra xem “upstream” có đang đúng trực giác không và nên định nghĩa upstream/downstream theo **edge direction** hay theo **hierarchy_level** cho nhất quán.
+
+Đúng — **về mặt “prototype API” cho GraphRAG dựa trên `graph_edges` hiện tại**, `quick_graph_test.py` đã đạt mức đó rồi, *nếu* bạn hiểu nó đang là **một endpoint read-only** kiểu “get graph context from seed”.
+
+Nhưng nó mới là prototype cho **một loại API** (graph-only traversal + ranking), chưa phải “đầy đủ GraphRAG API” (kết hợp semantic, resolve id, subgraph, explainability…).
+
+---
+
+## Nó đã tương đương endpoint nào?
+
+Hiện tại `quick_graph_test.py` ≈ endpoint:
+
+**GET** `/api/graph/{graph_doc_id}/context`
+
+* input: `graph_doc_id`
+* output: danh sách context docs đã rank
+* có:
+
+  * direction (upstream/downstream)
+  * depth/max_hops
+  * filter relation types
+  * decay score theo hop
+  * show rel + confidence
+
+=> Đây là **xương sống** để “Graph expansion” trong GraphRAG hoạt động.
+
+---
+
+## Nó còn thiếu gì để gọi là “GraphRAG API” đầy đủ?
+
+Nếu bạn muốn gọi nó là “GraphRAG API” đúng nghĩa (để tích hợp search/LLM), thường cần thêm 4 mảnh:
+
+1. **Resolve**: nhận nhiều kiểu identifier
+
+   * graph_doc_id / source_document_id / law_id / document_number
+     (để client không cần biết graph_doc_id)
+
+2. **Neighbors 1-hop** chuẩn (both directions)
+
+   * trả `parents / children / lateral` rõ ràng
+     (giờ bạn đang trả 1 list đã rank)
+
+3. **Explainability**
+
+   * với mỗi doc expanded, trả kèm “path” hoặc ít nhất “came_from + edge_dir”
+     (giống lineage attach nhưng tối thiểu 1-hop)
+
+4. **RAG integration wrapper** (optional)
+
+   * endpoint `POST /search/rag` gọi semantic → lấy seed → gọi graph context → trả context
+
+---
+
+## Kết luận thực dụng
+
+* **Nếu mục tiêu của bạn**: “API graph-only để lấy context theo graph_edges hiện tại”
+  ✅ `quick_graph_test.py` đã là **prototype API**.
+
+* **Nếu mục tiêu**: “GraphRAG API phục vụ search + LLM”
+  ➕ bạn cần bọc thêm resolve + explain/path + (tuỳ) semantic wrapper.
+
+---
+
+## Gợi ý bước tiếp theo (không phải viết lại nhiều)
+
+Chuyển `quick_graph_test.py` thành FastAPI endpoint rất nhanh:
+
+* giữ nguyên core function: `get_graph_context(seed, direction, max_hops, expand_per_doc, relations)`
+* bọc bằng FastAPI:
+
+  * `GET /api/graph/{id}/context?...`
+  * trả JSON
+
+Nếu bạn paste (hoặc upload) nội dung `quick_graph_test.py`, mình sẽ:
+
+* đề xuất response JSON schema chuẩn
+* chỉ ra chỗ cần thêm `both directions` + `path info` để dùng cho RAG/trace ngay, mà không phá logic hiện tại.
