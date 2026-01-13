@@ -1,0 +1,111 @@
+{
+  "document_id": "076a409d-5852-481c-a270-cfa359615002",
+  "version": "3.0",
+  "identification": {
+    "document_number": "07/TTr-NCPT",
+    "issue_date": "2025-03-25T00:00:00Z",
+    "document_type": "quyet_dinh",
+    "subject": "Đề nghị thẩm định, phê duyệt Hồ sơ thiết kế - dự toán nhiệm vụ nghiên cứu khoa học và công nghệ",
+    "task_code": "ĐTCT.2024.05"
+  },
+  "authority": {
+    "organization": "CÔNG TY TNHH KỸ THUẬT QUẢN LÝ BAY",
+    "department": "Nghiên Cứu Phát Triển",
+    "signer": "Nguyễn Tiến Hùng",
+    "signer_title": "P. TRƯỞNG PHÒNG"
+  },
+  "recipients": {
+    "primary": "Giám đốc Cơ quan điều hành Quỹ KH&CN"
+  },
+  "domain": {
+    "category": "khoa_hoc_cong_nghe",
+    "keywords": [
+      "dự toán",
+      "tờ trình",
+      "Đề nghị",
+      "thẩm định",
+      "phê duyệt",
+      "Hồ sơ",
+      "thiết kế",
+      "dự toán",
+      "nhiệm vụ",
+      "nghiên cứu",
+      "khoa học",
+      "công nghệ",
+      "Giám đốc",
+      "Cơ quan",
+      "điều hành",
+      "Quỹ KH&CN"
+    ],
+    "tags": [
+      "07/TTr-NCPT",
+      "123"
+    ]
+  },
+  "relationships": {
+    "based_on": [
+      "15/QĐ-CTCT",
+      "581/QĐ-CTCT",
+      "751/QĐ-CTCT",
+      "291/QĐ-HĐQLQ",
+      "455/QĐ-HĐQLQ",
+      "635/QĐ-HĐQLQ"
+    ],
+    "relates_to": [
+      "ĐTCT.2024.05"
+    ]
+  },
+  "financial": {
+    "budget": 145921893.0,
+    "currency": "VND",
+    "source": "Quỹ phát triển KH&CN"
+  },
+  "content_stats": {
+    "pages": 1,
+    "words": 951,
+    "passages": 4,
+    "total_tokens": 950,
+    "avg_tokens_per_passage": 237.5,
+    "language": "vi"
+  },
+  "quality": {
+    "score": 0.9,
+    "metadata_completeness": 100.0,
+    "extraction_method": "nlp",
+    "chunk_size": 256
+  },
+  "collections": {
+    "chromadb_primary": "kb_nghiên cứu phát triển_public",
+    "fallback": [
+      "knowledge_base_general"
+    ],
+    "strategy": "auto_department"
+  },
+  "storage": {
+    "source_file": "unknown",
+    "author_email": "ngoquytuan@gmail.com",
+    "created_at": "2025-12-18T04:24:07.869040Z",
+    "extracted_at": "2025-12-18T04:24:07.869040Z",
+    "last_updated": "2025-12-18T04:24:07.869040Z"
+  },
+  "search_hints": {
+    "searchable_text": "Quyết định Đề nghị thẩm định, phê duyệt Hồ sơ thiết kế - dự toán nhiệm vụ nghiên cứu khoa học và công nghệ",
+    "boost_keywords": [
+      "đồng hồ gps",
+      "gps",
+      "Đề nghị",
+      "thẩm định",
+      "phê duyệt"
+    ]
+  },
+  "department": "Nghiên Cứu Phát Triển",
+  "type": "procedure",
+  "title": "tờ trình thẩm định, phê duyệt Hồ sơ thiết kế - dự toán nhiệm vụ đồng hồ GPS",
+  "description": "V/v: Đề nghị thẩm định, phê duyệt Hồ sơ thiết kế - dự toán nhiệm vụ nghiên cứu khoa học và công nghệ",
+  "access_level": "public",
+  "author": {
+    "name": "Ngô quý tuấn",
+    "email": "ngoquytuan@gmail.com",
+    "created_at": "2025-12-18T04:24:07.869040Z"
+  }
+}
