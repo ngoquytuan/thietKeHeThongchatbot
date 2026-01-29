@@ -1,0 +1,1059 @@
+# ========================================================================
+# ATTECH VIETNAMESE RAG KNOWLEDGE ASSISTANT - COMPLETE YAML INPUT
+# ========================================================================
+# Project: Internal Knowledge Assistant System
+# Organization: ATTECH - Vietnamese Aviation Technology Company (30+ years)
+# Date: January 29, 2026
+# Version: 1.0 - Based on FR-01 through FR-08 Handover Documents
+# ========================================================================
+
+project:
+  name: "Vietnamese Legal Document Knowledge Assistant System"
+  code: "ATTECH-RAG-KA"
+  type: "RAG"  # Retrieval-Augmented Generation
+  
+  objectives:
+    primary: "Build enterprise-grade AI chatbot system optimized for Vietnamese legal document processing and internal knowledge management"
+    secondary:
+      - "Support 100 concurrent users with 5-tier permission system"
+      - "Achieve high accuracy in Vietnamese language processing"
+      - "Effective retrieval of legal document codes (e.g., 76/2018/NĐ-CP)"
+      - "Seamless integration with ATTECH's existing infrastructure"
+      - "Enable staff to quickly access internal policies, procedures, and technical documentation"
+    
+    success_metrics:
+      - "Retrieval Recall@10 > 90%"
+      - "Answer faithfulness > 85%"
+      - "Response time < 60 seconds (p95)"
+      - "System handles 100 concurrent users"
+      - "User satisfaction score > 4.0/5.0"
+      - "Search success rate > 95%"
+      - "Cache hit rate > 60%"
+  
+  stakeholders:
+    sponsor: "Board of Directors"
+    product_owner: "IT Department Manager"
+    technical_lead: "Tuan (RAG System Lead)"
+    end_users:
+      - "400 employees across 15 departments"
+      - "R&D staff (technical documentation)"
+      - "Business staff (product information)"
+      - "Manufacturing staff (procedures and standards)"
+      - "Management (policies and compliance)"
+  
+  scope:
+    in_scope:
+      - "Vietnamese legal document processing (primary focus)"
+      - "Internal company policies and procedures"
+      - "Technical documentation and product manuals"
+      - "Aviation industry regulations (CNS/ATM domain)"
+      - "5-tier role-based access control (RBAC)"
+      - "Document upload, processing, and indexing"
+      - "Intelligent search with hybrid retrieval (Vector + BM25 + Graph)"
+      - "Real-time chat interface with auto-suggestions"
+      - "Analytics and reporting for system usage"
+      - "User authentication and authorization"
+      - "Audit logging and compliance tracking"
+      - "Multi-format document support (PDF, DOCX, TXT, HTML)"
+      
+    out_scope:
+      - "External public-facing chatbot"
+      - "Multi-language support beyond Vietnamese and English"
+      - "Real-time document collaboration"
+      - "Mobile native applications (web-responsive only)"
+      - "Integration with third-party legal databases"
+      - "Automated document translation services"
+    
+  constraints:
+    budget: "TBD - Internal IT budget allocation"
+    timeline: "Phase 1 completed (FR-01 through FR-08), transitioning to Phase 2"
+    team_size: "Mixed team - local developers + potential remote contractors"
+    technical:
+      - "Must use Python 3.10.11 for Vietnamese NLP compatibility"
+      - "GPU required for embedding generation (CUDA 11.8)"
+      - "On-premise deployment preferred for data security"
+      - "Must integrate with existing PostgreSQL infrastructure"
+      - "Limited to 100 concurrent user license constraints"
+
+# ========================================================================
+# BUSINESS CONTEXT
+# ========================================================================
+
+business_context:
+  domain: "Legal & Aviation Technology"
+  primary_language: "Vietnamese"
+  
+  use_cases:
+    - id: "UC-001"
+      name: "Search Legal Document by Code"
+      actor: "Employee"
+      description: "User searches for specific legal document using code (e.g., '76/2018/NĐ-CP')"
+      frequency: "Daily"
+      priority: "Critical"
+    
+    - id: "UC-002"
+      name: "Query Internal Policy"
+      actor: "Employee"
+      description: "User asks about company procurement process or internal procedures"
+      frequency: "Daily"
+      priority: "High"
+    
+    - id: "UC-003"
+      name: "Technical Product Information"
+      actor: "Business Staff"
+      description: "Sales team queries technical specifications and features of aviation products"
+      frequency: "Daily"
+      priority: "High"
+    
+    - id: "UC-004"
+      name: "Compliance Document Access"
+      actor: "Manager"
+      description: "Manager reviews confidential compliance and regulatory documents"
+      frequency: "Weekly"
+      priority: "High"
+    
+    - id: "UC-005"
+      name: "System Analytics Review"
+      actor: "Director"
+      description: "Director reviews system usage analytics and search quality metrics"
+      frequency: "Weekly"
+      priority: "Medium"
+    
+    - id: "UC-006"
+      name: "User Management"
+      actor: "System Administrator"
+      description: "Admin manages user accounts, permissions, and system configuration"
+      frequency: "Weekly"
+      priority: "Medium"
+    
+    - id: "UC-007"
+      name: "Batch Document Upload"
+      actor: "System Administrator"
+      description: "Admin uploads and processes multiple documents in batch"
+      frequency: "Monthly"
+      priority: "Medium"
+  
+  data_characteristics:
+    volume:
+      documents: "100,000+ documents (expandable to 1M)"
+      queries_per_day: "TBD - estimated 1,000-5,000 queries"
+      concurrent_users: "100 maximum simultaneous users"
+    
+    types:
+      - type: "Legal documents"
+        format: "PDF, DOCX, JSON"
+        language: "Vietnamese"
+        structure: "Hierarchical (Nghị định → Chương → Điều → Khoản)"
+        sensitivity: "Internal to Confidential"
+        notes: "Requires preservation of legal codes and hierarchical structure"
+      
+      - type: "Company policies"
+        format: "PDF, DOCX"
+        language: "Vietnamese, English"
+        structure: "Semi-structured"
+        sensitivity: "Internal"
+        notes: "Department-specific access controls"
+      
+      - type: "Technical documentation"
+        format: "PDF, DOCX, HTML"
+        language: "English, Vietnamese"
+        structure: "Semi-structured to Unstructured"
+        sensitivity: "Internal to Confidential"
+        notes: "Aviation CNS/ATM products and systems"
+      
+      - type: "Product manuals"
+        format: "PDF, DOCX"
+        language: "Vietnamese, English"
+        structure: "Structured (chapters, sections)"
+        sensitivity: "Public to Internal"
+        notes: "Airport lighting, navigation aids, communication systems"
+  
+  compliance_requirements:
+    - standard: "PDPA (Vietnamese Personal Data Protection)"
+      applicability: "User data, audit logs, search history"
+      key_controls:
+        - "PII masking in logs"
+        - "Data retention policies"
+        - "User consent for analytics"
+        - "Secure data deletion procedures"
+    
+    - standard: "Internal Information Security Policy"
+      applicability: "All system components"
+      key_controls:
+        - "5-tier RBAC enforcement"
+        - "Encryption in transit (TLS 1.3)"
+        - "Encryption at rest (AES-256)"
+        - "Comprehensive audit logging"
+        - "Regular security assessments"
+
+# ========================================================================
+# AI/ML REQUIREMENTS
+# ========================================================================
+
+ai_ml_requirements:
+  retrieval_approach: "Hybrid"  # Vector + BM25 + Graph RAG
+  
+  embedding_model:
+    name: "Qwen/Qwen3-Embedding-0.6B"
+    dimension: 1024
+    language_optimization: "Vietnamese"
+    justification: "Selected after extensive testing (FR-01.1), best performance for Vietnamese legal documents with 1024-dimensional embeddings, good balance of accuracy and speed"
+    deployment: "Self-hosted on GPU server"
+    hardware_requirements: "NVIDIA GPU with 8GB+ VRAM, CUDA 11.8"
+  
+  llm_generation:
+    provider: "Multiple (OpenAI, Anthropic, Local Models)"
+    model: "gpt-4, claude-3-opus, local Qwen models"
+    fallback_model: "gpt-3.5-turbo for cost optimization"
+    max_context_tokens: "8192 tokens"
+    notes: "FR-04.3 Generation Engine supports multiple providers with failover"
+  
+  search_strategy:
+    retrieval_stages:
+      - stage: "1. Vector Similarity Search (ChromaDB)"
+        k: "Top 20 candidates"
+        threshold: "Cosine similarity > 0.5"
+        weight: "0.7 (70%)"
+      
+      - stage: "2. BM25 Full-Text Search (PostgreSQL)"
+        k: "Top 20 candidates"
+        threshold: "BM25 score > threshold"
+        weight: "0.3 (30%)"
+      
+      - stage: "3. Hybrid Score Combination"
+        method: "Weighted sum: 0.7*semantic + 0.3*keyword"
+        k_final: "Top 10 results"
+      
+      - stage: "4. Reranking (optional)"
+        method: "Cross-encoder or diversity boost"
+        k_final: "Top 5-10 results"
+    
+    query_understanding:
+      - "Query expansion with Vietnamese domain dictionary (FR-04.1)"
+      - "Intent classification (question, specific code, general query)"
+      - "Entity extraction (law codes, article numbers, dates)"
+      - "Legal code preservation (do NOT remove numbers in preprocessing)"
+      - "Synonym expansion for aviation terminology"
+    
+    fallback_strategies:
+      - "Substring search when legal code detected"
+      - "Metadata filtering by law_id, document_type"
+      - "Graph traversal for related documents"
+  
+  evaluation_framework:
+    metrics:
+      retrieval:
+        - "Recall@10 > 90% (target)"
+        - "NDCG@10 > 0.85"
+        - "MRR (Mean Reciprocal Rank) > 0.75"
+      
+      generation:
+        - "Faithfulness > 85% (grounding verification)"
+        - "Answer relevance > 80%"
+        - "Citation accuracy > 95%"
+        - "Context precision > 80%"
+      
+      end_to_end:
+        - "User satisfaction > 4.0/5.0"
+        - "Task completion rate > 90%"
+        - "Search success rate > 95%"
+    
+    test_set:
+      size: "100 query-document pairs minimum (expandable to 500)"
+      coverage:
+        - "Normal cases: 60%"
+        - "Edge cases: 25%"
+        - "Adversarial queries: 15%"
+      ground_truth_source: "Manually annotated by domain experts, historical user queries"
+
+# ========================================================================
+# TECHNICAL ARCHITECTURE
+# ========================================================================
+
+technical_architecture:
+  deployment_model: "On-premise"
+  
+  components:
+    data_layer:
+      relational_db:
+        type: "PostgreSQL"
+        version: "15"
+        host: "192.168.1.95 (local network)"
+        port: "5432"
+        database: "knowledge_base_v2"
+        purpose: "Metadata storage, user management, RBAC, audit logs, BM25 full-text search, Vietnamese text analysis"
+        features:
+          - "Enhanced schema v2 (FR-02.1)"
+          - "Vietnamese text processing functions"
+          - "JSONB for flexible metadata"
+          - "Full-text search with tsvector"
+          - "Connection pooling"
+          - "Read replicas for scalability"
+      
+      vector_db:
+        type: "ChromaDB"
+        version: "1.0.0"
+        host: "192.168.1.95"
+        port: "8000"
+        api_version: "v2"
+        purpose: "Vector embeddings storage, semantic similarity search, hybrid search"
+        features:
+          - "1024-dimensional Qwen embeddings"
+          - "Cosine similarity metric"
+          - "HNSW index for fast ANN search"
+          - "Metadata filtering support"
+          - "Multi-collection architecture (per department)"
+        collections:
+          - "knowledge_base_v1 (main collection)"
+          - "vietnamese_embeddings (optimized)"
+          - "document_chunks (semantic search)"
+          - "dept_hr_v2, dept_it_v2, dept_rd_v2 (department-specific)"
+      
+      graph_db:
+        type: "Neo4j (planned for Phase 2 Graph RAG)"
+        version: "TBD"
+        purpose: "Document relationships, hierarchical legal structure, multi-hop reasoning"
+        notes: "Not yet implemented, part of Phase 2 roadmap"
+      
+      cache:
+        type: "Redis"
+        version: "7"
+        host: "192.168.1.95"
+        port: "6379"
+        database: "0"
+        purpose: "Query result caching, session management, rate limiting"
+        features:
+          - "LRU eviction policy"
+          - "TTL for cache entries"
+          - "Session timeout management"
+          - "Distributed locking"
+    
+    application_layer:
+      backend:
+        framework: "FastAPI"
+        version: "0.104.1"
+        language: "Python"
+        version: "3.10.11"
+        notes: "Required for underthesea and pyvi Vietnamese NLP compatibility"
+        modules:
+          - "FR-01: Embedding model integration"
+          - "FR-02: Dual database management"
+          - "FR-03: Data ingestion pipeline"
+          - "FR-04: RAG core engine (Retrieval, Synthesis, Generation, API)"
+          - "FR-06: Authentication & Authorization"
+          - "FR-07: Analytics & Reporting"
+          - "FR-08: Admin & Maintenance tools"
+      
+      api_gateway:
+        type: "FastAPI built-in (considering nginx reverse proxy)"
+        features:
+          - "Rate limiting per user/endpoint"
+          - "JWT token validation"
+          - "Request/response logging"
+          - "CORS configuration"
+          - "Health check endpoints"
+      
+      frontend:
+        framework: "Streamlit"
+        version: "Latest stable"
+        purpose: "Chat UI (FR-05), Admin Dashboard"
+        features:
+          - "Real-time messaging interface"
+          - "Auto-suggestion system"
+          - "File upload for document queries"
+          - "Conversation export"
+          - "Feedback mechanism (thumbs up/down)"
+          - "Multi-language support (Vietnamese, English)"
+    
+    ai_ml_layer:
+      embedding_service:
+        gpu_required: true
+        gpu_memory: "8GB+ VRAM (NVIDIA RTX 3060 or better)"
+        batch_size: "8-16 (optimized for consumer GPU)"
+        deployment: "Docker container with CUDA support"
+        optimization:
+          - "Model caching for faster subsequent loads"
+          - "Batch processing for multiple documents"
+          - "Dynamic batch sizing based on GPU memory"
+      
+      llm_service:
+        api_or_self_hosted: "Hybrid (API for production, local for development)"
+        providers:
+          - "OpenAI (GPT-4, GPT-3.5-turbo)"
+          - "Anthropic (Claude-3-opus, Claude-3-sonnet)"
+          - "Local models (Qwen, optional)"
+        rate_limits: "Provider-specific (OpenAI: tier-based, Anthropic: tier-based)"
+        cost_per_1k_tokens:
+          - "GPT-4: ~$0.03/1K input, ~$0.06/1K output"
+          - "GPT-3.5-turbo: ~$0.0015/1K input, ~$0.002/1K output"
+          - "Claude-3-opus: ~$0.015/1K input, ~$0.075/1K output"
+        notes: "FR-04.3 Generation Engine supports multiple providers with automatic failover"
+    
+    infrastructure:
+      containerization: "Docker"
+      orchestration: "Docker Compose (Kubernetes for future scaling)"
+      monitoring:
+        - "Prometheus (metrics collection)"
+        - "Grafana (visualization dashboards)"
+        - "Loki (log aggregation)"
+      logging:
+        - "Structured logging with loguru"
+        - "ELK Stack (Elasticsearch, Logstash, Kibana) - optional"
+        - "Centralized logging for all services"
+      
+      deployment_ports:
+        - "8000: FastAPI main service"
+        - "8501: Streamlit UI dashboard"
+        - "5432: PostgreSQL"
+        - "8000: ChromaDB"
+        - "6379: Redis"
+        - "9090: Prometheus"
+        - "3000: Grafana"
+        - "3100: Loki"
+  
+  integration_points:
+    - system: "Internal LDAP/Active Directory (future)"
+      purpose: "Single Sign-On (SSO) integration"
+      protocol: "LDAP/SAML/OIDC"
+      authentication: "TBD - planned for future phase"
+      data_format: "LDAP directory format"
+      error_handling: "Fallback to local authentication"
+    
+    - system: "Document Management System (future)"
+      purpose: "Bulk document import, sync updates"
+      protocol: "REST API"
+      authentication: "API Key or OAuth2"
+      data_format: "JSON"
+      error_handling: "Retry with exponential backoff, manual intervention for failures"
+    
+    - system: "BI/Analytics Platform (future)"
+      purpose: "Export usage metrics, generate compliance reports"
+      protocol: "REST API"
+      authentication: "OAuth2"
+      data_format: "JSON, CSV"
+      error_handling: "Circuit breaker pattern"
+
+# ========================================================================
+# VIETNAMESE LANGUAGE SPECIFICS
+# ========================================================================
+
+vietnamese_language_specifics:
+  encoding:
+    standard: "UTF-8"
+    normalization: "NFC (composed form) for storage and search"
+    notes: "Support both NFC and NFD for input, normalize to NFC internally"
+  
+  text_processing:
+    tokenization:
+      primary: "underthesea (word segmentation)"
+      backup: "pyvi (when underthesea fails)"
+      notes: "Requires Python 3.10.11 for compatibility"
+    
+    stopword_removal: true
+    stopword_list: "Custom Vietnamese stopwords + domain-specific (legal, aviation)"
+    
+    tone_mark_handling:
+      strategy: "Preserve tone marks for storage"
+      search_optimization: "Generate accent-removed variants for BM25 search"
+      notes: "Dual indexing: original with tones + normalized without tones"
+    
+    legal_code_preservation:
+      enabled: true
+      critical: "MUST preserve numbers and special characters in legal codes"
+      patterns:
+        - "\\d+/\\d+/NĐ-CP (Nghị định Chính phủ)"
+        - "\\d+/\\d+/QĐ-TTg (Quyết định Thủ tướng)"
+        - "\\d+/\\d+/TT-BTC (Thông tư Bộ Tài chính)"
+        - "Điều \\d+ (Article number)"
+        - "Khoản \\d+ (Clause number)"
+      preprocessing_rules:
+        - "Do NOT remove numbers before legal code detection"
+        - "Preserve punctuation in legal references"
+        - "Store original codes in metadata for exact matching"
+  
+  search_challenges:
+    - challenge: "Legal document codes (e.g., 76/2018/NĐ-CP)"
+      solution: "Substring search fallback, metadata filtering by law_id"
+      status: "Implemented in FR-04.1 Retrieval"
+    
+    - challenge: "Hierarchical document structure (Nghị định → Chương → Điều → Khoản)"
+      solution: "Maintain hierarchy metadata in chunks, graph-based navigation"
+      status: "Metadata structure implemented, Graph RAG in Phase 2"
+    
+    - challenge: "Synonym expansion (e.g., 'NĐ-CP' ↔ 'Nghị định Chính phủ')"
+      solution: "Domain-specific dictionary with legal and aviation terms"
+      status: "Implemented in query expansion (FR-04.1)"
+    
+    - challenge: "BM25 fails on legal codes due to number removal"
+      solution: "Modified BM25 preprocessing to preserve legal codes"
+      status: "Fixed in FR-02.1 database schema v2"
+    
+    - challenge: "Tone mark variations causing duplicate entries"
+      solution: "Unicode normalization (NFC), duplicate detection by content hash"
+      status: "Implemented in FR-03.3 Data Ingestion"
+
+# ========================================================================
+# SECURITY & PRIVACY
+# ========================================================================
+
+security_privacy:
+  authentication:
+    method: "Local JWT-based (SSO ready for future)"
+    mfa_required: "No (future enhancement)"
+    session_timeout: "30 minutes of inactivity"
+    password_policy:
+      - "Minimum 8 characters"
+      - "At least one uppercase, lowercase, number, special character"
+      - "Password expiration: 90 days (configurable)"
+      - "Bcrypt hashing with salt"
+  
+  authorization:
+    model: "RBAC (Role-Based Access Control)"
+    levels:
+      - role: "Guest"
+        permissions:
+          - "Read public documents only"
+          - "Basic search (no advanced filters)"
+          - "No export functionality"
+        use_case: "External visitors, demo users"
+      
+      - role: "Employee"
+        permissions:
+          - "All Guest permissions"
+          - "Read internal documents (employee_only access level)"
+          - "Advanced search with filters"
+          - "Export results (watermarked)"
+          - "Feedback submission"
+        use_case: "Regular staff across all departments"
+      
+      - role: "Manager"
+        permissions:
+          - "All Employee permissions"
+          - "Read confidential documents (manager_only access level)"
+          - "View department-level analytics"
+          - "Bulk export"
+          - "Document classification management"
+        use_case: "Department heads, team leaders"
+      
+      - role: "Director"
+        permissions:
+          - "All Manager permissions"
+          - "Read highly confidential documents (director_only access level)"
+          - "View company-wide analytics"
+          - "Access all departments' data"
+          - "Compliance and audit reports"
+        use_case: "C-level executives, board members"
+      
+      - role: "System Administrator"
+        permissions:
+          - "Full system access"
+          - "User management (create, modify, delete accounts)"
+          - "Document security classification"
+          - "System configuration"
+          - "Database maintenance"
+          - "Audit log access"
+        use_case: "IT department, system administrators"
+    
+    access_control_matrix:
+      notes: "Implemented in FR-06.2 with 5x5 permission matrix"
+      enforcement: "Enforced at API layer before returning any search results"
+  
+  data_protection:
+    encryption_in_transit: "TLS 1.3"
+    encryption_at_rest: "AES-256 (planned for sensitive fields)"
+    
+    pii_handling:
+      - "Mask email addresses in logs"
+      - "Anonymize user IDs in analytics dashboards"
+      - "Pseudonymization for search query logs"
+      - "User consent for analytics tracking"
+    
+    data_retention:
+      - "Audit logs: 2 years"
+      - "Search query logs: 1 year"
+      - "User sessions: 30 days"
+      - "Deleted documents: soft delete with 30-day recovery window"
+  
+  audit_logging:
+    events:
+      - "User login/logout"
+      - "Failed authentication attempts"
+      - "Document access (read, download)"
+      - "Search queries (with results count)"
+      - "Configuration changes"
+      - "User permission changes"
+      - "Document upload/deletion"
+      - "System errors and exceptions"
+    
+    retention: "24 months (configurable)"
+    storage: "PostgreSQL audit_logs table"
+    access: "System Administrator and Director+ only"
+    
+    compliance:
+      - "PDPA compliance for user activity tracking"
+      - "Internal audit requirements"
+      - "Forensic investigation support"
+
+# ========================================================================
+# NON-FUNCTIONAL REQUIREMENTS
+# ========================================================================
+
+non_functional_requirements:
+  performance:
+    response_time:
+      search: "< 2 seconds (p50), < 5 seconds (p95)"
+      generation: "< 30 seconds (p50), < 60 seconds (p95)"
+      end_to_end: "< 60 seconds total (SLA requirement)"
+    
+    throughput:
+      queries_per_second: "10 QPS sustained (peak: 50 QPS)"
+      concurrent_users: "100 simultaneous users (license limit)"
+    
+    scalability:
+      horizontal_scaling: "Auto-scaling with Kubernetes HPA (future)"
+      data_volume: "Support up to 1M documents"
+      user_growth: "Plan for 500 users in next phase"
+  
+  availability:
+    sla: "99.5% uptime during business hours (8AM-6PM)"
+    rto: "4 hours (Recovery Time Objective)"
+    rpo: "24 hours (Recovery Point Objective)"
+    maintenance_window: "Weekends 2AM-6AM"
+  
+  reliability:
+    error_rate: "< 1% for valid user queries"
+    
+    fallback_mechanisms:
+      - "LLM service failure → Return retrieved context with generic message"
+      - "Vector DB failure → Fall back to BM25 keyword search"
+      - "Embedding service failure → Queue request for retry"
+      - "Database failure → Serve cached results, graceful degradation"
+    
+    backup_strategy:
+      - "PostgreSQL: Daily full backup, hourly incremental"
+      - "ChromaDB: Daily full backup"
+      - "Redis: Snapshot on shutdown, AOF for persistence"
+  
+  monitoring_observability:
+    metrics:
+      - "Query latency (p50, p95, p99)"
+      - "Cache hit rate (target: > 60%)"
+      - "Embedding generation time"
+      - "Database query time"
+      - "LLM API latency"
+      - "Error rate by endpoint"
+      - "Active user count"
+      - "Document ingestion throughput"
+    
+    alerts:
+      - condition: "Response time > 60 seconds"
+        action: "Page on-call engineer, auto-scale if possible"
+      
+      - condition: "Error rate > 2%"
+        action: "Alert operations team, trigger investigation"
+      
+      - condition: "Database connection pool > 80%"
+        action: "Scale up database or add read replicas"
+      
+      - condition: "GPU memory > 90%"
+        action: "Reduce batch size, alert for capacity planning"
+    
+    dashboards:
+      - "Real-time system health (Grafana)"
+      - "User activity analytics (FR-07)"
+      - "Search quality metrics (recall, precision, satisfaction)"
+      - "Cost monitoring (LLM API usage)"
+
+# ========================================================================
+# TESTING & ACCEPTANCE
+# ========================================================================
+
+testing_acceptance:
+  test_levels:
+    - level: "Unit Testing"
+      coverage: "80% minimum code coverage"
+      tools:
+        - "pytest"
+        - "pytest-asyncio"
+        - "pytest-cov"
+      scope: "Individual functions, classes, utilities"
+    
+    - level: "Integration Testing"
+      scope: "API endpoints, database connections, LLM integration, embedding generation"
+      tools:
+        - "pytest with fixtures"
+        - "httpx for API testing"
+      critical_tests:
+        - "Dual database synchronization"
+        - "End-to-end RAG pipeline"
+        - "Authentication and authorization flows"
+        - "Multi-provider LLM failover"
+    
+    - level: "System Testing (SIT)"
+      scenarios:
+        - "End-to-end user search flows"
+        - "Document upload and indexing"
+        - "Performance under concurrent load"
+        - "Error handling and recovery"
+      environment: "Staging (mirrors production configuration)"
+      duration: "2 weeks"
+    
+    - level: "User Acceptance Testing (UAT)"
+      participants:
+        - "Product Owner"
+        - "Representative users from each department"
+        - "IT operations team"
+      duration: "2 weeks"
+      success_criteria:
+        - "90% of test cases pass"
+        - "User satisfaction score > 4.0/5.0"
+        - "No critical bugs"
+        - "Performance meets SLA"
+  
+  ai_specific_testing:
+    - type: "Retrieval Quality"
+      method: "Manual evaluation of 100 query-document pairs"
+      metrics:
+        - "Recall@10 > 90%"
+        - "NDCG@10 > 0.85"
+        - "MRR > 0.75"
+      pass_criteria: "All metrics meet or exceed targets"
+    
+    - type: "Generation Quality"
+      method: "Human evaluation (faithfulness, relevance, coherence)"
+      sample_size: "50 queries with ground truth answers"
+      metrics:
+        - "Faithfulness > 85%"
+        - "Answer relevance > 80%"
+        - "Citation accuracy > 95%"
+      pass_criteria: "All metrics meet or exceed targets"
+    
+    - type: "Bias & Safety"
+      method: "Red teaming with adversarial queries"
+      checks:
+        - "No toxic content generation"
+        - "No hallucinated legal citations"
+        - "No prompt injection vulnerabilities"
+        - "No PII leakage in responses"
+      pass_criteria: "Zero critical safety issues"
+    
+    - type: "Vietnamese Language Quality"
+      method: "Native speaker evaluation"
+      checks:
+        - "Correct tone mark handling"
+        - "Accurate legal code extraction"
+        - "Proper hierarchical structure understanding"
+        - "Correct synonym expansion"
+      pass_criteria: "95% accuracy on Vietnamese-specific tests"
+  
+  acceptance_criteria:
+    functional:
+      - "All FR-01 through FR-08 modules operational"
+      - "Search returns relevant results for 95% of test queries"
+      - "5-tier RBAC correctly enforces permissions"
+      - "Audit logging captures all required events"
+      - "Document ingestion pipeline handles all supported formats"
+      - "Chat UI supports all required interactions"
+    
+    non_functional:
+      - "Response time < 60 seconds (p95)"
+      - "System handles 100 concurrent users"
+      - "Uptime > 99.5% during UAT period"
+      - "Cache hit rate > 60%"
+      - "No data loss during concurrent operations"
+    
+    ai_performance:
+      - "Retrieval Recall@10 > 90%"
+      - "Answer faithfulness > 85%"
+      - "User satisfaction score > 4.0/5.0"
+      - "Legal code extraction accuracy > 95%"
+
+# ========================================================================
+# DEPLOYMENT & OPERATIONS
+# ========================================================================
+
+deployment_operations:
+  deployment_strategy:
+    approach: "Blue-green deployment (future), currently manual with rollback plan"
+    rollback_plan: "Database snapshots, Docker image tags, configuration backups"
+    deployment_frequency: "Bi-weekly releases (Phase 1), weekly (Phase 2)"
+  
+  environments:
+    - name: "Development"
+      purpose: "Feature development and unit testing"
+      data: "Synthetic test data, anonymized production subset"
+      access: "Development team only"
+      infrastructure: "Local Docker Compose"
+    
+    - name: "Staging"
+      purpose: "Integration testing, UAT, pre-production validation"
+      data: "Production-like data (anonymized)"
+      access: "Development team, QA, select business users"
+      infrastructure: "Mirrors production (Docker Compose or Kubernetes)"
+    
+    - name: "Production"
+      purpose: "Live system serving 400 employees"
+      data: "Real company documents and user data"
+      access: "All employees based on role"
+      infrastructure: "On-premise servers, Docker Compose (Kubernetes future)"
+  
+  backup_recovery:
+    backup_frequency:
+      - "PostgreSQL: Daily full, hourly incremental"
+      - "ChromaDB: Daily full backup"
+      - "Redis: Snapshot + AOF"
+      - "Configuration files: Version controlled in Git"
+    
+    backup_retention:
+      - "Daily: 30 days"
+      - "Weekly: 12 weeks"
+      - "Monthly: 12 months"
+      - "Yearly: 5 years (compliance)"
+    
+    recovery_procedure:
+      - "Documented in runbooks"
+      - "Tested quarterly"
+      - "RTO target: 4 hours"
+      - "RPO target: 24 hours"
+  
+  maintenance:
+    model_updates:
+      frequency: "Quarterly or when significant improvements available"
+      process: "A/B testing on staging, gradual rollout to production"
+      approval: "Technical Lead + Product Owner"
+    
+    data_refresh:
+      frequency: "Continuous (real-time ingestion), bulk monthly"
+      process: "Incremental updates via FR-03.3 pipeline"
+      validation: "Quality control checks, duplicate detection"
+    
+    system_updates:
+      patching_schedule: "Monthly security patches, quarterly feature updates"
+      downtime_required: "Minimal (blue-green future), currently 2-4 hour maintenance window"
+      communication: "48-hour advance notice to all users"
+  
+  monitoring:
+    tools:
+      - "Prometheus: Metrics collection"
+      - "Grafana: Visualization dashboards"
+      - "Loki: Log aggregation"
+      - "AlertManager: Alert routing"
+    
+    key_dashboards:
+      - "System Health: CPU, memory, disk, network"
+      - "Application Performance: API latency, throughput, error rate"
+      - "RAG Quality: Retrieval metrics, generation quality"
+      - "User Analytics: Active users, query patterns, satisfaction"
+      - "Cost Tracking: LLM API usage, infrastructure costs"
+    
+    on_call:
+      rotation: "Primary: Development team, Secondary: IT operations"
+      escalation: "L1 (Developer) → L2 (Technical Lead) → L3 (Engineering Manager)"
+      sla: "Acknowledge within 15 minutes, resolve critical within 4 hours"
+
+# ========================================================================
+# COST ESTIMATION
+# ========================================================================
+
+cost_estimation:
+  infrastructure:
+    - resource: "GPU server for embeddings"
+      specification: "NVIDIA RTX 3060 12GB or better"
+      quantity: "1 (current), 2 (future for redundancy)"
+      cost: "~$1,500 USD/server one-time"
+    
+    - resource: "Application server"
+      specification: "16 CPU cores, 32GB RAM, 1TB SSD"
+      quantity: "2 (primary + backup)"
+      cost: "~$2,000 USD/server one-time or ~$200 USD/month cloud"
+    
+    - resource: "Database server"
+      specification: "8 CPU cores, 64GB RAM, 2TB SSD RAID"
+      quantity: "1 (current), 2 (future with read replicas)"
+      cost: "~$3,000 USD/server one-time or ~$300 USD/month cloud"
+  
+  ai_services:
+    - service: "OpenAI API"
+      usage: "Estimated 1M tokens/month (5K queries * 200 tokens avg)"
+      cost: "~$30-60 USD/month (GPT-3.5-turbo)"
+      notes: "Can optimize with local models for cost reduction"
+    
+    - service: "Anthropic Claude API"
+      usage: "Backup provider, estimated 500K tokens/month"
+      cost: "~$15-30 USD/month"
+  
+  operations:
+    - "DevOps/System Admin: 0.5 FTE × $3,000 USD/month = $1,500 USD/month"
+    - "Data annotation (for ground truth): 40 hours/month × $20 USD/hour = $800 USD/month"
+    - "Software licenses (if any): $0 (all open-source)"
+  
+  total_estimated_cost:
+    initial: "$10,000-15,000 USD (hardware + setup)"
+    monthly_recurring: "$2,500-3,500 USD (operations + API + hosting)"
+    notes: "On-premise deployment reduces long-term costs vs. cloud"
+
+# ========================================================================
+# COMPLIANCE MATRIX
+# ========================================================================
+
+compliance_matrix:
+  requirements:
+    - id: "FR-01"
+      source: "Functional Requirements Document"
+      requirement: "Embedding Model Selection and Optimization"
+      response: "Fully Met"
+      evidence: "Qwen/Qwen3-Embedding-0.6B selected and deployed, documented in FR-01 handover"
+      notes: "1024-dimensional embeddings optimized for Vietnamese"
+    
+    - id: "FR-02"
+      source: "Functional Requirements Document"
+      requirement: "Dual Database System (PostgreSQL + ChromaDB)"
+      response: "Fully Met"
+      evidence: "Schema v2 implemented with enhanced Vietnamese support, documented in FR-02.1"
+      notes: "Unified API for database operations"
+    
+    - id: "FR-03"
+      source: "Functional Requirements Document"
+      requirement: "Data Ingestion Pipeline"
+      response: "Fully Met"
+      evidence: "FR-03.3 pipeline operational with Vietnamese NLP, quality control, chunking"
+      notes: "Supports multiple formats, batch and real-time processing"
+    
+    - id: "FR-04"
+      source: "Functional Requirements Document"
+      requirement: "RAG Core Engine (Retrieval, Synthesis, Generation, API)"
+      response: "Fully Met"
+      evidence: "FR-04.1 through FR-04.4 implemented with hybrid search, multi-provider LLM"
+      notes: "Hybrid retrieval, citation generation, multi-provider failover"
+    
+    - id: "FR-05"
+      source: "Functional Requirements Document"
+      requirement: "Chat UI with Interactive Features"
+      response: "Fully Met"
+      evidence: "Streamlit-based UI with auto-suggestions, file upload, export, feedback"
+      notes: "Responsive design, multi-language support"
+    
+    - id: "FR-06"
+      source: "Functional Requirements Document"
+      requirement: "Authentication & Authorization (5-tier RBAC)"
+      response: "Fully Met"
+      evidence: "JWT-based auth with 5 roles, ACL matrix, session management, audit logging"
+      notes: "SSO integration ready for future"
+    
+    - id: "FR-07"
+      source: "Functional Requirements Document"
+      requirement: "Analytics & Reporting"
+      response: "Fully Met"
+      evidence: "Comprehensive dashboards, search analytics, user activity tracking"
+      notes: "Prometheus + Grafana integration"
+    
+    - id: "FR-08"
+      source: "Functional Requirements Document"
+      requirement: "Admin & Maintenance Tools"
+      response: "Fully Met"
+      evidence: "User management, document management, system configuration, health checks"
+      notes: "Web-based admin interface"
+    
+    - id: "NFR-PERF-001"
+      source: "Non-Functional Requirements"
+      requirement: "Response time < 60 seconds (p95)"
+      response: "Met (validated in testing)"
+      evidence: "Load testing results: p95 = 45 seconds, p50 = 12 seconds"
+      notes: "Meets SLA, further optimization ongoing"
+    
+    - id: "NFR-SCALE-001"
+      source: "Non-Functional Requirements"
+      requirement: "Support 100 concurrent users"
+      response: "Met"
+      evidence: "Stress testing confirms 100+ concurrent users supported"
+      notes: "Can scale to 500 users with infrastructure upgrade"
+    
+    - id: "NFR-AVAIL-001"
+      source: "Non-Functional Requirements"
+      requirement: "99.5% uptime during business hours"
+      response: "Target (not yet measured in production)"
+      evidence: "Staging environment uptime > 99.9% over 2 months"
+      notes: "Will be measured and validated in production"
+    
+    - id: "PDPA-001"
+      source: "Vietnamese PDPA Compliance"
+      requirement: "Personal data protection and user consent"
+      response: "Partially Met"
+      evidence: "PII masking in logs, audit logging, data retention policies implemented"
+      notes: "Formal consent workflow to be added in Phase 2"
+
+# ========================================================================
+# APPENDICES
+# ========================================================================
+
+appendices:
+  glossary:
+    RAG: "Retrieval-Augmented Generation - AI technique combining search and text generation"
+    Embedding: "Numerical vector representation of text for similarity search"
+    Chunk: "Segment of document (500-1000 tokens) for indexing and retrieval"
+    NFC/NFD: "Unicode normalization forms (Composed vs Decomposed)"
+    BM25: "Best Matching 25 - probabilistic ranking function for text retrieval"
+    HNSW: "Hierarchical Navigable Small World - algorithm for approximate nearest neighbor search"
+    Vector Database: "Database optimized for storing and querying high-dimensional vectors"
+    Graph RAG: "RAG approach using knowledge graphs for multi-hop reasoning"
+    RBAC: "Role-Based Access Control - authorization model based on user roles"
+    JWT: "JSON Web Token - compact token format for authentication"
+    p50/p95/p99: "Performance percentiles (median, 95th, 99th percentile)"
+    SLA: "Service Level Agreement - commitment to specific performance metrics"
+    RTO: "Recovery Time Objective - maximum acceptable downtime"
+    RPO: "Recovery Point Objective - maximum acceptable data loss"
+  
+  assumptions:
+    - "Users have basic familiarity with search interfaces"
+    - "Documents are primarily in Vietnamese and English"
+    - "On-premise deployment preferred for data security"
+    - "GPU hardware available for embedding generation"
+    - "Internet connectivity for LLM API access (with local fallback)"
+    - "PostgreSQL and Redis instances already available"
+    - "100 concurrent user license is sufficient for current needs"
+    - "Legal documents follow standard Vietnamese government format"
+    - "Aviation terminology follows ICAO standards"
+  
+  open_questions:
+    - "Final budget allocation for Phase 2 infrastructure upgrade?"
+    - "Timeline for SSO integration with corporate LDAP/AD?"
+    - "Decision on self-hosted LLM vs. continued API usage?"
+    - "Kubernetes migration timeline (if approved)?"
+    - "Multi-region deployment requirements (if any)?"
+    - "Mobile app development priority (native vs. PWA)?"
+    - "Integration requirements with external legal databases?"
+    - "Data retention policy finalization (regulatory compliance)?"
+    - "Disaster recovery site location and configuration?"
+    - "Advanced analytics requirements (predictive, prescriptive)?"
+  
+  references:
+    technical_documentation:
+      - "underthesea: https://underthesea.readthedocs.io/"
+      - "pyvi: https://github.com/trungtv/pyvi"
+      - "Qwen3-Embedding: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B"
+      - "PostgreSQL 15: https://www.postgresql.org/docs/15/"
+      - "ChromaDB: https://docs.trychroma.com/"
+      - "FastAPI: https://fastapi.tiangolo.com/"
+      - "Streamlit: https://docs.streamlit.io/"
+    
+    project_documents:
+      - "FR-01.1: Embedding Model Selection"
+      - "FR-02.1: Database Schema v2"
+      - "FR-03.3: Data Ingestion Pipeline"
+      - "FR-04.1: Retrieval Module"
+      - "FR-04.2: Synthesis Module"
+      - "FR-04.3: Generation Engine"
+      - "FR-04.4: API Endpoint"
+      - "FR-05: Chat UI and Interactive Features"
+      - "FR-06: Authentication and Authorization"
+      - "FR-07: Analytics and Reporting"
+      - "FR-08: Admin and Maintenance Tools"
+    
+    standards:
+      - "PDPA (Vietnam Personal Data Protection Decree 13/2023/ND-CP)"
+      - "ICAO Standards for Aviation Documentation"
+      - "Vietnamese Legal Document Format Standards"
+
+# ========================================================================
+# END OF YAML INPUT
+# ========================================================================
