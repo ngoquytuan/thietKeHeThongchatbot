@@ -1,0 +1,243 @@
+{
+  "name": "enterprise-llm-gateway",
+  "version": "1.0.0",
+  "description": "Production-grade LLM Gateway implementation based on Portkey AI Gateway best practices",
+  "author": "Tuan Nguyen @ ATTECH",
+  "created": "2025-01-15",
+  "updated": "2025-01-15",
+  "tags": [
+    "llm-gateway",
+    "multi-provider",
+    "semantic-caching",
+    "guardrails",
+    "cost-optimization",
+    "production-ready",
+    "fastapi",
+    "portkey",
+    "vietnamese"
+  ],
+  "category": "AI Infrastructure",
+  "difficulty": "Advanced",
+  "estimated_implementation_time": "8-10 weeks",
+  "prerequisites": [
+    "Python 3.11+",
+    "FastAPI experience",
+    "Redis knowledge",
+    "PostgreSQL basics",
+    "Docker/Kubernetes",
+    "LLM API experience"
+  ],
+  "features": [
+    {
+      "name": "Multi-Provider Integration",
+      "description": "OpenAI, Claude, Gemini, Groq, Local LLMs with unified API",
+      "priority": "HIGH"
+    },
+    {
+      "name": "Unified API Interface",
+      "description": "OpenAI-compatible interface for all providers",
+      "priority": "HIGH"
+    },
+    {
+      "name": "Intelligent Routing",
+      "description": "Fallback, Retry with Exponential Backoff, Load Balancing",
+      "priority": "HIGH"
+    },
+    {
+      "name": "Semantic Caching",
+      "description": "20-60% cost reduction via embedding-based similarity",
+      "priority": "MEDIUM",
+      "estimated_savings": "$4500/month for 1000 req/day"
+    },
+    {
+      "name": "Guardrails System",
+      "description": "PII Detection, Content Safety, Plugin architecture",
+      "priority": "HIGH"
+    },
+    {
+      "name": "Cost Tracking",
+      "description": "Real-time monitoring, Budget limits, Per-user tracking",
+      "priority": "MEDIUM"
+    },
+    {
+      "name": "Virtual Key Management",
+      "description": "Secure key management, Rotation, Revocation",
+      "priority": "MEDIUM"
+    },
+    {
+      "name": "Observability",
+      "description": "Structured logging, Prometheus metrics, Grafana dashboards",
+      "priority": "MEDIUM"
+    }
+  ],
+  "tech_stack": {
+    "language": "Python 3.11+",
+    "framework": "FastAPI",
+    "http_client": "httpx",
+    "cache": "Redis 7.0+",
+    "database": "PostgreSQL 15+",
+    "vector_db": "ChromaDB (optional for semantic caching)",
+    "monitoring": ["Prometheus", "Grafana"],
+    "logging": "Structlog (JSON)",
+    "deployment": ["Docker", "Kubernetes"]
+  },
+  "performance_targets": {
+    "p50_latency_ms": 500,
+    "p95_latency_ms": 2000,
+    "p99_latency_ms": 5000,
+    "cache_hit_rate": 0.20,
+    "cache_accuracy": 0.99,
+    "cost_reduction": 0.30,
+    "availability": 0.999
+  },
+  "use_cases": [
+    "Enterprise LLM Gateway",
+    "Multi-tenant AI platforms",
+    "Cost-sensitive LLM applications",
+    "High-reliability AI services",
+    "Vietnamese legal document processing (FR-04.3)",
+    "Customer support chatbots",
+    "Internal knowledge assistants"
+  ],
+  "references": [
+    {
+      "title": "Portkey AI Gateway",
+      "url": "https://github.com/Portkey-AI/gateway",
+      "type": "source_code"
+    },
+    {
+      "title": "Semantic Caching Blog",
+      "url": "https://portkey.ai/blog/reducing-llm-costs-and-latency-semantic-cache/",
+      "type": "article"
+    },
+    {
+      "title": "Portkey Pricing Database",
+      "url": "https://github.com/Portkey-AI/models",
+      "type": "data"
+    },
+    {
+      "title": "FastAPI Documentation",
+      "url": "https://fastapi.tiangolo.com/",
+      "type": "documentation"
+    }
+  ],
+  "migration_plan": {
+    "total_duration": "10 weeks",
+    "phases": [
+      {
+        "week": 1,
+        "tasks": ["Unified API layer", "ChatRequest/ChatResponse models"],
+        "files": ["src/gateway/unified_api.py"]
+      },
+      {
+        "week": 2,
+        "tasks": ["Provider adapters", "OpenAI, Anthropic, Ollama"],
+        "files": ["src/gateway/providers/"]
+      },
+      {
+        "week": 3,
+        "tasks": ["Routing engine", "ProviderRouter implementation"],
+        "files": ["src/gateway/routing/router.py"]
+      },
+      {
+        "week": 4,
+        "tasks": ["Fallback & Retry logic", "Exponential backoff"],
+        "files": ["src/gateway/routing/router.py"]
+      },
+      {
+        "week": 5,
+        "tasks": ["Simple caching", "Redis integration"],
+        "files": ["src/gateway/caching/simple_cache.py"]
+      },
+      {
+        "week": 6,
+        "tasks": ["Semantic caching", "Embedding-based similarity"],
+        "files": ["src/gateway/caching/semantic_cache.py"]
+      },
+      {
+        "week": 7,
+        "tasks": ["Guardrails system", "PII & Content Safety"],
+        "files": ["src/gateway/guardrails/"]
+      },
+      {
+        "week": 8,
+        "tasks": ["Cost tracking", "Virtual keys", "Budget limits"],
+        "files": ["src/gateway/cost/", "src/gateway/auth/"]
+      },
+      {
+        "week": 9,
+        "tasks": ["Observability", "Logging, Metrics, Grafana"],
+        "files": ["src/gateway/monitoring/"]
+      },
+      {
+        "week": 10,
+        "tasks": ["Testing", "Deployment", "Production rollout"],
+        "files": ["tests/", "docker-compose.yml", "k8s/"]
+      }
+    ]
+  },
+  "security_checklist": [
+    "API keys encrypted at rest",
+    "Virtual keys with Fernet encryption",
+    "Rate limiting per-user",
+    "Input validation (Pydantic)",
+    "PII detection on inputs/outputs",
+    "HTTPS/TLS only",
+    "CORS whitelisting",
+    "Audit logs",
+    "Budget limits",
+    "Secrets in environment variables"
+  ],
+  "testing_requirements": {
+    "unit_test_coverage": "80%+",
+    "integration_tests": "Required",
+    "load_tests": "100+ concurrent users",
+    "security_tests": "OWASP ZAP scan"
+  },
+  "deployment_options": [
+    {
+      "type": "local",
+      "command": "uvicorn src.gateway.main:app --reload",
+      "use_case": "Development"
+    },
+    {
+      "type": "docker",
+      "command": "docker-compose up -d",
+      "use_case": "Testing"
+    },
+    {
+      "type": "kubernetes",
+      "command": "kubectl apply -f k8s/",
+      "use_case": "Production"
+    }
+  ],
+  "cost_estimation": {
+    "infrastructure": {
+      "redis": "$50/month",
+      "postgresql": "$50/month",
+      "compute": "$200-500/month",
+      "monitoring": "$100/month"
+    },
+    "total_monthly": "$400-700/month",
+    "expected_savings": "$4500/month (via caching)",
+    "roi": "6-11x"
+  },
+  "support": {
+    "documentation": "README.md, SKILL.md",
+    "examples": "Full code examples in SKILL.md",
+    "troubleshooting": "Common issues section in README.md"
+  },
+  "license": "MIT",
+  "keywords": [
+    "llm",
+    "gateway",
+    "ai-infrastructure",
+    "multi-provider",
+    "semantic-cache",
+    "cost-optimization",
+    "guardrails",
+    "portkey",
+    "production-ready",
+    "vietnamese"
+  ]
+}
