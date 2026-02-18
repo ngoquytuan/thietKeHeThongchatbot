@@ -50,3 +50,27 @@ Dưới đây là các điểm xác nhận sự tách biệt này:
 Mặc dù không truy cập trực tiếp, nhưng hai hệ thống này thường được điều phối bởi `SearchOrchestrator`. Khi bạn thực hiện một truy vấn **Hybrid Search**, Orchestrator sẽ gọi đồng thời Keyword Search (từ ChromaDB), Semantic Search (từ ChromaDB) và có thể là Metadata Search (từ PostgreSQL) rồi gộp kết quả lại để trả về cho người dùng.
 
 Bạn có muốn tôi làm rõ thêm về cách `SearchOrchestrator` phối hợp kết quả từ hai cơ sở dữ liệu này không?
+
+Đúng như bạn nhận định, cơ chế này là một phiên bản rút gọn và đơn giản hóa của BM25, nên hiệu quả về mặt xếp hạng (ranking) sẽ không bằng thuật toán BM25 chuẩn.
+
+Dưới đây là phân tích chi tiết về sự khác biệt và các ứng dụng thực tế của công cụ này:
+
+### So sánh với BM25 chuẩn
+
+* **Thiếu trọng số IDF (Inverse Document Frequency)**: BM25 chuẩn sẽ đánh giá cao các từ hiếm và giảm tầm quan trọng của các từ phổ biến. Cơ chế hiện tại coi mọi từ trong câu truy vấn đều có giá trị ngang nhau, dẫn đến việc các từ chung chung (như "cách", "nhà", "làm") có thể gây nhiễu kết quả.
+* **Không tính đến độ dài văn bản**: BM25 chuẩn có cơ chế điều chỉnh điểm dựa trên độ dài của tài liệu để tránh ưu tiên các tài liệu quá dài chỉ vì chúng lặp lại từ khóa nhiều lần.
+* **Giới hạn tìm kiếm**: Search này chỉ quét tối đa 300 tài liệu đầu tiên trong mỗi collection, trong khi BM25 thường được triển khai trên toàn bộ chỉ mục (index) của cơ sở dữ liệu.
+
+---
+
+### Ứng dụng của Keyword Search này
+
+Dù không mạnh mẽ bằng BM25 hay Semantic Search (tìm kiếm ngữ nghĩa), công cụ này vẫn có những ứng dụng rất cụ thể và quan trọng trong hệ thống:
+
+* **Tìm kiếm cụm từ chính xác (Exact Match)**: Rất hữu ích khi người dùng muốn tìm các thuật ngữ chuyên môn, mã số, hoặc tên riêng mà Semantic Search đôi khi có thể bỏ qua hoặc "hiểu nhầm" sang một ý nghĩa tương đương khác.
+* **Tiết kiệm tài nguyên (Cost-effective)**: Vì không sử dụng GPU hay mô hình embedding, nó có thể chạy cực nhanh (100-150ms) và tốn rất ít tài nguyên hệ thống, phù hợp cho các truy vấn đơn giản hoặc khi hệ thống đang quá tải.
+* **Hợp phần của Hybrid Search**: Đây là mảnh ghép quan trọng để kết hợp với Semantic Search. Trong khi Semantic Search nắm bắt ý nghĩa, Keyword Search đảm bảo các từ khóa quan trọng nhất định phải xuất hiện trong kết quả.
+* **Tìm kiếm có điều kiện (Filtered Search)**: Ứng dụng tốt khi cần lọc dữ liệu theo metadata (như tìm văn bản theo "phòng ban" hay "loại tài liệu") kết hợp với từ khóa nhanh.
+* **Xử lý ngôn ngữ đặc thù**: Với việc tích hợp `underthesea`, nó hỗ trợ tốt việc tìm kiếm các từ ghép tiếng Việt, giúp kết quả chính xác hơn so với việc chỉ tách từ đơn thuần bằng khoảng trắng.
+
+Bạn có muốn tôi giúp soạn thảo file **`rule_deploy_BM25`** dựa trên các đặc điểm và lỗi cần lưu ý (như lỗi sai lệch điểm số) để bạn lưu lại cho LLM không?
