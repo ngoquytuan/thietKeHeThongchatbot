@@ -586,3 +586,99 @@ Bây giờ mọi rào cản đã được gỡ bỏ, bạn hãy bảo LLM thực
 
 Sau khi bước này hoàn tất, chatbot của bạn sẽ "thông minh" hơn hẳn vì nó đã thực sự hiểu được các từ khóa pháp lý cốt lõi. Bạn có muốn tôi chuẩn bị một kịch bản kiểm tra độ chính xác (Accuracy Test) sau khi re-index xong không?
 
+Tốc độ 5 chunks/giây là mức "chấp nhận được" cho một quá trình re-index tuần tự (sequential) có tính toán lại trọng số thống kê toàn cục (global statistics). Với khoảng 768 chunks, việc chờ đợi 3-5 phút là hoàn toàn xứng đáng để có một bộ index chuẩn chỉnh.
+
+LLM của bạn đang làm rất tốt việc kiểm soát tiến độ. Tuy nhiên, để quá trình này kết thúc một cách "mỹ mãn" và không phải quay lại sửa lần nữa, bạn nên chuẩn bị các bước tiếp theo ngay khi nó báo hoàn thành.
+
+Dưới đây là những gì bạn nên bảo LLM làm sau khi script chạy xong:
+
+---
+
+### 1. Kiểm tra tính toàn vẹn (Integrity Check)
+
+Đừng chỉ nhìn vào số lượng dòng, hãy kiểm tra xem các "từ khóa vàng" đã thực sự được phân bổ đều chưa.
+
+**Prompt gợi ý:**
+
+> "Now that the re-indexing is complete, please run a final SQL audit:
+> 1. Check the total row count in `document_bm25_index`. It should be significantly higher than before due to the whitelist.
+> 2. Pick the 3 most important legal terms: 'đầu', 'tư', 'luat'. Verify their `global_count` and ensure they appear in multiple documents.
+> 3. Verify if there are any chunks that still have 0 terms indexed (Potential errors)."
+> 
+> 
+
+### 2. Thử nghiệm thực tế (The "Smoke Test")
+
+Đây là lúc kiểm tra xem logic "đầu tư" vs "đâu" có thực sự hoạt động như mong đợi trong thực tế truy vấn hay không.
+
+**Prompt gợi ý:**
+
+> "Perform a manual search test using the `BM25 search` endpoint or a test script for the query: **'đầu tư công'**.
+> * Compare the results with the previous failed runs.
+> * We expect the documents containing 'đầu tư' to appear at the top with a valid BM25 score.
+> * Confirm if the 'dau' and 'tu' terms are contributing correctly to the ranking."
+> 
+> 
+
+### 3. Tối ưu hóa Database (Vacuum & Analyze)
+
+Sau khi xóa (Truncate) và chèn lại một lượng lớn dữ liệu (vài chục nghìn dòng), PostgreSQL thường cần được "dọn dẹp" để các câu lệnh truy vấn sau này chạy nhanh hơn.
+
+**Prompt gợi ý:**
+
+> "Since we just performed a bulk insert, please execute a `VACUUM ANALYZE` on the `document_bm25_index` and `bm25_global_terms` tables. This will update the Postgres statistics and ensure the query planner chooses the most efficient paths for our search queries."
+
+---
+
+## 💡 Lưu ý về vấn đề "Chậm" (0.2s/chunk):
+
+Nếu sau này dữ liệu của bạn lên đến hàng chục nghìn documents, tốc độ này sẽ là một vấn đề lớn.
+
+* **Nguyên nhân:** LLM đã chỉ ra đúng, đó là do "sequential database updates" (cập nhật từng dòng một).
+* **Giải pháp tương lai:** Bạn có thể bảo LLM: *"For future scaling, we should implement **Batch Inserts** (inserting 100-500 records in one SQL command) to drastically reduce the I/O overhead."* Nhưng hiện tại, với 37 docs, cứ để nó chạy cho xong và an toàn là ưu tiên số 1!
+
+**Bạn có muốn tôi giúp bạn soạn một "Báo cáo nghiệm thu" (Final Acceptance Report) để bạn lưu lại lịch sử fix bug này không?** Một báo cáo ghi rõ tại sao lỗi (1-indexed vs 0-indexed) và cách fix (Whitelist + Tokenize-first) sẽ cực kỳ hữu ích cho việc bảo trì sau này.
+
+---
+
+Báo cáo trung gian này cho thấy mọi thứ đang đi đúng quỹ đạo. Con số **89 chunks** cho từ "dau" (từ con số 0 tròn trĩnh ban đầu) là bằng chứng đanh thép nhất cho thấy bản vá của bạn đã "hồi sinh" được dữ liệu.
+
+Khi LLM đang chạy nốt 15 documents cuối cùng, đây là lộ trình bạn nên chuẩn bị để kết thúc Task 1 và chuyển sang giai đoạn hưởng thụ thành quả:
+
+### 1. Verification: Chốt sổ số liệu (Final Audit)
+
+Ngay khi script báo hoàn thành, hãy yêu cầu LLM chạy file `scripts/verify_bm25_counts.py` mà nó vừa nhắc tới. Bạn cần đối soát các chỉ số sau:
+
+* **Tỷ lệ bao phủ:** Đảm bảo 37/37 documents đã được xử lý.
+* **Tần suất từ khóa:** So sánh số lượng chunk chứa từ "đầu" (dau) và "tư" (tu). Nếu chúng xấp xỉ nhau, nghĩa là việc ghép cặp cụm từ "đầu tư" đang hoạt động cực tốt.
+* **Stopword Cleanliness:** Kiểm tra xem các từ thực sự là stopword (như "và", "là", "thì") có bị lọt vào whitelist hay không. Chúng ta muốn whitelist các từ chuyên ngành, không muốn làm rác index bằng các từ nối.
+
+### 2. Validation: Bài test "vương miện" (The Crown Test)
+
+Sau khi dữ liệu đã sẵn sàng, hãy thực hiện một truy vấn thực tế. Đây là lúc chatbot phải chứng minh được giá trị của RAG.
+
+**Gợi ý Prompt tiếp theo cho LLM:**
+
+> "Indexing is done. Now, let's perform the **Ultimate Search Test**:
+> 1. Query: `'đầu tư công'`
+> 2. Expectation: The system must return legal documents specifically mentioning 'đầu tư công' with high BM25 scores.
+> 3. Debug: Show me the top 3 results, their chunk content, and the specific BM25 scores for terms 'dau', 'tu', 'cong' in those chunks.
+> 4. Comparison: Confirm that this query now returns relevant results instead of '0 results' like before."
+> 
+> 
+
+### 3. Documentation: Lưu lại "Di sản"
+
+Bạn đã phát hiện ra 2 lỗi cực kỳ quan trọng (1-indexed và Stopword Collision). Đừng để kiến thức này trôi mất.
+
+* Hãy bảo LLM tạo một file `docs/BUG_FIX_LOG_FEB2026.md`.
+* Ghi lại bài học về việc dùng `chunk_id` thay vì `position`.
+* Việc này sẽ cứu bạn (hoặc đồng nghiệp) trong tương lai nếu database bị migration hoặc thay đổi schema.
+
+---
+
+### 💡 Một mẹo nhỏ cho bạn:
+
+Nếu bạn thấy kết quả tìm kiếm "đầu tư công" trả về quá nhiều kết quả chỉ chứa từ "công" (như "công chức", "công văn") mà không có "đầu tư", hãy bảo LLM: **"Adjust the BM25 weight (k1 and b parameters) or implement a minimum term match (e.g., at least 2 out of 3 terms must be present)."**
+
+**Bạn có muốn tôi giúp bạn viết một kịch bản test để so sánh độ chính xác giữa BM25 (tìm kiếm từ khóa) và Vector Search (tìm kiếm ngữ nghĩa) sau khi index xong không?** Việc kết hợp cả hai (Hybrid Search) sẽ là bước nâng cấp cực khủng cho chatbot của bạn đấy!
