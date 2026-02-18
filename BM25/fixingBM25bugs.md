@@ -729,4 +729,65 @@ Bây giờ là lúc "thử lửa" thật sự. Bạn hãy bảo LLM chạy một
 
 **Bạn có muốn tôi soạn một danh sách 5 câu hỏi "hóc búa" về luật đầu tư để bạn test thử xem chatbot trả lời có chuẩn xác và có dẫn chứng (citation) đúng không?**
 
+Chào bạn, việc LLM hết context là chuyện bình thường khi làm việc với codebase lớn. Cách tiếp cận dùng **Git** để AI tự "tóm tắt" lại những gì đã làm là cực kỳ thông minh và hiệu quả.
 
+Dưới đây là bản Prompt tiếng Anh chuyên nghiệp, được thiết kế để một AI Agent (như Claude Code, Aider, hoặc GPT-4 với Tools) có thể nhanh chóng nắm bắt 3 điểm mấu chốt chúng ta đã fix: **Logic Filter, Stopword Collision, và 1-indexed Bug.**
+
+---
+
+## 🎯 The BM25 Re-Verification Prompt
+
+> **Role:** Senior RAG Engineer & QA Auditor.
+> **Task:** Verify the recent fixes applied to the BM25 Indexing pipeline and perform a retrieval quality check.
+> **Step 1: Context Recovery (Git Audit)**
+> * Execute `git log -n 5 --oneline` and `git diff HEAD~3..HEAD src/core/search/bm25_indexer.py` (or the relevant path).
+> * Analyze the changes specifically regarding:
+> 1. The token length filter (`len >= 2`).
+> 2. The `legal_whitelist` implementation.
+> 3. The `Tokenize-First` logic to avoid "đầu" (invest) vs "đâu" (where) collision.
+> 4. The fix for the 1-indexed database chunk position bug.
+> 
+> 
+> 
+> 
+> **Step 2: Database Integrity Check (PostgreSQL)**
+> * Connect to the database and check the `bm25_global_terms` table.
+> * Run a query to find the `global_count` for the following terms: `'dau'`, `'tu'`, `'bo'`, `'ve'`.
+> * They should have non-zero, healthy frequencies (previously they were missing).
+> 
+> 
+> **Step 3: Retrieval "Smoke Test"**
+> * Execute a BM25 search for the query: **"đầu tư công"**.
+> * Verify that:
+> 1. `total_found > 0`.
+> 2. The top results contain the terms `dau` and `tu` with appropriate scores.
+> 3. The chunks returned are contextually relevant to "Public Investment" (đầu tư công).
+> 
+> 
+> 
+> 
+> **Step 4: Regression Check (1-Indexing)**
+> * Verify if `build_bm25_index_with_global_terms` now correctly uses `chunk_id` from the data instead of relying on 0-based `enumerate` indices.
+> 
+> 
+> **Output Requirement:**
+> 1. A summary of the "Fixes Found" via Git.
+> 2. A table of the current `global_count` for critical legal terms.
+> 3. The top 3 search results for "đầu tư công" including their BM25 scores.
+> 4. Confirmation that the system is ready for the next phase (Hybrid Search).
+> 
+> 
+
+---
+
+### Tại sao dùng Prompt này?
+
+1. **Git-Driven:** Thay vì bạn phải giải thích, AI sẽ tự đọc `git diff`. Nó sẽ thấy bạn đã sửa `len > 2` thành `len >= 2` và thêm `legal_whitelist`.
+2. **Bằng chứng số liệu:** Việc yêu cầu kiểm tra `global_count` của các từ `'dau'`, `'tu'` giúp xác nhận ngay lập tức là database đã được re-index chuẩn hay chưa.
+3. **Kiểm tra lỗi 1-indexed:** Đây là lỗi "chìm" mà nếu không nhắc, AI mới có thể lặp lại sai lầm cũ khi viết code mới.
+
+### 💡 Mẹo nhỏ cho bạn:
+
+Sau khi LLM chạy xong prompt này và xác nhận mọi thứ OK, bạn có thể tiếp tục với Task tiếp theo là **"Xử lý nốt 268 chunks đang trống"** hoặc **"Nâng cấp lên Hybrid Search"** như chúng ta đã thảo luận.
+
+Bạn có muốn tôi điều chỉnh thêm phần nào trong bài test này không (ví dụ: test thêm về độ trễ - latency)? Hay bạn muốn chuyển sang bước làm **Hybrid Search** luôn?
