@@ -74,3 +74,42 @@ Dù không mạnh mẽ bằng BM25 hay Semantic Search (tìm kiếm ngữ nghĩa
 * **Xử lý ngôn ngữ đặc thù**: Với việc tích hợp `underthesea`, nó hỗ trợ tốt việc tìm kiếm các từ ghép tiếng Việt, giúp kết quả chính xác hơn so với việc chỉ tách từ đơn thuần bằng khoảng trắng.
 
 Bạn có muốn tôi giúp soạn thảo file **`rule_deploy_BM25`** dựa trên các đặc điểm và lỗi cần lưu ý (như lỗi sai lệch điểm số) để bạn lưu lại cho LLM không?
+
+Dựa trên log bạn cung cấp và tài liệu kỹ thuật về **Keyword Search Engine**, hiện tượng "lần đầu chậm (khoảng 10 giây), lần sau nhanh" thường do một vài nguyên nhân đặc thù trong kiến trúc của hệ thống này:
+
+### 1. Khởi tạo kết nối và Cache bộ sưu tập (Collection Caching)
+
+Trong mã nguồn của `KeywordEngine`, có một phương thức gọi là `_refresh_collections_cache()`.
+
+* **Lần đầu tiên:** Khi bạn thực hiện truy vấn đầu tiên sau khi khởi động, hệ thống phải thiết lập kết nối HTTP tới ChromaDB và liệt kê tất cả các bộ sưu tập hiện có (`chroma_client.list_collections()`). Nếu số lượng collection lớn hoặc kết nối mạng/disk bị trễ, việc này sẽ tốn thời gian.
+* **Các lần sau:** Danh sách các collection và thông tin cấu trúc đã được lưu vào bộ nhớ đệm (cache), giúp bỏ qua bước discovery này.
+
+### 2. "Làm nóng" dữ liệu (Cold Start vs. Warm Start)
+
+Keyword Search hoạt động bằng cách lấy trực tiếp 300 tài liệu mỗi collection từ ChromaDB về RAM để xử lý cục bộ (`collection.get(limit=300)`).
+
+* **Lần đầu (Cold):** ChromaDB có thể phải đọc dữ liệu từ ổ đĩa (Disk I/O) để nạp vào RAM. Với truy vấn "ngô quý tuấn" mất 9.5 giây và "nguyễn anh tuấn" lần đầu mất 8.1 giây, đây là thời gian hệ thống đọc dữ liệu thô từ database.
+* **Lần sau (Warm):** Dữ liệu đã nằm trong Page Cache của hệ điều hành hoặc cache nội bộ của ChromaDB, giúp việc truy xuất rút ngắn xuống còn ~300ms đến 500ms như bạn thấy trong log.
+
+### 3. Nạp thư viện Tokenizer (Vietnamese NLP)
+
+Hệ thống sử dụng thư viện `underthesea` để tách từ tiếng Việt.
+
+* Thư viện này thường thực hiện nạp các model ngôn ngữ (POS tagging, Word Segmentation) vào RAM ngay trong lần đầu tiên hàm `word_tokenize()` được gọi.
+* Quá trình nạp model NLP này có thể mất vài giây tùy thuộc vào cấu hình CPU/RAM của server.
+
+### 4. Phân tích qua Log của bạn
+
+* **Lần 1 ("ngô quý tuấn"):** Mất **9.505 giây** (20:44:17 -> 20:44:27). Đây là lúc hệ thống vừa phải khởi tạo kết nối, vừa nạp Tokenizer, vừa đọc dữ liệu từ Disk.
+* **Lần 2 ("ngô quý tuấn"):** Chỉ mất **0.376 giây**. Mọi thứ đã có sẵn trong cache.
+* **Lần 5 ("nguyễn anh tuấn" - từ khóa mới):** Mất **8.135 giây**. Dù Tokenizer đã nạp, nhưng vì đây là từ khóa mới hoặc bộ sưu tập chứa từ này chưa được "làm nóng" (hoặc do cơ chế search của ChromaDB phải quét lại vùng dữ liệu khác), thời gian vẫn bị kéo dài.
+
+---
+
+**Giải pháp đề xuất:**
+
+1. **Pre-warmup:** Thực hiện một vài câu query mẫu ngay khi ứng dụng vừa startup (trong `startup_event`) để kích hoạt nạp Tokenizer và kết nối ChromaDB.
+2. **Kiểm tra Disk I/O:** Nếu database nằm trên HDD thay vì SSD, thời gian đọc 300 docs/collection sẽ bị ảnh hưởng đáng kể.
+3. **Tối ưu hóa số lượng Docs:** Nếu không cần độ phủ quá rộng, bạn có thể giảm `limit` từ 300 xuống thấp hơn để tăng tốc độ đọc ban đầu.
+
+Bạn có muốn tôi hướng dẫn cách viết hàm **warmup** để tự động "làm nóng" hệ thống khi vừa bật lên không?
