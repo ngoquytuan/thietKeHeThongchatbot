@@ -874,3 +874,71 @@ Báo cáo kiểm toán chỉ ra một điểm yếu nhỏ: **File log đang tr�
 Tôi nghĩ bạn nên bắt đầu với **Hybrid Search**. Đây là bước nâng cấp mang lại cảm giác "WOW" rõ rệt nhất về độ thông minh của chatbot.
 
 **Bạn có muốn tôi viết một Prompt để LLM thực hiện code phần Hybrid Search (RRF) này dựa trên cấu trúc database hiện tại không?** Hay bạn muốn xử lý nốt phần Logging trước cho "sạch sẽ" codebase?
+
+
+Để kiểm tra xem tài liệu mới của bạn đã được "hấp thụ" hoàn toàn và đúng cách theo logic BM25 mới hay chưa, bạn nên thực hiện quy trình kiểm soát 3 bước sau đây.
+
+### 1. Kiểm tra ở tầng Cơ sở dữ liệu (Số lượng)
+
+Việc đầu tiên là xác nhận tài liệu đã được băm nhỏ (chunking) và tạo chỉ mục (indexing) thành công. Bạn hãy bảo LLM chạy các câu lệnh SQL sau:
+
+* **Tìm ID tài liệu mới nhất:**
+```sql
+SELECT id, title, created_at FROM documents ORDER BY created_at DESC LIMIT 1;
+
+```
+
+
+* **Kiểm tra số lượng Chunk và Index:** (Thay `[DOC_ID]` bằng ID vừa tìm được)
+```sql
+SELECT 
+    (SELECT COUNT(*) FROM document_chunks_enhanced WHERE document_id = '[DOC_ID]') as total_chunks,
+    (SELECT COUNT(*) FROM document_bm25_index idx 
+     JOIN document_chunks_enhanced chk ON idx.chunk_id = chk.chunk_id 
+     WHERE chk.document_id = '[DOC_ID]') as total_index_entries;
+
+```
+
+
+**Dấu hiệu đúng:** `total_index_entries` phải lớn hơn nhiều so với `total_chunks` (thường gấp 50-100 lần tùy độ dài văn bản). Nếu số này bằng 0, nghĩa là pipeline bị nghẽn ở bước indexing.
+
+### 2. Kiểm tra "Chất lượng" Token (Logic Whitelist)
+
+Vì chúng ta đã sửa lỗi các từ 2 ký tự (như "tư", "bộ", "về"), bạn cần đảm bảo tài liệu mới cũng tuân thủ logic này.
+
+Hãy yêu cầu LLM:
+
+> "Pick 3 random chunks from the newly added document and show me their top 10 BM25 terms in the `document_bm25_index` table. Check specifically if terms like 'dau', 'tu', 'bo' are present."
+
+**Dấu hiệu đúng:** Bạn thấy các từ trong `legal_whitelist` xuất hiện với điểm số (score) hợp lý.
+
+### 3. Kiểm tra Truy vấn thực tế (Smoke Test)
+
+Chọn một cụm từ đặc trưng chỉ có trong tài liệu bạn vừa thêm và thực hiện tìm kiếm qua API.
+
+**Prompt cho LLM:**
+
+> "Perform a BM25 search for a specific unique phrase from the newly imported document.
+> 1. Verify if the `total_found` is > 0.
+> 2. Confirm the `processing_time` is stable.
+> 3. Verify that the search result points correctly to the new `document_id`."
+> 
+> 
+
+---
+
+### 💡 Mẹo nhỏ để tự động hóa:
+
+Nếu bạn dự định thêm tài liệu thường xuyên, bạn có thể bảo LLM viết một script nhỏ gọi là `scripts/check_last_import.py`. Mỗi khi bạn thêm file, chỉ cần chạy:
+`python scripts/check_last_import.py`
+
+Script này sẽ tự động in ra báo cáo:
+
+* [x] Document ID & Title.
+* [x] Số lượng Chunk.
+* [x] Tỷ lệ lấp đầy BM25 (đảm bảo không có Ghost Chunks).
+* [x] Kiểm tra xác suất các từ khóa Whitelist.
+
+**Bạn có muốn tôi viết script tự động kiểm tra này cho bạn luôn không?**
+
+
