@@ -447,3 +447,60 @@ WHERE term IN ('dau', 'tu', 'bo', 've');
 
 Tôi có thể giúp bạn **kiểm tra file script dùng để Indexing** trong source code hiện tại (ví dụ: `rebuild_index.py` hoặc tương đương) để đảm bảo nó đang gọi đúng class `EnhancedBM25Indexer` mà bạn vừa sửa không?
 
+
+Chúc mừng bạn, kết quả này cực kỳ khả quan! LLM đã làm rất tốt việc **"fix_sample_chunks"** (sửa mẫu trên 10 chunks) để chứng minh hiệu quả mà không làm tốn tài nguyên hệ thống ngay lập tức.
+
+Tuy nhiên, bạn đang ở trạng thái **"Index lai"**: 10 chunks thì tìm kiếm rất ngon, nhưng hàng nghìn chunks còn lại vẫn đang "mù" với các từ như "đầu", "tư", "bộ".
+
+Để hoàn tất Task 1 một cách an toàn và chuyên nghiệp, bạn nên yêu cầu LLM thực hiện các bước sau theo thứ tự:
+
+---
+
+### 1. Thực hiện Global Re-indexing (Đánh chỉ mục lại toàn bộ)
+
+Đây là bước bắt buộc để "phổ cập" logic mới cho toàn bộ dữ liệu. Nhưng đừng chỉ bảo nó "cứ chạy đi", hãy yêu cầu nó chạy có kiểm soát.
+
+**Prompt cho LLM:**
+
+> "Proceed with the **Global Re-indexing**.
+> 1. Clear (TRUNCATE) the `document_bm25_index` and `bm25_global_terms` tables to ensure no stale data remains.
+> 2. Run the re-indexing script for the entire corpus.
+> 3. Add a progress bar or log every 100 chunks so I can monitor the status.
+> 4. Ensure the server is not under heavy load during this process."
+> 
+> 
+
+### 2. Kiểm tra hiệu năng sau khi Index (Post-Indexing Audit)
+
+Sau khi index xong, bảng dữ liệu của bạn sẽ phình to hơn một chút (vì giữ lại nhiều từ 2 ký tự hơn). Bạn cần kiểm tra xem nó có làm chậm hệ thống không.
+
+**Prompt cho LLM:**
+
+> "Once global re-indexing is finished, provide a summary report:
+> * Total records in `document_bm25_index`.
+> * Top 10 most frequent legal terms (expected: 'dau', 'tu', 'luat', 'bo' should be high).
+> * Average processing time for a query like 'đầu tư công'."
+> 
+> 
+
+### 3. Chạy lại bài Test "đầu tư công" (The Ultimate Test)
+
+Đây là bài test mà trước đó bạn đã thất bại (trả về 0 kết quả). Bây giờ là lúc để kiểm tra thành quả cuối cùng.
+
+**Prompt cho LLM:**
+
+> "Run `reproduce_bm25_tests.py` again.
+> We need to see `total_found > 0` for 'đầu tư công' and 'bảo vệ môi trường'. If the scores and rankings look relevant, we can officially close Task 1."
+
+---
+
+## ⚠️ Một lưu ý nhỏ về "Hệ lụy"
+
+Việc bạn cho phép các từ 2 ký tự và Whitelist sẽ làm **bảng Index nặng hơn**.
+
+* Nếu sau này bạn thấy tìm kiếm bị chậm (latency > 2s), hãy bảo LLM: *"Optimize the PostgreSQL index using a GIN index on the term column"* hoặc *"Implement a frequency-based pruning for non-legal 2-letter words"*.
+
+**Lời khuyên:** Bạn hãy bảo LLM thực hiện **Bước 1 (Global Re-indexing)** ngay đi. Nếu số lượng chunk của bạn khoảng vài nghìn, quá trình này thường chỉ mất vài phút thôi.
+
+Bạn có muốn tôi chuẩn bị sẵn một câu lệnh SQL để bạn "giám sát" tiến độ khi LLM đang chạy re-index không?
+
