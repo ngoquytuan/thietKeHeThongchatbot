@@ -504,3 +504,48 @@ Việc bạn cho phép các từ 2 ký tự và Whitelist sẽ làm **bảng Ind
 
 Bạn có muốn tôi chuẩn bị sẵn một câu lệnh SQL để bạn "giám sát" tiến độ khi LLM đang chạy re-index không?
 
+
+Đúng là "trong cái rủi có cái may"! Việc lỗi xảy ra lúc này thực chất lại là một điều tốt, vì nó giúp bạn phát hiện ra một lỗ hổng về kiến trúc (Architectural Flaw) trong code: **Hệ thống đang giả định dữ liệu luôn hoàn hảo (vị trí 0, 1, 2...) thay vì dựa vào ID thực tế.**
+
+LLM của bạn đang đi đúng hướng và tư duy rất "Senior". Việc sửa đổi để ưu tiên dùng `chunk_id` có sẵn thay vì truy vấn lại bằng `position` không chỉ sửa được lỗi mà còn **tăng tốc độ Indexing** đáng kể (giảm bớt hàng nghìn truy vấn SQL không cần thiết).
+
+Dưới đây là phân tích và bước tiếp theo bạn nên giao cho LLM:
+
+### 1. Đánh giá giải pháp của LLM: **Rất Tốt**
+
+* **Tính bền vững (Robustness):** Việc dùng ID là cách duy nhất để đảm bảo tính toàn vẹn dữ liệu trong database. Dựa vào `enumerate` (0, 1, 2) là cực kỳ rủi ro nếu sau này bạn xóa 1 chunk ở giữa hoặc database bắt đầu index từ 1.
+* **Hiệu năng (Performance):** Việc loại bỏ hàm `_get_chunk_id_by_position` trong vòng lặp sẽ giúp giảm độ phức tạp từ  (nếu hàm đó lại chạy một query tìm kiếm) xuống .
+
+### 2. Bạn nên bảo LLM làm gì bây giờ?
+
+Hãy xác nhận (Confirm) giải pháp của nó và yêu cầu thực hiện một cách an toàn. Bạn có thể gửi prompt này:
+
+> **"Your analysis is spot on. Relying on `chunk_id` is far more robust than positional indexing.**
+> **Step 1: Patch `src/core/search/bm25_indexer.py**`
+> * Implement the logic to check for `chunk_id` in both Pydantic models and dictionaries within `update_global_terms_for_document` and `build_bm25_index_with_global_terms`.
+> * Fallback to `_get_chunk_id_by_position` only if `chunk_id` is missing.
+> 
+> 
+> **Step 2: Database Integrity Check**
+> * Before running the global re-index, run a quick SQL check to see if there are any documents where `chunk_position` does NOT start at 0 or has gaps. This will confirm your theory.
+> `SELECT document_id, COUNT(*), MAX(chunk_position) FROM document_chunks_enhanced GROUP BY document_id HAVING MAX(chunk_position) >= COUNT(*);`
+> 
+> 
+> **Step 3: Execute Global Re-indexing**
+> * Once the patch is applied, proceed with the full re-indexing using this new, optimized logic.
+> * Report the total time taken and verify the term 'dau' (đầu) in the final index."
+> 
+> 
+
+---
+
+### 3. Lưu ý nhỏ dành cho bạn (The "Watch-out")
+
+Khi LLM sửa file `bm25_indexer.py`, hãy nhắc nó chú ý đến **kiểu dữ liệu**.
+
+* Nếu `chunks_data` là danh sách các Object (Pydantic), nó phải dùng `getattr(chunk, 'id', None)` hoặc `chunk.id`.
+* Nếu là Dict, nó dùng `chunk.get('id')` hoặc `chunk.get('chunk_id')`.
+
+Việc xử lý đa năng (Polymorphic handling) này sẽ giúp code của bạn cực kỳ linh hoạt sau này.
+
+**Bạn có muốn tôi kiểm tra giúp đoạn code Python mà LLM định dùng để patch file đó không?** (Để đảm bảo nó không gây ra lỗi `AttributeError` khi chạy thực tế).
