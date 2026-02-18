@@ -549,3 +549,40 @@ Khi LLM sửa file `bm25_indexer.py`, hãy nhắc nó chú ý đến **kiểu d�
 Việc xử lý đa năng (Polymorphic handling) này sẽ giúp code của bạn cực kỳ linh hoạt sau này.
 
 **Bạn có muốn tôi kiểm tra giúp đoạn code Python mà LLM định dùng để patch file đó không?** (Để đảm bảo nó không gây ra lỗi `AttributeError` khi chạy thực tế).
+
+Thông tin này cực kỳ quan trọng: **Dữ liệu của bạn được đánh chỉ mục từ 1 (1-indexed)**. Trong lập trình, đây là "cái bẫy" kinh điển khi đối chiếu với hàm `enumerate` của Python (vốn luôn bắt đầu từ 0).
+
+LLM của bạn đang xử lý rất chuẩn khi quyết định loại bỏ sự phụ thuộc vào `position` và chuyển sang dùng `chunk_id`. Việc truy vấn trực tiếp bằng Khóa chính (Primary Key) luôn là giải pháp an toàn nhất trong cơ sở dữ liệu.
+
+Dưới đây là một vài lưu ý nhỏ bạn có thể nhắc LLM để đảm bảo bản vá (patch) này "bất tử":
+
+### 1. Xử lý đa hình (Polymorphic Handling)
+
+Vì LLM nhận thấy `chunks_data` có thể là Pydantic model hoặc Dict, cách viết an toàn nhất trong Python là dùng `getattr` kết hợp với `get`. Bạn có thể gợi ý nó dùng logic kiểu này:
+
+```python
+# Cách viết an toàn cho cả Object và Dict
+chunk_id = getattr(chunk, 'chunk_id', None) or chunk.get('chunk_id') if isinstance(chunk, dict) else None
+
+```
+
+### 2. Kiểm tra lại hàm `_get_chunk_id_by_position`
+
+Mặc dù chúng ta ưu tiên dùng `chunk_id`, nhưng nếu LLM vẫn giữ lại hàm fallback `_get_chunk_id_by_position`, nó nên sửa tham số truyền vào từ `i` thành `i + 1` để khớp với thực tế 1-indexed của database. Nếu không, các đoạn code khác sau này vẫn sẽ gặp lỗi tương tự.
+
+---
+
+### 🚀 Bước tiếp theo: Tổng tấn công (Global Re-index)
+
+Bây giờ mọi rào cản đã được gỡ bỏ, bạn hãy bảo LLM thực hiện:
+
+1. **Apply Patch:** Ghi đè file `src/core/search/bm25_indexer.py`.
+2. **Verify Patch:** Chạy thử lại script test cho 1 document (không phải 10 chunks lẻ tẻ mà là 1 document nguyên vẹn) để xem nó có tự động nhận diện `chunk_id` không.
+3. **Full Re-index:** Xóa sạch (Truncate) các bảng index và chạy re-index cho toàn bộ 37 documents.
+
+**Prompt gợi ý cho bạn:**
+
+> "The 1-indexing discovery is the final piece of the puzzle. Please apply the patch to `bm25_indexer.py` using `chunk_id` as the primary reference. After patching, run a full re-index for all 37 documents. I expect to see the 'dau', 'tu', and 'bo' terms correctly populated for thousands of chunks. Please provide a final confirmation once the `document_bm25_index` table count looks correct."
+
+Sau khi bước này hoàn tất, chatbot của bạn sẽ "thông minh" hơn hẳn vì nó đã thực sự hiểu được các từ khóa pháp lý cốt lõi. Bạn có muốn tôi chuẩn bị một kịch bản kiểm tra độ chính xác (Accuracy Test) sau khi re-index xong không?
+
