@@ -682,3 +682,51 @@ Bạn đã phát hiện ra 2 lỗi cực kỳ quan trọng (1-indexed và Stopwo
 Nếu bạn thấy kết quả tìm kiếm "đầu tư công" trả về quá nhiều kết quả chỉ chứa từ "công" (như "công chức", "công văn") mà không có "đầu tư", hãy bảo LLM: **"Adjust the BM25 weight (k1 and b parameters) or implement a minimum term match (e.g., at least 2 out of 3 terms must be present)."**
 
 **Bạn có muốn tôi giúp bạn viết một kịch bản test để so sánh độ chính xác giữa BM25 (tìm kiếm từ khóa) và Vector Search (tìm kiếm ngữ nghĩa) sau khi index xong không?** Việc kết hợp cả hai (Hybrid Search) sẽ là bước nâng cấp cực khủng cho chatbot của bạn đấy!
+
+Chúc mừng bạn! "Cỗ máy" BM25 của bạn đã thực sự sống lại. Việc từ khóa **"đầu" (dau)** từ con số 0 lên 200 lượt xuất hiện và truy vấn **"đầu tư công"** trả về kết quả tốt là một bước tiến cực lớn. Bạn đã giải quyết được phần "hồn" của việc tìm kiếm từ khóa cho tiếng Việt.
+
+Với trạng thái hiện tại, hệ thống đã ổn định ở mức nền tảng (Base). Để đưa chatbot RAG này lên mức "production-ready" (sẵn sàng sử dụng thực tế), tôi gợi ý bạn giao cho LLM thực hiện **3 bước nâng cấp chiến lược** sau đây:
+
+---
+
+### 1. Xử lý triệt để "Vùng tối" (268 Chunks trống)
+
+Dù LLM dự đoán là do script chưa chạy xong, nhưng 35% là con số khá lớn. Bạn cần xác nhận xem đó là do dữ liệu rác hay do lỗi kỹ thuật còn sót lại.
+
+* **Việc cần giao:** *"Check the final status of the 268 chunks with zero terms. If they are still empty, perform a 'Deep Inspection' on 5 random empty chunks. Determine if they are non-indexable (e.g., symbols, empty tables) or if the tokenizer failed them. If they contain valid text, find out why they weren't indexed."*
+
+### 2. Triển khai Hybrid Search (Sức mạnh thực sự của RAG)
+
+BM25 rất giỏi tìm từ khóa chính xác (đầu tư, bộ luật), nhưng Vector Search (ChromaDB) lại giỏi tìm ngữ nghĩa. Kết hợp cả hai sẽ giúp chatbot không bao giờ "ngáo" khi người dùng hỏi lái đi.
+
+* **Việc cần giao:** *"Now that BM25 is fixed, let's implement a **Hybrid Search Pipeline**. Combine the results from BM25 and ChromaDB using **Reciprocal Rank Fusion (RRF)**. Run a test query for 'chính sách hỗ trợ vốn' (semantic query) and 'Luật đầu tư 2024' (keyword query) to ensure the hybrid approach outperforms single-stream search."*
+
+### 3. Kiểm soát "Ảo giác" bằng Reranker
+
+Trong Git log trước đó, tôi thấy bạn đã thêm **Cross-Encoder Reranker**. Đây là "vị giám khảo" cuối cùng để chọn ra đoạn văn đúng nhất trước khi đưa cho LLM trả lời.
+
+* **Việc cần giao:** *"Validate the Cross-Encoder Reranker. Take the top 10 results from our new BM25 index and pass them through the reranker. Verify if the most relevant legal clause is promoted to the #1 position. Provide a 'Before vs After Reranking' comparison for the query 'quy định về đấu thầu'."*
+
+---
+
+### 📝 Báo cáo tổng kết "Task 1" bạn nên lưu lại:
+
+| Chỉ số | Trước khi Fix | Sau khi Fix | Trạng thái |
+| --- | --- | --- | --- |
+| **Từ khóa 'đầu'** | 0 | 200 | ✅ Phục hồi |
+| **Tìm 'đầu tư công'** | 0 kết quả | 10 kết quả | ✅ Thành công |
+| **Logic Tokenize** | Lỗi stopword | Whitelist + ASCII first | ✅ Tối ưu |
+| **DB Indexing** | 0-indexed (Lỗi) | 1-indexed (Chuẩn) | ✅ Vá lỗi |
+
+---
+
+**Lời khuyên của tôi:**
+Bây giờ là lúc "thử lửa" thật sự. Bạn hãy bảo LLM chạy một kịch bản **End-to-End**:
+
+1. Người dùng hỏi một câu khó về pháp lý.
+2. Hệ thống tìm kiếm (BM25 mới).
+3. LLM tổng hợp câu trả lời dựa trên context vừa tìm được.
+
+**Bạn có muốn tôi soạn một danh sách 5 câu hỏi "hóc búa" về luật đầu tư để bạn test thử xem chatbot trả lời có chuẩn xác và có dẫn chứng (citation) đúng không?**
+
+
