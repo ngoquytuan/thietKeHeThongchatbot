@@ -791,3 +791,86 @@ Dưới đây là bản Prompt tiếng Anh chuyên nghiệp, được thiết k�
 Sau khi LLM chạy xong prompt này và xác nhận mọi thứ OK, bạn có thể tiếp tục với Task tiếp theo là **"Xử lý nốt 268 chunks đang trống"** hoặc **"Nâng cấp lên Hybrid Search"** như chúng ta đã thảo luận.
 
 Bạn có muốn tôi điều chỉnh thêm phần nào trong bài test này không (ví dụ: test thêm về độ trễ - latency)? Hay bạn muốn chuyển sang bước làm **Hybrid Search** luôn?
+
+
+À, đừng lo lắng, bạn không bỏ lỡ bước thực hiện nào đâu! Đây là một chi tiết kỹ thuật xuất hiện trong báo cáo kiểm toán (Audit Report) ở cuối phiên làm việc trước mà chúng ta chưa kịp đi sâu vào do hết context.
+
+Cụ thể vấn đề là:
+
+### 1. Con số 268 đó từ đâu ra?
+
+Trong tổng số khoảng **768 chunks** (đoạn văn bản) của 37 tài liệu, kết quả kiểm tra lúc đó cho thấy có **268 chunks** đang ở trạng thái **"Zero Terms"**. Nghĩa là các chunk này đã tồn tại trong Database nhưng bảng tìm kiếm BM25 (`document_bm25_index`) lại không chứa từ khóa nào cho chúng.
+
+### 2. Tại sao chúng lại trống?
+
+Có 3 khả năng đang xảy ra (và chúng ta cần xác nhận):
+
+* **Khả năng 1 (Chưa chạy xong):** Lúc LLM báo cáo kết quả đó, script re-index vẫn đang chạy ngầm. Có thể 268 chunk này thuộc về các tài liệu cuối cùng chưa kịp được xử lý. Nếu đúng là vậy, bây giờ chúng đã được lấp đầy.
+* **Khả năng 2 (Dữ liệu đặc biệt):** Các đoạn văn bản này có thể chỉ chứa toàn số, ký hiệu hoặc bảng biểu mà bộ tách từ (Tokenizer) của chúng ta đang lọc bỏ hết.
+* **Khả năng 3 (Lỗi kỹ thuật):** Có thể có một số tài liệu bị lỗi mã hóa hoặc cấu trúc khác biệt khiến logic `1-indexed` vẫn chưa xử lý triệt để được.
+
+---
+
+### 3. Bạn nên làm gì để kiểm tra?
+
+Vì bạn vừa mở Session mới, hãy giao cho LLM thực hiện một câu lệnh "chốt hạ" để xem con số 268 đó bây giờ là bao nhiêu. Nếu nó về 0 (hoặc còn rất ít) thì hệ thống đã hoàn hảo.
+
+**Bạn hãy bảo LLM chạy script này ngay sau khi nó hồi phục context:**
+
+> **"Check for 'Ghost Chunks':**
+> Run a SQL query to count how many chunks in `document_chunks_enhanced` still have NO entries in the `document_bm25_index` table.
+> 1. If the count is 0, we are good to go.
+> 2. If it is still around 268, pick 3 random 'empty' chunks, show me their raw text, and explain why the BM25 indexer ignored them."
+> 
+> 
+
+---
+
+### 💡 Tại sao việc này quan trọng?
+
+Nếu 35% dữ liệu (268/768) bị trống, Chatbot của bạn sẽ có "điểm mù". Khi người dùng hỏi trúng nội dung nằm trong các chunk này, chatbot sẽ báo không tìm thấy tài liệu mặc dù dữ liệu thực tế vẫn nằm trong database.
+
+**Bạn có muốn tôi lồng ghép bước kiểm tra "Ghost Chunks" này vào cái Prompt hồi phục context ở trên luôn không, hay bạn muốn kiểm tra riêng lẻ từng bước?**
+
+
+Chúc mừng bạn! Bản báo cáo kiểm toán (Audit Report) này thực sự là một "bản giao hưởng" hoàn hảo. Việc đưa số lượng **Ghost Chunks về 0** và phục hồi được các từ khóa cốt lõi như *đầu, tư, bộ* đã đưa hệ thống RAG của bạn từ trạng thái "mù mờ" lên đẳng cấp chuyên nghiệp.
+
+Với việc BM25 đã "ngon lành", đây là lộ trình 3 bước tiếp theo để bạn biến chatbot này thành một "chuyên gia pháp lý" thực thụ:
+
+---
+
+### 1. Triển khai Hybrid Search (Kết hợp BM25 + Vector)
+
+BM25 hiện tại đã tìm từ khóa rất tốt, nhưng nó vẫn chưa hiểu được **ngữ nghĩa** (semantic). Bước tiếp theo là kết hợp kết quả từ BM25 với ChromaDB bằng thuật toán **Reciprocal Rank Fusion (RRF)**.
+
+Công thức RRF để tính điểm tổng hợp cho mỗi tài liệu :
+
+
+
+*Trong đó  là thứ hạng của tài liệu trong danh sách kết quả , và  thường là 60.*
+
+> **Việc cần giao cho LLM:** "Now that BM25 is fully optimized, implement a Hybrid Search function. It should fetch top 20 results from BM25 and top 20 from ChromaDB, then re-rank them using the RRF formula (). Show me a comparison of results for a semantic query like 'hỗ trợ tài chính cho doanh nghiệp'."
+
+---
+
+### 2. Tối ưu hóa Reranker (Vị giám khảo cuối cùng)
+
+Bạn đã có **Cross-Encoder Reranker** trong codebase (theo Git log). Sau khi có kết quả Hybrid Search, hãy dùng Reranker để chọn ra "tinh hoa của tinh hoa".
+
+**Tại sao cần bước này?** Hybrid Search có thể trả về 10 đoạn văn, nhưng chỉ có 2 đoạn thực sự chứa câu trả lời. Reranker sẽ đọc kỹ 10 đoạn đó và đưa đoạn đúng nhất lên vị trí số 1.
+
+---
+
+### 3. Cấu hình Logging chuyên nghiệp
+
+Báo cáo kiểm toán chỉ ra một điểm yếu nhỏ: **File log đang trống** vì hệ thống chỉ in ra console (stdout). Để vận hành lâu dài, bạn cần lưu log vào file để debug khi có lỗi xảy ra vào đêm khuya.
+
+> **Việc cần giao cho LLM:** "Fix the logging configuration. Update `src/api/main.py` or the core logger to use `loguru.logger.add()` to save logs into `logs/app.log` with a rotation of 500MB. Ensure it captures both API requests and retrieval latency."
+
+---
+
+### 🚀 Gợi ý "Phát súng" tiếp theo
+
+Tôi nghĩ bạn nên bắt đầu với **Hybrid Search**. Đây là bước nâng cấp mang lại cảm giác "WOW" rõ rệt nhất về độ thông minh của chatbot.
+
+**Bạn có muốn tôi viết một Prompt để LLM thực hiện code phần Hybrid Search (RRF) này dựa trên cấu trúc database hiện tại không?** Hay bạn muốn xử lý nốt phần Logging trước cho "sạch sẽ" codebase?
