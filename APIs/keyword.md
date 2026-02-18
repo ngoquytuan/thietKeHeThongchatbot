@@ -113,3 +113,40 @@ Hệ thống sử dụng thư viện `underthesea` để tách từ tiếng Vi�
 3. **Tối ưu hóa số lượng Docs:** Nếu không cần độ phủ quá rộng, bạn có thể giảm `limit` từ 300 xuống thấp hơn để tăng tốc độ đọc ban đầu.
 
 Bạn có muốn tôi hướng dẫn cách viết hàm **warmup** để tự động "làm nóng" hệ thống khi vừa bật lên không?
+
+Việc bạn thử vài query mà không thấy gì đặc biệt có thể là do hệ thống đang hoạt động ổn định với các truy vấn thông thường. Tuy nhiên, dựa trên tài liệu handover và lịch sử phát triển, có **3 vấn đề lớn** bạn nên kiểm tra kỹ để đánh giá hiệu quả thực tế của API này:
+
+### 1. Kiểm tra sự sai lệch về điểm số (Bug nghiêm trọng nhất)
+
+Tài liệu ghi nhận một lỗi logic "chưa có lời giải" về cách tính điểm.
+
+* **Hiện tượng:** Điểm `bm25_score` trả về thường rất cao (vọt lên mức 9.8 hoặc 10.0) dù tính toán lý thuyết chỉ tầm 4.0 - 5.0.
+* **Cách kiểm tra:** Thử các query dài (4-5 từ trở lên). Nếu hầu hết kết quả đều đạt mức ~10.0, điều này chứng tỏ bộ lọc xếp hạng đang bị mất tác dụng phân loại tài liệu nào "đúng hơn" tài liệu nào.
+
+### 2. Kiểm tra khả năng bao phủ dữ liệu (Data Coverage)
+
+Mặc dù đã được nâng cấp, nhưng API này vẫn có giới hạn cứng trong thiết kế:
+
+* **Giới hạn 300 tài liệu:** Hệ thống chỉ quét 300 tài liệu đầu tiên trong mỗi collection. Nếu collection của bạn có hàng nghìn văn bản, những tài liệu nằm sau vị trí 300 sẽ **không bao giờ** được tìm thấy bằng Keyword Search, bất kể nó khớp từ khóa đến đâu.
+* **Thứ tự ưu tiên:** Hệ thống ưu tiên các collection lớn trước. Bạn nên thử query vào các nội dung mà bạn biết chắc nó nằm ở các collection nhỏ hoặc nằm sâu trong database để xem API có chạm tới được không.
+
+### 3. Kiểm tra tính chính xác của tiếng Việt (Tokenizer)
+
+Đây là điểm dễ gây ra kết quả "không có gì đặc biệt" hoặc trả về kết quả rác:
+
+* **Vấn đề Substring:** API sử dụng lệnh `in` (substring matching) thay vì bắt đúng ranh giới từ.
+* *Ví dụ:* Query từ "định" có thể trả về cả các câu chứa "xác định", "định hướng", hoặc thậm chí là các chuỗi ký tự vô nghĩa có chứa "đinh/định".
+
+
+* **Từ khóa ngắn:** Trong quá khứ, hệ thống từng gặp lỗi lọc bỏ các từ khóa ngắn (<= 2 ký tự). Bạn hãy thử query các từ quan trọng nhưng ngắn như "tư", "bộ", "luật" để xem API có xử lý được không.
+
+---
+
+**Tóm tắt các điểm cần "test thử":**
+| Loại kiểm tra | Query nên thử | Mục tiêu |
+| :--- | :--- | :--- |
+| **Độ chính xác từ** | "xác định" | Kiểm tra xem nó có trả về đúng cụm từ hay chỉ là các từ đơn lẻ chứa chữ "định". |
+| **Từ khóa ngắn** | "bộ", "tư" | Kiểm tra xem bộ lọc stopword có đang xóa nhầm từ quan trọng không. |
+| **Hiệu năng lần đầu** | Query bất kỳ | Kiểm tra xem lần gọi đầu tiên có bị chậm (8-10s) do "làm nóng" ChromaDB không. |
+
+Bạn có muốn tôi viết một script Python nhỏ để bạn chạy test hàng loạt các trường hợp biên (edge cases) này không?
